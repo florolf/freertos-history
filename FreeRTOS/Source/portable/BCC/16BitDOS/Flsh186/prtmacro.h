@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -55,6 +55,9 @@ to exclude the component. */
 #define INCLUDE_vTaskDelete				1
 #define INCLUDE_vTaskCleanUpResources	1
 #define INCLUDE_vTaskSuspend			1
+#define INCLUDE_vTaskDelayUntil			1
+#define INCLUDE_vTaskDelay				1
+
 
 /* Use/don't use the trace visualisation. */
 #define USE_TRACE_FACILITY				0
