@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.3 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -86,6 +86,11 @@ Changes from V2.2.0
 	+ Changed odd calculation of initial pxTopOfStack value when 
 	  portSTACK_GROWTH < 0.
 	+ Removed pcVersionNumber definition.
+
+Changes from V2.5.3
+
+	+ cTaskResumeAll() modified to ensure it can be called prior to the task
+	  lists being initialised.
 */
 
 #include <stdio.h>
@@ -775,31 +780,34 @@ signed portCHAR cAlreadyYielded = ( signed portCHAR ) pdFALSE;
 
 		if( ucSchedulerSuspended == pdFALSE )
 		{
-			/* Move any readied tasks from the pending list into the 
-			appropriate ready list. */
-			while( ( pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY(  ( ( xList * ) &xPendingReadyList ) ) ) != NULL )
+			if( usCurrentNumberOfTasks > ( unsigned portSHORT ) 0 )
 			{
-				vListRemove( &( pxTCB->xEventListItem ) );
-				vListRemove( &( pxTCB->xGenericListItem ) );
-				prvAddTaskToReadyQueue( pxTCB );
-			}
-
-			/* If any ticks occurred while the scheduler was suspended then
-			they should be processed now.  This ensures the tick count does not
-			slip, and that any delayed tasks are resumed at the correct time. */
-			if( ucMissedTicks > 0 )
-			{
-				while( ucMissedTicks > 0 )
+				/* Move any readied tasks from the pending list into the 
+				appropriate ready list. */
+				while( ( pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY(  ( ( xList * ) &xPendingReadyList ) ) ) != NULL )
 				{
-					vTaskIncrementTick();
-					--ucMissedTicks;
+					vListRemove( &( pxTCB->xEventListItem ) );
+					vListRemove( &( pxTCB->xGenericListItem ) );
+					prvAddTaskToReadyQueue( pxTCB );
 				}
 
-				/* As we have processed some ticks it is appropriate to yield
-				to ensure the highest priority task that is ready to run is
-				the task actually running. */
-				cAlreadyYielded = ( signed portCHAR ) pdTRUE;
-				taskYIELD();
+				/* If any ticks occurred while the scheduler was suspended then
+				they should be processed now.  This ensures the tick count does not
+				slip, and that any delayed tasks are resumed at the correct time. */
+				if( ucMissedTicks > 0 )
+				{
+					while( ucMissedTicks > 0 )
+					{
+						vTaskIncrementTick();
+						--ucMissedTicks;
+					}
+
+					/* As we have processed some ticks it is appropriate to yield
+					to ensure the highest priority task that is ready to run is
+					the task actually running. */
+					cAlreadyYielded = ( signed portCHAR ) pdTRUE;
+					taskYIELD();
+				}
 			}
 		}
 	}
