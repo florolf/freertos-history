@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -227,7 +227,7 @@ xBlockLink *pxLink;
 		pxLink = ( void * ) puc;
 
 		vTaskSuspendAll();
-		{
+		{				
 			/* Add this block to the list of free blocks. */
 			prvInsertBlockIntoFreeList( ( ( xBlockLink * ) pxLink ) );
 		}

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -117,7 +117,7 @@ xQueueHandle xQueueCreate( unsigned portCHAR ucQueueLength, unsigned portCHAR uc
  * @param xTicksToWait The maximum amount of time the task should block
  * waiting for space to become available on the queue, should it already
  * be full.  The call will return immediately if this is set to 0.  The
- * time is defined in tick periods so the constant portTICKS_PER_MS 
+ * time is defined in tick periods so the constant portTICK_RATE_MS 
  * should be used to convert to real time if this is required.
  *
  * @return pdTRUE if the item was successfully posted, otherwise errQUEUE_FULL.
@@ -197,7 +197,7 @@ signed portCHAR cQueueSend( xQueueHandle xQueue, const void * pvItemToQueue, por
  * @param xTicksToWait The maximum amount of time the task should block
  * waiting for an item to receive should the queue be empty at the time
  * of the call.    The time is defined in tick periods so the constant 
- * portTICKS_PER_MS should be used to convert to real time if this is required.
+ * portTICK_RATE_MS should be used to convert to real time if this is required.
  *
  * @return pdTRUE if an item was successfully received from the queue,
  * otherwise pdFALSE.

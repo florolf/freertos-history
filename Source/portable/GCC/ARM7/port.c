@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -77,6 +77,9 @@ extern void vPortISRStartFirstTask( void );
 /*-----------------------------------------------------------*/
 
 /* 
+ * Initialise the stack of a task to look exactly as if a call to 
+ * portSAVE_CONTEXT had been called.
+ *
  * See header file for description. 
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
@@ -94,7 +97,7 @@ portSTACK_TYPE *pxOriginalTOS;
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode + portINSTRUCTION_SIZE;		
 	pxTopOfStack--;
 
-	*pxTopOfStack = ( portSTACK_TYPE ) 0xaaaaaaaa;	/* R14 (system mode) */
+	*pxTopOfStack = ( portSTACK_TYPE ) 0xaaaaaaaa;	/* R14 */
 	pxTopOfStack--;	
 	*pxTopOfStack = ( portSTACK_TYPE ) pxOriginalTOS; /* Stack used when task starts goes in R13. */
 	pxTopOfStack--;
@@ -122,6 +125,9 @@ portSTACK_TYPE *pxOriginalTOS;
 	pxTopOfStack--;	
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x01010101;	/* R1 */
 	pxTopOfStack--;	
+
+	/* When the task starts is will expect to find the function parameter in
+	R0. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters; /* R0 */
 	pxTopOfStack--;
 
@@ -161,6 +167,9 @@ void vPortEndScheduler( void )
 }
 /*-----------------------------------------------------------*/
 
+/*
+ * Setup the timer 0 to generate the tick interrupts at the required frequency.
+ */
 static void prvSetupTimerInterrupt( void )
 {
 unsigned portLONG ulCompareMatch;

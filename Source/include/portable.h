@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -79,6 +79,9 @@
 	#include "../../Source/portable/GCC/ARM7/portmacro.h"
 #endif
 
+#ifdef GCC_MSP430
+	#include "../../Source/portable/GCC/MSP430F449/portmacro.h"
+#endif
 
 /*
  * Setup the stack of a new task so it is ready to be placed under the 

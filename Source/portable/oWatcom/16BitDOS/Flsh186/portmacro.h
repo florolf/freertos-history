@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+    FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
     This file is part of the FreeRTOS distribution.
 
@@ -118,7 +118,7 @@ void portENABLE_INTERRUPTS( void );
 #define portOUTPUT_WORD( xAddr, usValue )       outpw( xAddr, usValue )
 /*-----------------------------------------------------------*/
 
-#define portTICKS_PER_MS        ( ( portTickType ) 1000 / portTICK_RATE_HZ )            // This should be called ms_per_tick
+#define portTICK_RATE_MS        ( ( portTickType ) 1000 / portTICK_RATE_HZ )            // This should be called ms_per_tick
 #define portBYTE_ALIGNMENT      2
 
 /*-----------------------------------------------------------*/

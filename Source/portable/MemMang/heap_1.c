@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -28,6 +28,14 @@
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
 	***************************************************************************
+*/
+
+/* 
+
+Changes between V2.5.1 and V2.5.1
+
+	+ The memory pool has been defined within a struct to ensure correct memory
+	  alignment on 32bit systems.
 */
 
 
@@ -60,8 +68,14 @@
 	#error "Invalid portBYTE_ALIGNMENT definition"
 #endif
 
-/* Allocate the memory for the heap. */
-static unsigned portCHAR ucHeap[ portTOTAL_HEAP_SIZE ];
+/* Allocate the memory for the heap.  The struct is used to force byte
+alignment without using any non-portable code. */
+static struct xRTOS_HEAP
+{
+	unsigned portLONG ulDummy;
+	unsigned portCHAR ucHeap[ portTOTAL_HEAP_SIZE ];
+} xHeap;
+
 static unsigned portSHORT usNextFreeByte = ( unsigned portSHORT ) 0;
 /*-----------------------------------------------------------*/
 
@@ -83,7 +97,7 @@ void *pvReturn = NULL;
 		{
 			/* Return the next free byte then increment the index past this
 			block. */
-			pvReturn = &( ucHeap[ usNextFreeByte ] );
+			pvReturn = &( xHeap.ucHeap[ usNextFreeByte ] );
 			usNextFreeByte += usWantedSize;			
 		}	
 	}

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -92,7 +92,7 @@ to exclude the component. */
 /*-----------------------------------------------------------*/	
 
 #define portSTACK_GROWTH			( -1 )
-#define portTICKS_PER_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
 #define portBYTE_ALIGNMENT			4
 
 /*-----------------------------------------------------------
@@ -240,7 +240,7 @@ extern volatile void * volatile pxCurrentTCB;							\
 		asm volatile ( "BIC		R1, R1, #0xC0" );	/* Mast off the IRQ and FIQ bits.			*/	\
 		asm volatile ( "ORR		R0, R0, R1" );		/* Combine with stored IRQ bits.			*/	\
 		asm volatile ( "MSR		CPSR, R0" );		/* Write back new CPSR value.				*/	\
-		asm volatile ( "LDMIA	SP!, {r0, R1}" );	/* Pop R0 and R1.							*/	\
+		asm volatile ( "LDMIA	SP!, {R0, R1}" );	/* Pop R0 and R1.							*/	\
 		asm volatile ( "ADD		SP, SP, #4" );		/* Correct stack.							*/	\
 
 	/*-----------------------------------------------------------*/
