@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V2.4.2 - Copyright (C) 2003, 2004 Richard Barry.
+    FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
 
     This file is part of the FreeRTOS distribution.
 
@@ -42,39 +42,40 @@
 
 /* These are the only definitions that can be modified!. */
 
-#define portTICK_RATE_HZ                ( ( portTickType ) 1000 )
-#define portMAX_PRIORITIES              ( ( unsigned portSHORT ) 10 )
+#define portTICK_RATE_HZ        ( ( portTickType ) 1000 )
+#define portMAX_PRIORITIES      ( ( unsigned portSHORT ) 10 )
 #define portMINIMAL_STACK_SIZE  ( ( unsigned portSHORT ) 128 ) /* This can be made smaller if required. */
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 32 * 1024 ) )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
 
 /* Include/exclude the stated API function. */
-#define INCLUDE_vTaskPrioritySet                0
-#define INCLUDE_ucTaskPriorityGet               0
-#define INCLUDE_vTaskDelete                             1
+#define INCLUDE_vTaskPrioritySet        0
+#define INCLUDE_ucTaskPriorityGet       0
+#define INCLUDE_vTaskDelete             1
 #define INCLUDE_vTaskCleanUpResources   1
-#define INCLUDE_vTaskSuspend                    1
+#define INCLUDE_vTaskSuspend            1
 
 /* Use/don't use the trace visualisation. */
-#define USE_TRACE_FACILITY                              0
+#define USE_TRACE_FACILITY              0
 
 /* 
  * The tick count (and times defined in tick count units) can be either a 16bit
  * or a 32 bit value.  See documentation on http://www.FreeRTOS.org to decide
  * which to use.
  */
-#define USE_16_BIT_TICKS        1
+#define USE_16_BIT_TICKS                1
 
 /*-----------------------------------------------------------
  * Do not modify anything below here. 
  *----------------------------------------------------------*/
 
-#define portCHAR                char
-#define portFLOAT               float
-#define portDOUBLE              long
-#define portLONG                long
-#define portSHORT               int
+#define portCHAR        char
+#define portFLOAT       float
+#define portDOUBLE      long
+#define portLONG        long
+#define portSHORT       int
 #define portSTACK_TYPE  unsigned portSHORT
 
 #if( USE_16_BIT_TICKS == 1 )
@@ -88,8 +89,8 @@ to exclude the component. */
 /*-----------------------------------------------------------*/
 
 void portENTER_CRITICAL( void );
-#pragma aux portENTER_CRITICAL =        "pushf" \
-                                                                        "cli";
+#pragma aux portENTER_CRITICAL = "pushf" \
+                                 "cli";
 /*-----------------------------------------------------------*/
 
 void portEXIT_CRITICAL( void );
@@ -108,16 +109,17 @@ void portENABLE_INTERRUPTS( void );
 /*-----------------------------------------------------------*/
 
 #define portSWITCH_INT_NUMBER   0x80
-#define portYIELD()                     __asm{ int portSWITCH_INT_NUMBER } 
+#define portYIELD()             __asm{ int portSWITCH_INT_NUMBER } 
 /*-----------------------------------------------------------*/
 
-#define portINPUT_BYTE( xAddr )                         inp( xAddr )
+#define portINPUT_BYTE( xAddr )                 inp( xAddr )
 #define portOUTPUT_BYTE( xAddr, ucValue )       outp( xAddr, ucValue )
-#define portINPUT_WORD( xAddr )                         inpw( xAddr )
+#define portINPUT_WORD( xAddr )                 inpw( xAddr )
 #define portOUTPUT_WORD( xAddr, usValue )       outpw( xAddr, usValue )
 /*-----------------------------------------------------------*/
 
-#define portTICKS_PER_MS                ( ( portTickType ) 1000 / portTICK_RATE_HZ )            // This should be called ms_per_tick
+#define portTICKS_PER_MS        ( ( portTickType ) 1000 / portTICK_RATE_HZ )            // This should be called ms_per_tick
+#define portBYTE_ALIGNMENT      2
 
 /*-----------------------------------------------------------*/
 #define portINITIAL_SW          ( ( portSTACK_TYPE ) 0x0202 )   /* Start the tasks with interrupts enabled. */

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.4.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -48,6 +48,7 @@
 #define portMAX_PRIORITIES			( 4 )
 #define portMINIMAL_STACK_SIZE		( 105 )
 #define portGLOBAL_INT_ENABLE_BIT	0x80
+#define portTOTAL_HEAP_SIZE			( 1024 )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
@@ -89,6 +90,7 @@ to exclude the component. */
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
 
+#define portBYTE_ALIGNMENT			1
 
 /*-----------------------------------------------------------*/
 

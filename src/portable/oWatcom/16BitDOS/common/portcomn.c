@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.4.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -36,6 +36,11 @@ Changes from V1.00:
 	+ pxPortInitialiseStack() now initialises the stack of new tasks to the 
 	  same format used by the compiler.  This allows the compiler generated
 	  interrupt mechanism to be used for context switches.
+
+Changes from V2.4.2:
+
+	+ pvPortMalloc and vPortFree have been removed.  The projects now use
+	  the definitions from the source/portable/MemMang directory.
 */
 
 	
@@ -132,33 +137,6 @@ portSTACK_TYPE DS_Reg = 0, *pxOriginalSP;
 	/*lint +e950 +e611 +e923 */
 
 	return pxTopOfStack;
-}
-/*-----------------------------------------------------------*/
-
-void *pvPortMalloc( unsigned portSHORT usSize )
-{
-	void *pv;
-
-	portENTER_CRITICAL();
-	{
-		pv = malloc( usSize );	/*lint !e421 Malloc can be implemented differently here.  It is in critical section. */
-	}
-	portEXIT_CRITICAL();
-
-	return pv;
-}
-/*-----------------------------------------------------------*/
-
-void vPortFree( void *pv )
-{
-	if( pv )
-	{
-		portENTER_CRITICAL();
-		{
-			free( pv );		/*lint !e421 Free can be implemented differently here.  It is in critical section. */
-		}
-		portEXIT_CRITICAL();
-	}
 }
 /*-----------------------------------------------------------*/
 
