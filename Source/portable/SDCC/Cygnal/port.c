@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.1 - Copyright (C) 2003 Richard Barry.
+	FreeRTOS V2.5.2 - Copyright (C) 2003 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
