@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.4.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -47,6 +47,7 @@
 #define portTICK_RATE_HZ		( ( portTickType ) 1000 )
 #define portMAX_PRIORITIES		( ( unsigned portCHAR ) 5 )
 #define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 128 )
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 23 * 1024 ) )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
@@ -92,7 +93,7 @@ to exclude the component. */
 
 #define portSTACK_GROWTH			( -1 )
 #define portTICKS_PER_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
-
+#define portBYTE_ALIGNMENT			4
 
 /*-----------------------------------------------------------
  * Context switch macros.

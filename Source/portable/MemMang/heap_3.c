@@ -30,12 +30,51 @@
 	***************************************************************************
 */
 
-#ifndef ERRORS_H
-#define ERRORS_H
 
-#define errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY	( -1 )
-#define errNO_TASK_TO_RUN						( -2 )
-#define errQUEUE_FULL							( -3 )
+/*
+ * Implementation of pvPortMalloc() and vPortFree() that relies on the
+ * compilers own malloc() and free() implementations.
+ *
+ * This file can only be used if the linker is configured to to generate
+ * a heap memory area.
+ *
+ * See heap_2.c and heap_1.c for alternative implementations, and the memory
+ * management pages of http://www.FreeRTOS.org for more information.
+ */
 
-#endif
+#include <stdlib.h>
+
+#include "projdefs.h"
+#include "portable.h"
+#include "task.h"
+
+/*-----------------------------------------------------------*/
+
+void *pvPortMalloc( unsigned portSHORT usWantedSize )
+{
+void *pvReturn;
+
+	vTaskSuspendAll();
+	{
+		pvReturn = malloc( ( size_t ) usWantedSize );
+	}
+	cTaskResumeAll();
+
+	return pvReturn;
+}
+/*-----------------------------------------------------------*/
+
+void vPortFree( void *pv )
+{
+	if( pv )
+	{
+		vTaskSuspendAll();
+		{
+			free( pv );
+		}
+		cTaskResumeAll();
+	}
+}
+
+
 

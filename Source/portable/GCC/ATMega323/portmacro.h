@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.4.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -53,6 +53,7 @@ Changes from V1.2.3
 #define portTICK_RATE_HZ		( ( portTickType ) 1000 )
 #define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
 #define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 85 )
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 1500 ) )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
@@ -85,6 +86,8 @@ to exclude the component. */
 #define portLONG		long
 #define portSHORT		int
 #define portSTACK_TYPE	unsigned portCHAR
+
+#define portBYTE_ALIGNMENT			1
 
 #if( USE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
