@@ -30,31 +30,25 @@
 	***************************************************************************
 */
 
-/*
-Changes from V1.2.3
-
-	+ portCPU_CLOSK_HZ definition changed to 8MHz base 10, previously it 
-	  base 16.
-*/
 
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include <iom323.h>
+/* IO definitions for the chosen device. */
+#include <2329S.h>
 
 /*-----------------------------------------------------------
- * Port specific definitions for the AVR port.
+ * Port specific definitions for the H8S port.
  *----------------------------------------------------------*/
 
 /* These are the only definitions that can be modified!. */
 
-#define portCALL_STACK_SIZE		( ( unsigned portCHAR ) 20 )
-
 #define portUSE_PREEMPTION		1
-#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 8000000 )
+#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 22118400 )
 #define portTICK_RATE_HZ		( ( portTickType ) 1000 )
 #define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
-#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 95)
+#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 200 )
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 15 * 1024 ) )
 
 /* The maximum number of characters a task name can take, 
 including the null terminator. */
@@ -64,14 +58,13 @@ including the null terminator. */
 to exclude the component. */
 
 /* Include/exclude the stated API function. */
-#define INCLUDE_vTaskPrioritySet		0
-#define INCLUDE_ucTaskPriorityGet		0
+#define INCLUDE_vTaskPrioritySet		1
+#define INCLUDE_ucTaskPriorityGet		1
 #define INCLUDE_vTaskDelete				1
 #define INCLUDE_vTaskCleanUpResources	0
-#define INCLUDE_vTaskSuspend			0
+#define INCLUDE_vTaskSuspend			1
 #define INCLUDE_vTaskDelayUntil			1
 #define INCLUDE_vTaskDelay				1
-
 
 /* Use/don't use the trace visualisation. */
 #define USE_TRACE_FACILITY				0
@@ -88,12 +81,16 @@ to exclude the component. */
  * Do not modify anything below here. 
  *----------------------------------------------------------*/
 
+/* General port definitions. */
+
 #define portCHAR		char
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
+#define portSHORT		short
 #define portSTACK_TYPE	unsigned portCHAR
+
+#define portBYTE_ALIGNMENT			2
 
 #if( USE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -103,37 +100,64 @@ to exclude the component. */
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
 
-/*-----------------------------------------------------------*/	
-
-#define portENTER_CRITICAL()	asm( "in r15, 3fh" );		\
-								asm( "cli" );				\
-								asm( "st -y, r15" )
-
-#define portEXIT_CRITICAL()		asm( "ld r15, y+" );		\
-								asm( "out 3fh, r15" )
-
-/*-----------------------------------------------------------*/
-
-#define portDISABLE_INTERRUPTS()	asm( "cli" );
-#define portENABLE_INTERRUPTS()		asm( "sti" );
-
-/*-----------------------------------------------------------*/
-
 #define portSTACK_GROWTH			( -1 )
-
-/*-----------------------------------------------------------*/
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
 
+/* The trap instruction used to force a context switch. */
+#define portYIELD()					asm volatile( "TRAPA #0" );
+
 /*-----------------------------------------------------------*/
-void vPortYield( void );
-#define portYIELD()	vPortYield()
 
-#ifdef IAR_MEGA_AVR
-	#define outb( PORT, VALUE ) PORT = VALUE
-#endif
+/* Interrupt and critical section macros. */
 
-#define inline
+#define portENABLE_INTERRUPTS()		asm volatile( "ANDC	#0x7F, CCR" );
+#define portDISABLE_INTERRUPTS()	asm volatile( "ORC  #0x80, CCR" );
+
+/* Push the CCR then disable interrupts. */
+#define portENTER_CRITICAL()  		asm volatile( "STC	CCR, @-ER7" ); \
+                               		portDISABLE_INTERRUPTS();
+
+/* Pop the CCR to set the interrupt masking back to its previous state. */
+#define  portEXIT_CRITICAL()    	asm volatile( "LDC  @ER7+, CCR" );
+
+/*-----------------------------------------------------------*/
+
+/* Context switch macros.  These macros are very simple as the context 
+is saved simply by selecting the saveall attribute of the context switch 
+interrupt service routines.  These macros save and restore the stack
+pointer to the TCB. */
+
+#define portSAVE_STACK_POINTER()								\
+extern void* pxCurrentTCB;										\
+																\
+	asm volatile(												\
+					"MOV.L	@_pxCurrentTCB, ER5			\n\t" 	\
+					"MOV.L	ER7, @ER5					\n\t"	\
+				);
+
+
+#define	portRESTORE_STACK_POINTER()								\
+extern void* pxCurrentTCB;										\
+																\
+	asm volatile(												\
+					"MOV.L	@_pxCurrentTCB, ER5			\n\t"	\
+					"MOV.L	@ER5, ER7					\n\t"	\
+				);
+
+/*-----------------------------------------------------------*/
+
+/* Macros to allow a context switch from within an application ISR. */
+
+#define portENTER_SWITCHING_ISR() portSAVE_STACK_POINTER(); {
+
+#define portEXIT_SWITCHING_ISR( x )							\
+	if( x )													\
+	{														\
+		extern void vTaskSwitchContext( void );				\
+		vTaskSwitchContext();								\
+	}														\
+	} portRESTORE_STACK_POINTER();
+
 
 #endif /* PORTMACRO_H */
-
 

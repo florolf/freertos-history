@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -48,6 +48,10 @@
 #define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
 #define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 50 )
 #define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 1800 ) )
+
+/* The maximum number of characters a task name can take, 
+including the null terminator. */
+#define portMAX_TASK_NAME_LEN		 ( 8 )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
