@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -91,6 +91,11 @@ Changes from V2.5.3
 
 	+ cTaskResumeAll() modified to ensure it can be called prior to the task
 	  lists being initialised.
+
+Changes from V2.5.5
+
+	+ Added API function vTaskDelayUntil().
+	+ Added INCLUDE_vTaskDelay conditional compilation.
 */
 
 #include <stdio.h>
@@ -513,56 +518,134 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
  * TASK CONTROL API documented in task.h
  *----------------------------------------------------------*/
 
-void vTaskDelay( portTickType xTicksToDelay )
-{
-portTickType xTimeToWake;
-signed portCHAR cAlreadyYielded = pdFALSE;
-
-	/* A delay time of zero just forces a reschedule. */
-	if( xTicksToDelay > ( portTickType ) 0 )
+#if( INCLUDE_vTaskDelayUntil == 1 )
+	void vTaskDelayUntil( portTickType *pxPreviousWakeTime, portTickType xTimeIncrement )
 	{
+	portTickType xTimeToWake;
+	portCHAR cAlreadyYielded, cShouldDelay = ( portCHAR ) pdFALSE;
+
 		vTaskSuspendAll();
 		{
-			/* A task that is removed from the event list while the scheduler
-			is suspended will not get placed in the ready list or removed from
-			the blocked list until the scheduler is resumed.  
-			
-			This task cannot be in an event list as it is the currently 
-			executing task. */
+			/* Generate the tick time at which the task wants to wake. */
+			xTimeToWake = *pxPreviousWakeTime + xTimeIncrement;
 
-			/* Calculate the time to wake - this may overflow but this is not a
-			problem. */
-			xTimeToWake = xTickCount + xTicksToDelay;
-
-			/* We must remove ourselves from the ready list before adding 
-			ourselves to the blocked list as the same list item is used for 
-			both lists. */
-			vListRemove( ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
-
-			/* The list item will be inserted in wake time order. */
-			listSET_LIST_ITEM_VALUE( &( pxCurrentTCB->xGenericListItem ), xTimeToWake );
-
-			if( xTimeToWake < xTickCount )
+			if( xTickCount < *pxPreviousWakeTime )
 			{
-				/* Wake time has overflowed.  Place this item in the overflow list. */
-				vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				/* The tick count has overflowed since this function was 
+				lasted called.  In this case the only time we should ever 
+				actually delay is if the wake time has also	overflowed, 
+				and the wake time is greater than the tick time.  When this 
+				is the case it is as if neither time had overflowed. */
+				if( ( xTimeToWake < *pxPreviousWakeTime ) && ( xTimeToWake > xTickCount ) )
+				{
+					cShouldDelay = ( portCHAR ) pdTRUE;
+				}
 			}
 			else
 			{
-				/* The wake time has not overflowed, so we can use the current block list. */
-				vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				/* The tick time has not overflowed.  In this case we will
+				delay if either the wake time has overflowed, and/or the
+				tick time is less than the wake time. */
+				if( ( xTimeToWake < *pxPreviousWakeTime ) || ( xTimeToWake > xTickCount ) )
+				{
+					cShouldDelay = ( portCHAR ) pdTRUE;
+				}
+			}
+
+			/* Update the wake time ready for the next call. */
+			*pxPreviousWakeTime = xTimeToWake;
+
+			if( cShouldDelay )
+			{
+				/* We must remove ourselves from the ready list before adding 
+				ourselves to the blocked list as the same list item is used for 
+				both lists. */
+				vListRemove( ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+
+				/* The list item will be inserted in wake time order. */
+				listSET_LIST_ITEM_VALUE( &( pxCurrentTCB->xGenericListItem ), xTimeToWake );
+
+				if( xTimeToWake < xTickCount )
+				{
+					/* Wake time has overflowed.  Place this item in the 
+					overflow list. */
+					vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				}
+				else
+				{
+					/* The wake time has not overflowed, so we can use the 
+					current block list. */
+					vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				}
 			}
 		}
 		cAlreadyYielded = cTaskResumeAll();
+
+		/* Force a reschedule if cTaskResumeAll has not already done so, we may 
+		have put ourselves to sleep. */
+		if( !cAlreadyYielded )
+		{
+			taskYIELD(); 
+		}
 	}
-	
-	/* Force a reschedule if cTaskResumeAll has not already done so, we may 
-	have put ourselves to sleep. */
-	if( !cAlreadyYielded )
+#endif
+/*-----------------------------------------------------------*/
+
+#if( INCLUDE_vTaskDelay == 1 )
+	void vTaskDelay( portTickType xTicksToDelay )
 	{
-		taskYIELD(); 
+	portTickType xTimeToWake;
+	signed portCHAR cAlreadyYielded = pdFALSE;
+
+		/* A delay time of zero just forces a reschedule. */
+		if( xTicksToDelay > ( portTickType ) 0 )
+		{
+			vTaskSuspendAll();
+			{
+				/* A task that is removed from the event list while the 
+				scheduler is suspended will not get placed in the ready 
+				list or removed from the blocked list until the scheduler 
+				is resumed.  
+				
+				This task cannot be in an event list as it is the currently 
+				executing task. */
+
+				/* Calculate the time to wake - this may overflow but this is 
+				not a problem. */
+				xTimeToWake = xTickCount + xTicksToDelay;
+
+				/* We must remove ourselves from the ready list before adding 
+				ourselves to the blocked list as the same list item is used for 
+				both lists. */
+				vListRemove( ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+
+				/* The list item will be inserted in wake time order. */
+				listSET_LIST_ITEM_VALUE( &( pxCurrentTCB->xGenericListItem ), xTimeToWake );
+
+				if( xTimeToWake < xTickCount )
+				{
+					/* Wake time has overflowed.  Place this item in the 
+					overflow list. */
+					vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				}
+				else
+				{
+					/* The wake time has not overflowed, so we can use the 
+					current block list. */
+					vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
+				}
+			}
+			cAlreadyYielded = cTaskResumeAll();
+		}
+		
+		/* Force a reschedule if cTaskResumeAll has not already done so, we may 
+		have put ourselves to sleep. */
+		if( !cAlreadyYielded )
+		{
+			taskYIELD(); 
+		}
 	}
-}
+#endif
 /*-----------------------------------------------------------*/
 
 #if( INCLUDE_ucTaskPriorityGet == 1 )
