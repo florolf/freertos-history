@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -66,6 +66,14 @@ void vPortISRStartFirstTask( void )
 }
 /*-----------------------------------------------------------*/
 
+/*
+ * Called by portYIELD() or taskYIELD() to manually force a context switch.
+ *
+ * When a context switch is performed from the task level the saved task 
+ * context is made to look as if it occurred from within the tick ISR.  This
+ * way the same restore context function can be used when restoring the context
+ * saved from the ISR or that saved from a call to vPortYieldProcessor.
+ */
 void vPortYieldProcessor( void )
 {
 	/* Within an IRQ ISR the link register has an offset from the true return 
@@ -73,9 +81,13 @@ void vPortYieldProcessor( void )
 	ISR return code can be used in both cases. */
 	asm volatile ( "ADD		LR, LR, #4" );
 
-	/* Perform the context switch. */
+	/* Perform the context switch.  First save the context of the current task. */
 	portSAVE_CONTEXT();
+
+	/* Find the highest priority task that is ready to run. */
 	vTaskSwitchContext();
+
+	/* Restore the context of the new task. */
 	portRESTORE_CONTEXT();	
 }
 /*-----------------------------------------------------------*/
@@ -104,13 +116,19 @@ void vPortYieldProcessor( void )
 	void vPreemptiveTick( void ) __attribute__((naked));
 	void vPreemptiveTick( void )
 	{
+		/* Save the context of the interrupted task. */
 		portSAVE_CONTEXT();	
 
+		/* Increment the RTOS tick count, then look for the highest priority 
+		task that is ready to run. */
 		vTaskIncrementTick();
 		vTaskSwitchContext();
+
+		/* Ready for the next interrupt. */
 		T0_IR = portTIMER_MATCH_ISR_BIT;
 		VICVectAddr = portCLEAR_VIC_INTERRUPT;
 		
+		/* Restore the context of the new task. */
 		portRESTORE_CONTEXT();
 	}
 
@@ -176,3 +194,4 @@ void vPortYieldProcessor( void )
 	}
 
 #endif /* THUMB_INTERWORK */
+

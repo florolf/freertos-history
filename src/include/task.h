@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -256,7 +256,7 @@ void vTaskDelete( xTaskHandle pxTask );
  *
  * Delay a task for a given number of ticks.  The actual time that the 
  * task remains blocked depends on the tick rate.  The constant
- * portTICKS_PER_MS can be used to calculate real time from the tick 
+ * portTICK_RATE_MS can be used to calculate real time from the tick 
  * rate - with the resolution of one tick period.
  *
  * @param xTicksToDelay The amount of time, in tick periods, that
@@ -814,7 +814,7 @@ inline void vTaskIncrementTick( void );
  *
  * @param xTicksToWait The maximum amount of time that the task should wait
  * for the event to occur.  This is specified in kernel ticks,the constant 
- * portTICKS_PER_MS can be used to convert kernel ticks into a real time
+ * portTICK_RATE_MS can be used to convert kernel ticks into a real time
  * period.
  */
 void vTaskPlaceOnEventList( xList *pxEventList, portTickType xTicksToWait );

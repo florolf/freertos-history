@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -118,7 +118,7 @@ void portENABLE_INTERRUPTS( void );
 /*-----------------------------------------------------------*/
 
 #define portDOS_TICK_RATE		( 18.20648 )
-#define portTICKS_PER_MS		( ( portTickType ) 1000 / portTICK_RATE_HZ )		
+#define portTICK_RATE_MS		( ( portTickType ) 1000 / portTICK_RATE_HZ )		
 #define portTICKS_PER_DOS_TICK	( ( unsigned portSHORT ) ( ( ( portDOUBLE ) portTICK_RATE_HZ / portDOS_TICK_RATE ) + 0.5 ) )
 
 /*-----------------------------------------------------------*/

@@ -1,5 +1,5 @@
 /* 
-	FreeRTOS V2.5.0 - Copyright (C) 2003 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -120,7 +120,7 @@ to exclude the component. */
 #define portSTACK_GROWTH			( 1 )
 
 /*-----------------------------------------------------------*/
-#define portTICKS_PER_MS			( ( unsigned portLONG ) 1000 / portTICK_RATE_HZ )		
+#define portTICK_RATE_MS			( ( unsigned portLONG ) 1000 / portTICK_RATE_HZ )		
 
 /*-----------------------------------------------------------*/
 

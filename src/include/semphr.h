@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -95,7 +95,7 @@ typedef xQueueHandle xSemaphoreHandle;
  * handle returned by vSemaphoreCreateBinary ();
  *
  * @param xBlockTime The time in ticks to wait for the semaphore to become
- * available.  The macro portTICKS_PER_MS can be used to convert this to a
+ * available.  The macro portTICK_RATE_MS can be used to convert this to a
  * real time.  A block time of zero can be used to poll the semaphore.
  *
  * @return pdTRUE if the semaphore was obtained.  pdFALSE if xBlockTime
@@ -212,7 +212,7 @@ typedef xQueueHandle xSemaphoreHandle;
  *                           )</pre>
  *
  * <i>Macro</i> to  release a semaphore.  The semaphore must of been created using 
- * vSemaphoreCreateBinary (), and obtained using sSemaphoreTask ().
+ * vSemaphoreCreateBinary(), and obtained using cSemaphoreTake().
  *
  * This macro can be used from an ISR.
  *
@@ -223,7 +223,7 @@ typedef xQueueHandle xSemaphoreHandle;
  * to cSemaphoreGiveFromISR () from a single interrupt.  The first call
  * should always pass in pdFALSE.  Subsequent calls should pass in
  * the value returned from the previous call.  See the file serial .c in the
- * PC port for a good example of using xSemaphoreGiveFromISR ().
+ * PC port for a good example of using cSemaphoreGiveFromISR().
  *
  * @return pdTRUE if a task was woken by releasing the semaphore.  This is 
  * used by the ISR to determine if a context switch may be required following

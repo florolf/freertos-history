@@ -33,18 +33,21 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include <conio.h>
+/* Hardware definition header file. */
+#include <msp430x44x.h>
 
 /*-----------------------------------------------------------
- * Port specific definitions for the Flashlite 186 port.
+ * Port specific definitions for the MSP430 port.
  *----------------------------------------------------------*/
 
 /* These are the only definitions that can be modified!. */
 
+#define portUSE_PREEMPTION		1
+#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 7995392 ) /* Clock setup from main.c in the demo application. */
 #define portTICK_RATE_HZ		( ( portTickType ) 1000 )
-#define portMAX_PRIORITIES		( ( unsigned portSHORT ) 6 )
-#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 128 )
-#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 32 * 1024 ) )
+#define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
+#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 50 )
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 1800 ) )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
@@ -53,8 +56,8 @@ to exclude the component. */
 #define INCLUDE_vTaskPrioritySet		0
 #define INCLUDE_ucTaskPriorityGet		0
 #define INCLUDE_vTaskDelete				1
-#define INCLUDE_vTaskCleanUpResources	1
-#define INCLUDE_vTaskSuspend			1
+#define INCLUDE_vTaskCleanUpResources	0
+#define INCLUDE_vTaskSuspend			0
 
 /* Use/don't use the trace visualisation. */
 #define USE_TRACE_FACILITY				0
@@ -66,16 +69,19 @@ to exclude the component. */
  */
 #define USE_16_BIT_TICKS	1
 
+
 /*-----------------------------------------------------------
  * Do not modify anything below here. 
  *----------------------------------------------------------*/
 
 #define portCHAR		char
 #define portFLOAT		float
-#define portDOUBLE		long
+#define portDOUBLE		double
 #define portLONG		long
 #define portSHORT		int
 #define portSTACK_TYPE	unsigned portSHORT
+
+#define portBYTE_ALIGNMENT			2
 
 #if( USE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -85,41 +91,57 @@ to exclude the component. */
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
 
-/*-----------------------------------------------------------*/
+/*-----------------------------------------------------------*/	
 
-#define portENTER_CRITICAL()			__asm{ pushf }  \
-										__asm{ cli 	 }	\
-/*-----------------------------------------------------------*/
-
-#define portEXIT_CRITICAL()				__asm{ popf }
-/*-----------------------------------------------------------*/
-
-#define portDISABLE_INTERRUPTS()		__asm{ cli }
-/*-----------------------------------------------------------*/
-
-#define portENABLE_INTERRUPTS()			__asm{ sti }
-/*-----------------------------------------------------------*/
-
-#define portSTACK_GROWTH	( -1 )
-/*-----------------------------------------------------------*/
-
-#define portSWITCH_INT_NUMBER 	0x80
-#define portYIELD()			__asm{ int portSWITCH_INT_NUMBER } 
-/*-----------------------------------------------------------*/
-
-#define portINPUT_BYTE( xAddr )				inp( xAddr )
-#define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
-#define portINPUT_WORD( xAddr )				inpw( xAddr )
-#define portOUTPUT_WORD( xAddr, usValue )	outpw( xAddr, usValue )
-/*-----------------------------------------------------------*/
-
-#define portTICK_RATE_MS		( ( portTickType ) 1000 / portTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT      2
+/* Interrupt control macros. */
+#define portDISABLE_INTERRUPTS()	asm volatile ( "DINT" )
+#define portENABLE_INTERRUPTS()		asm volatile ( "EINT" )
 
 /*-----------------------------------------------------------*/
-#define portINITIAL_SW		( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
 
-#define inline
+/* Critical section control macros. */
+
+#define portNO_CRITICAL_SECTION_NESTING		( ( unsigned portSHORT ) 0 )
+
+#define portENTER_CRITICAL()													\
+{																				\
+extern portSHORT usCriticalNesting;												\
+																				\
+	portDISABLE_INTERRUPTS();													\
+																				\
+	/* Now interrupts are disabled ulCriticalNesting can be accessed */			\
+	/* directly.  Increment ulCriticalNesting to keep a count of how many */	\
+	/* times portENTER_CRITICAL() has been called. */							\
+	usCriticalNesting++;														\
+}
+
+#define portEXIT_CRITICAL()														\
+{																				\
+extern portSHORT usCriticalNesting;												\
+																				\
+	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
+	{																			\
+		/* Decrement the nesting count as we are leaving a critical section. */	\
+		usCriticalNesting--;													\
+																				\
+		/* If the nesting level has reached zero then interrupts should be */	\
+		/* re-enabled. */														\
+		if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )				\
+		{																		\
+			portENABLE_INTERRUPTS();											\
+		}																		\
+	}																			\
+}
+
+/*-----------------------------------------------------------*/
+
+/* Misc macros. */
+
+extern void vPortYield( void ) __attribute__ ( ( naked ) );
+
+#define portYIELD()					vPortYield()
+#define portSTACK_GROWTH			( -1 )
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
 
 #endif /* PORTMACRO_H */
 
