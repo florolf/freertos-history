@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.3 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -105,7 +105,7 @@ to exclude the component. */
 
 #define portENTER_CRITICAL()													\
 {																				\
-extern portSHORT usCriticalNesting;												\
+extern volatile portSHORT usCriticalNesting;									\
 																				\
 	portDISABLE_INTERRUPTS();													\
 																				\
@@ -117,7 +117,7 @@ extern portSHORT usCriticalNesting;												\
 
 #define portEXIT_CRITICAL()														\
 {																				\
-extern portSHORT usCriticalNesting;												\
+extern volatile portSHORT usCriticalNesting;									\
 																				\
 	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
 	{																			\

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.3 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -28,6 +28,12 @@
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
 	***************************************************************************
+*/
+
+/*
+	Changes from V2.5.2
+		
+	+ usCriticalNesting now has a volatile qualifier.
 */
 
 /* Standard includes. */
@@ -66,7 +72,7 @@ with interrupts only being re-enabled if the count is zero.
 usCriticalNesting will get set to zero when the scheduler starts, but must
 not be initialised to zero as this will cause problems during the startup
 sequence. */
-unsigned portSHORT usCriticalNesting = portINITIAL_CRITICAL_NESTING;
+volatile unsigned portSHORT usCriticalNesting = portINITIAL_CRITICAL_NESTING;
 /*-----------------------------------------------------------*/
 
 /* 

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.3 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -39,6 +39,14 @@
  * to ARM mode are contained in portISR.c.
  *----------------------------------------------------------*/
 
+/*
+	Changes from V2.5.2
+		
+	+ ulCriticalNesting is now saved as part of the task context, as is 
+	  therefore added to the initial task stack during pxPortInitialiseStack.
+*/
+
+
 /* Standard includes. */
 #include <stdlib.h>
 
@@ -48,9 +56,10 @@
 #include "task.h"
 
 /* Constants required to setup the task context. */
-#define portINITIAL_SPSR			( ( portSTACK_TYPE ) 0x1f ) /* System mode, ARM mode, interrupts enabled. */
-#define portTHUMB_MODE_BIT			( ( portSTACK_TYPE ) 0x20 )
-#define portINSTRUCTION_SIZE		( ( portSTACK_TYPE ) 4 )
+#define portINITIAL_SPSR				( ( portSTACK_TYPE ) 0x1f ) /* System mode, ARM mode, interrupts enabled. */
+#define portTHUMB_MODE_BIT				( ( portSTACK_TYPE ) 0x20 )
+#define portINSTRUCTION_SIZE			( ( portSTACK_TYPE ) 4 )
+#define portNO_CRITICAL_SECTION_NESTING	( ( portSTACK_TYPE ) 0 )
 
 /* Constants required to setup the tick ISR. */
 #define portENABLE_TIMER			( ( unsigned portCHAR ) 0x01 )
@@ -141,6 +150,14 @@ portSTACK_TYPE *pxOriginalTOS;
 		*pxTopOfStack |= portTHUMB_MODE_BIT;
 	}
 	#endif
+
+	pxTopOfStack--;
+
+	/* Some optimisation levels use the stack differently to others.  This 
+	means the interrupt flags cannot always be stored on the stack and will
+	instead be stored in a variable, which is then saved as part of the
+	tasks context. */
+	*pxTopOfStack = portNO_CRITICAL_SECTION_NESTING;
 
 	return pxTopOfStack;
 }

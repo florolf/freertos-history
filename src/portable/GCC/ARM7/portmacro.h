@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.2 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.3 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -109,10 +109,17 @@ to exclude the component. */
 #define portRESTORE_CONTEXT()											\
 {																		\
 extern volatile void * volatile pxCurrentTCB;							\
+extern volatile unsigned portLONG ulCriticalNesting;					\
 																		\
 	/* Set the LR to the task stack. */									\
 	asm volatile ( "LDR		R0, %0" : : "m" (pxCurrentTCB) );			\
 	asm volatile ( "LDR		LR, [R0]" );								\
+																		\
+	/* The critical nesting depth is the first item on the stack. */	\
+	/* Load it into the ulCriticalNesting variable. */					\
+	asm volatile ( "LDR		R0, =ulCriticalNesting" );					\
+	asm volatile ( "LDMFD	LR!, {R1}" );								\
+	asm volatile ( "STR		R1, [R0]" );								\
 																		\
 	/* Get the SPSR from the stack. */									\
 	asm volatile ( "LDMFD	LR!, {R0}" );								\
@@ -128,12 +135,14 @@ extern volatile void * volatile pxCurrentTCB;							\
 	/* And return - correcting the offset in the LR to obtain the */	\
 	/* correct address. */												\
 	asm volatile ( "SUBS	PC, LR, #4" );								\
+	( void ) ulCriticalNesting;											\
 }
 /*-----------------------------------------------------------*/
 
 #define portSAVE_CONTEXT()												\
 {																		\
 extern volatile void * volatile pxCurrentTCB;							\
+extern volatile unsigned portLONG ulCriticalNesting;					\
 																		\
 	/* Push R0 as we are going to use the register. */					\
 	asm volatile ( "STMDB	SP!, {R0}" );								\
@@ -160,9 +169,14 @@ extern volatile void * volatile pxCurrentTCB;							\
 	asm volatile ( "MRS		R0, SPSR" );								\
 	asm volatile ( "STMDB	LR!, {R0}" );								\
 																		\
+	asm volatile ( "LDR		R0, =ulCriticalNesting " );					\
+	asm volatile ( "LDR		R0, [R0]" );								\
+	asm volatile ( "STMDB	LR!, {R0}" );								\
+																		\
 	/* Store the new top of stack for the task. */						\
 	asm volatile ( "LDR		R0, %0" : : "m" (pxCurrentTCB) );			\
 	asm volatile ( "STR		LR, [R0]" );								\
+	( void ) ulCriticalNesting;											\
 }
 
 
@@ -212,38 +226,13 @@ extern volatile void * volatile pxCurrentTCB;							\
 
 #ifdef THUMB_INTERWORK
 
-	extern void vPortEnterCriticalFromThumb( void ) __attribute__ ((naked));
-	extern void vPortExitCriticalFromThumb( void ) __attribute__ ((naked));
 	extern void vPortDisableInterruptsFromThumb( void ) __attribute__ ((naked));
 	extern void vPortEnableInterruptsFromThumb( void ) __attribute__ ((naked));
 
-	#define portENTER_CRITICAL()		vPortEnterCriticalFromThumb()
-	#define portEXIT_CRITICAL()			vPortExitCriticalFromThumb()
 	#define portDISABLE_INTERRUPTS()	vPortDisableInterruptsFromThumb()
 	#define portENABLE_INTERRUPTS()		vPortEnableInterruptsFromThumb()
 	
 #else
-
-	#define portENTER_CRITICAL()																	\
-		asm volatile ( "STMDB	SP!, {R0, R1}" );	/* Push R0 to leave space for CPSR, then R1	*/	\
-		asm volatile ( "MRS		R1, CPSR" );		/* Get CPSR.								*/	\
-		asm volatile ( "STR		R1, [SP, #4]" );	/* Store CPSR in created space.				*/	\
-		asm volatile ( "ORR		R1, R1, #0xC0" );	/* Disable IRQ and FIQ.						*/	\
-		asm volatile ( "MSR		CPSR, R1" );		/* Write back modified value.				*/	\
-		asm volatile ( "LDMIA	SP!, {R1}" )		/* Pop R0. */
-
-	#define portEXIT_CRITICAL()																		\
-		asm volatile ( "STMDB	SP!, {R0, R1}" );	/* Push R0 and R1.							*/	\
-		asm volatile ( "LDR		R0, [ SP, #+8 ]" );	/* Retrieve CPSR from stack.				*/	\
-		asm volatile ( "AND		R0, R0, #0xC0" );	/* Just look and interrupt bits.			*/	\
-		asm volatile ( "MRS		R1, CPSR" );		/* Get current CPSR.						*/	\
-		asm volatile ( "BIC		R1, R1, #0xC0" );	/* Mast off the IRQ and FIQ bits.			*/	\
-		asm volatile ( "ORR		R0, R0, R1" );		/* Combine with stored IRQ bits.			*/	\
-		asm volatile ( "MSR		CPSR, R0" );		/* Write back new CPSR value.				*/	\
-		asm volatile ( "LDMIA	SP!, {R0, R1}" );	/* Pop R0 and R1.							*/	\
-		asm volatile ( "ADD		SP, SP, #4" );		/* Correct stack.							*/	\
-
-	/*-----------------------------------------------------------*/
 
 	#define portDISABLE_INTERRUPTS()																\
 		asm volatile ( "STMDB	SP!, {R0}" );		/* Push R0.									*/	\
@@ -260,6 +249,16 @@ extern volatile void * volatile pxCurrentTCB;							\
 		asm volatile ( "LDMIA	SP!, {R0}" )		/* Pop R0. */
 
 #endif /* THUMB_INTERWORK */
+
+/*
+ * Critical section control
+ */
+
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+
+#define portENTER_CRITICAL()		vPortEnterCritical();
+#define portEXIT_CRITICAL()			vPortExitCritical();
 
 
 #endif /* PORTMACRO_H */
