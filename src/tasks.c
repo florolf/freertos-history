@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -311,7 +311,9 @@ static void prvIdleTask( void *pvParameters );
  * This does not free memory allocated by the task itself (i.e. memory 
  * allocated by calls to pvPortMalloc from within the tasks application code).
  */
-static void prvDeleteTCB( tskTCB *pxTCB );
+#if( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
+	static void prvDeleteTCB( tskTCB *pxTCB );
+#endif
 
 /*
  * Used only by the idle task.  This checks to see if anything has been placed
@@ -441,23 +443,23 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 		sReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 	}
 
-	if( ( void * ) pxCreatedTask != NULL )
+	if( sReturn == pdPASS )
 	{
-		if( sReturn == pdPASS )
+		if( ( void * ) pxCreatedTask != NULL )
 		{
 			/* Pass the TCB out - in an anonymous way.  The calling function/
 			task can use this as a handle to delete the task later if 
 			required.*/
 			*pxCreatedTask = ( xTaskHandle ) pxNewTCB;
+		}
 
-			if( cSchedulerRunning != pdFALSE )
+		if( cSchedulerRunning != pdFALSE )
+		{
+			/* If the created task is of a higher priority than the current task
+			then it should run now. */
+			if( pxCurrentTCB->ucPriority < ucPriority )
 			{
-				/* If the created task is of a higher priority than the current task
-				then it should run now. */
-				if( pxCurrentTCB->ucPriority < ucPriority )
-				{
-					taskYIELD();
-				}
+				taskYIELD();
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 /* 
-	FreeRTOS V2.5.4 - Copyright (C) 2003 Richard Barry.
+	FreeRTOS V2.5.4 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -35,7 +35,7 @@
 
 /* Include the definitions file for the C8051F120.  This must be the file
 supplied with the distribution. */
-#include "c8051F120.h"
+#include "c8051f120.h"
 
 /*-----------------------------------------------------------
  * Port specific definitions for the Cygnal 8051 port.

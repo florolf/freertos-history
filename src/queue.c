@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -104,6 +104,7 @@ unsigned portCHAR ucQueueMessagesWaiting( xQueueHandle pxQueue );
 void vQueueDelete( xQueueHandle xQueue );
 signed portCHAR cQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portCHAR cTaskPreviouslyWoken );
 signed portCHAR cQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait );
+signed portCHAR cQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portCHAR *pcTaskWoken );
 
 /* 
  * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not 

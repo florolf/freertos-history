@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -61,7 +61,7 @@ debugger).  The true stack pointer is then stored in the bp register.  We add
 										"les	bx, pxCurrentTCB"			/* Save the stack pointer into the TCB. */		\
 										"mov	es:0x2[ bx ], ss"															\
 										"mov	es:[ bx ], sp"																\
-										"call	far vTaskSwitchContext"		/* Perform the switch. */						\
+										"call	vTaskSwitchContext"			/* Perform the switch. */						\
 										"mov	ax, seg pxCurrentTCB"		/* Restore the stack pointer from the TCB. */	\
 										"mov	ds, ax"																		\
 										"les	bx, dword ptr pxCurrentTCB"													\
@@ -91,7 +91,7 @@ debugger).  The true stack pointer is then stored in the bp register.  We add
 										"les	bx, pxCurrentTCB"			/* Save the stack pointer into the TCB. */		\
 										"mov	es:0x2[ bx ], ss"															\
 										"mov	es:[ bx ], sp"																\
-										"call	far vTaskSwitchContext"		/* Perform the switch. */						\
+										"call	vTaskSwitchContext"			/* Perform the switch. */						\
 										"mov	ax, seg pxCurrentTCB"		/* Restore the stack pointer from the TCB. */	\
 										"mov	ds, ax"																		\
 										"les	bx, dword ptr pxCurrentTCB"													\

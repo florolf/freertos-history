@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -85,6 +85,10 @@
 
 #ifdef KEIL_ARM7
 	#include "..\..\Source\portable\Keil\ARM7\portmacro.h"
+#endif
+
+#ifdef SAM7_IAR
+	#include "..\..\Source\portable\IAR\AtmelSAM7S64\portmacro.h"
 #endif
 
 /*

@@ -30,41 +30,37 @@
 	***************************************************************************
 */
 
-/*
-Changes from V1.2.3
-
-	+ portCPU_CLOSK_HZ definition changed to 8MHz base 10, previously it 
-	  base 16.
-*/
 
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include <iom323.h>
+#include <intrinsic.h>
+
+/* Include constants specific to the AT91SAM7S64-EK. */
+#include "board.h"
 
 /*-----------------------------------------------------------
- * Port specific definitions for the AVR port.
+ * Port specific definitions for the Atmel ARM7 port.
  *----------------------------------------------------------*/
 
 /* These are the only definitions that can be modified!. */
 
-#define portCALL_STACK_SIZE		( ( unsigned portCHAR ) 20 )
-
 #define portUSE_PREEMPTION		1
-#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 8000000 )
-#define portTICK_RATE_HZ		( ( portTickType ) 1000 )
-#define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
-#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 95)
+#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 47923200 )
+#define portTICK_RATE_HZ		( ( portTickType ) 250 )
+#define portMAX_PRIORITIES		( ( unsigned portCHAR ) 5 )
+#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 100 )
+#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 14200 ) )
 
 /* Set the following definitions to 1 to include the component, or zero
 to exclude the component. */
 
 /* Include/exclude the stated API function. */
-#define INCLUDE_vTaskPrioritySet		0
-#define INCLUDE_ucTaskPriorityGet		0
-#define INCLUDE_vTaskDelete				1
+#define INCLUDE_vTaskPrioritySet		1
+#define INCLUDE_ucTaskPriorityGet		1
+#define INCLUDE_vTaskDelete				0
 #define INCLUDE_vTaskCleanUpResources	0
-#define INCLUDE_vTaskSuspend			0
+#define INCLUDE_vTaskSuspend			1
 
 /* Use/don't use the trace visualisation. */
 #define USE_TRACE_FACILITY				0
@@ -74,8 +70,7 @@ to exclude the component. */
  * or a 32 bit value.  See documentation on http://www.FreeRTOS.org to decide
  * which to use.
  */
-#define USE_16_BIT_TICKS	1
-
+#define USE_16_BIT_TICKS	0
 
 /*-----------------------------------------------------------
  * Do not modify anything below here. 
@@ -85,8 +80,8 @@ to exclude the component. */
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portCHAR
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
 
 #if( USE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -98,32 +93,36 @@ to exclude the component. */
 
 /*-----------------------------------------------------------*/	
 
-#define portENTER_CRITICAL()	asm( "in r15, 3fh" );		\
-								asm( "cli" );				\
-								asm( "st -y, r15" )
-
-#define portEXIT_CRITICAL()		asm( "ld r15, y+" );		\
-								asm( "out 3fh, r15" )
-
-/*-----------------------------------------------------------*/
-
-#define portDISABLE_INTERRUPTS()	asm( "cli" );
-#define portENABLE_INTERRUPTS()		asm( "sti" );
-
-/*-----------------------------------------------------------*/
-
 #define portSTACK_GROWTH			( -1 )
-
-/*-----------------------------------------------------------*/
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT			4
+#define portYIELD()					asm ( "SWI 0" );
 
-/*-----------------------------------------------------------*/
-void vPortYield( void );
-#define portYIELD()	vPortYield()
+/* The interrupt control macros are always compiled into ARM mode. */
+__arm __interwork void vPortDisableInterruptsFromThumb( void );
+__arm __interwork void vPortEnableInterruptsFromThumb( void );
+__arm __interwork void vPortEnterCritical( void );
+__arm __interwork void vPortExitCritical( void );
 
-#ifdef IAR_MEGA_AVR
-	#define outb( PORT, VALUE ) PORT = VALUE
-#endif
+#define portDISABLE_INTERRUPTS()	__disable_interrupt()
+#define portENABLE_INTERRUPTS()		__enable_interrupt()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
+
+/*-----------------------------------------------------------*/	
+
+/* Macro that ensures the highest priority task that is able to run is the task
+that executes when an ISR completes. */
+
+#define portEND_SWITCHING_ISR( xSwitchRequired ) 	\
+{													\
+extern void vTaskSwitchContext( void );				\
+													\
+	if( xSwitchRequired ) 							\
+	{												\
+		vTaskSwitchContext();						\
+	}												\
+}
 
 #define inline
 

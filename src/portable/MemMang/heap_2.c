@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.5.4 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V2.5.5 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -31,7 +31,7 @@
 */
 
 /*
- * A sample implementation of pvPortMalloc() and pvPortFree() that permits
+ * A sample implementation of pvPortMalloc() and vPortFree() that permits
  * allocated blocks to be freed, but does not combine adjacent free blocks
  * into a single larger block. 
  *
