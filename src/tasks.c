@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -96,6 +96,17 @@ Changes from V2.5.5
 
 	+ Added API function vTaskDelayUntil().
 	+ Added INCLUDE_vTaskDelay conditional compilation.
+
+Changes from V2.6.0
+
+ 	+ Updated the vWriteTraceToBuffer macro to always be 4 byte aligned so it 
+	  can be used on ARM architectures.
+	+ tskMAX_TASK_NAME_LEN definition replaced with the port specific 
+	  portMAX_TASK_NAME_LEN definition.
+	+ Removed the call to strcpy when copying across the task name into the 
+	  TCB.
+	+ Added ucTasksDeleted variable to prevent vTaskSuspendAll() being called
+	  too often in the idle task.
 */
 
 #include <stdio.h>
@@ -112,6 +123,14 @@ Changes from V2.5.5
  */
 #define tskIDLE_STACK_SIZE	portMINIMAL_STACK_SIZE
 
+/* 
+ * Default portMAX_TASK_NAME_LEN for backwards compatibility with old 
+ * portmacro.h files. 
+ */
+#ifndef portMAX_TASK_NAME_LEN
+	#define portMAX_TASK_NAME_LEN 16
+#endif
+
 /*
  * Task control block.  A task control block (TCB) is allocated to each task,
  * and stores the context of the task.
@@ -121,7 +140,7 @@ typedef struct tskTaskControlBlock
 	portSTACK_TYPE		*pxTopOfStack;						/*< Points to the location of the last item placed on the tasks stack.  THIS MUST BE THE FIRST MEMBER OF THE STRUCT. */
 	portSTACK_TYPE		*pxStack;							/*< Points to the start of the stack. */
 	unsigned portSHORT	usStackDepth;						/*< Total depth of the stack (when empty).  This is defined as the number of variables the stack can hold, not the number of bytes. */
-	signed portCHAR		pcTaskName[ tskMAX_TASK_NAME_LEN ];	/*< Descriptive name given to the task when created.  Facilitates debugging only. */
+	signed portCHAR		pcTaskName[ portMAX_TASK_NAME_LEN ];/*< Descriptive name given to the task when created.  Facilitates debugging only. */
 	unsigned portCHAR	ucPriority;							/*< The priority of the task where 0 is the lowest priority. */
 
 	xListItem			xGenericListItem;					/*< List item used to place the TCB in ready and blocked queues. */
@@ -146,6 +165,7 @@ static volatile xList xPendingReadyList;						/*< Tasks that have been readied w
 #if( INCLUDE_vTaskDelete == 1 )
 
 	static volatile xList xTasksWaitingTermination;				/*< Tasks that have been deleted - but the their memory not yet freed. */
+	static volatile unsigned portCHAR ucTasksDeleted = ( unsigned portCHAR ) 0;
 
 #endif
 
@@ -213,10 +233,10 @@ static volatile unsigned portCHAR ucMissedTicks = ( unsigned portCHAR ) 0;
 				if( ( pcTraceBuffer + tskSIZE_OF_EACH_TRACE_LINE ) < pcTraceBufferEnd )	\
 				{																		\
 					ucPreviousTask = pxCurrentTCB->ucTCBNumber;							\
-					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) xTickCount;	\
+					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) xTickCount;		\
 					pcTraceBuffer += sizeof( unsigned portLONG );						\
-					*( unsigned portCHAR * ) pcTraceBuffer = ucPreviousTask;			\
-					pcTraceBuffer += sizeof( unsigned portCHAR );						\
+					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) ucPreviousTask;	\
+					pcTraceBuffer += sizeof( unsigned portLONG );						\
 				}																		\
 				else																	\
 				{																		\
@@ -367,6 +387,7 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 	/* Allocate the memory required by the TCB and stack for the new task.  
 	checking that the allocation was successful. */
 	pxNewTCB = prvAllocateTCBAndStack( usStackDepth );
+
 	if( pxNewTCB != NULL )
 	{		
 		portSTACK_TYPE *pxTopOfStack;
@@ -497,6 +518,11 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 			}
 
 			vListInsertEnd( ( xList * ) &xTasksWaitingTermination, &( pxTCB->xGenericListItem ) );
+
+			/* Increment the ucTasksDeleted variable so the idle task knows
+			there is a task that has been deleted and that it should therefore
+			check the xTasksWaitingTermination list. */
+			++ucTasksDeleted;
 		}
 		taskEXIT_CRITICAL();
 
@@ -1276,20 +1302,9 @@ static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStack
 {
 	pxTCB->usStackDepth = usStackDepth;
 
-	/* Make sure the name is not too long before copying it into the TCB. */
-	if( strlen( pcName ) < ( unsigned portSHORT ) tskMAX_TASK_NAME_LEN )
-	{
-		portENTER_CRITICAL();
-			strcpy( pxTCB->pcTaskName, pcName );
-		portEXIT_CRITICAL();
-	}
-	else
-	{
-		portENTER_CRITICAL();
-			strncpy( pxTCB->pcTaskName, pcName, ( unsigned portSHORT ) tskMAX_TASK_NAME_LEN );
-		portEXIT_CRITICAL();
-		pxTCB->pcTaskName[ ( unsigned portSHORT ) tskMAX_TASK_NAME_LEN - ( unsigned portSHORT ) 1 ] = '\0';
-	}
+	/* Store the function name in the TCB. */
+	strncpy( pxTCB->pcTaskName, pcName, ( unsigned portSHORT ) portMAX_TASK_NAME_LEN );
+	pxTCB->pcTaskName[ ( unsigned portSHORT ) portMAX_TASK_NAME_LEN - ( unsigned portSHORT ) 1 ] = '\0';
 
 	/* This is used as an array index so must ensure it's not too large. */
 	if( ucPriority >= ( unsigned portCHAR ) portMAX_PRIORITIES )
@@ -1355,23 +1370,29 @@ static void prvCheckTasksWaitingTermination( void )
 	{				
 		portSHORT sListIsEmpty;
 
-		vTaskSuspendAll();
-			sListIsEmpty = listLIST_IS_EMPTY( &xTasksWaitingTermination );
-		cTaskResumeAll();
-
-		if( !sListIsEmpty )
+		/* ucTasksDeleted is used to prevent vTaskSuspendAll() being called
+		too often in the idle task. */
+		if( ucTasksDeleted > ( unsigned portCHAR ) 0 )
 		{
-			tskTCB *pxTCB;
+			vTaskSuspendAll();
+				sListIsEmpty = listLIST_IS_EMPTY( &xTasksWaitingTermination );				
+			cTaskResumeAll();
 
-			portENTER_CRITICAL();
-			{			
-				pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY( ( ( xList * ) &xTasksWaitingTermination ) );
-				vListRemove( &( pxTCB->xGenericListItem ) );
-				--usCurrentNumberOfTasks;
+			if( !sListIsEmpty )
+			{
+				tskTCB *pxTCB;
+
+				portENTER_CRITICAL();
+				{			
+					pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY( ( ( xList * ) &xTasksWaitingTermination ) );
+					vListRemove( &( pxTCB->xGenericListItem ) );
+					--usCurrentNumberOfTasks;
+					--ucTasksDeleted;
+				}
+				portEXIT_CRITICAL();
+
+				prvDeleteTCB( pxTCB );
 			}
-			portEXIT_CRITICAL();
-
-			prvDeleteTCB( pxTCB );
 		}
 	}
 	#endif

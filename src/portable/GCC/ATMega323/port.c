@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -28,6 +28,15 @@
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
 	***************************************************************************
+*/
+
+/* 
+
+Changes from V2.6.0
+
+	+ AVR port - Replaced the inb() and outb() functions with direct memory
+	  access.  This allows the port to be built with the 20050414 build of
+	  WinAVR.
 */
 
 #include <stdlib.h>
@@ -376,18 +385,18 @@ unsigned portCHAR ucHighByte, ucLowByte;
 	ucLowByte = ( unsigned portCHAR ) ( ulCompareMatch & ( unsigned portLONG ) 0xff );
 	ulCompareMatch >>= 8;
 	ucHighByte = ( unsigned portCHAR ) ( ulCompareMatch & ( unsigned portLONG ) 0xff );
-	outb( OCR1AH, ucHighByte );
-	outb( OCR1AL, ucLowByte );
+	OCR1AH = ucHighByte;
+	OCR1AL = ucLowByte;
 
 	/* Setup clock source and compare match behaviour. */
 	ucLowByte = portCLEAR_COUNTER_ON_MATCH | portPRESCALE_256;
-	outb( TCCR1B, ucLowByte );
+	TCCR1B = ucLowByte;
 
 	/* Enable the interrupt - this is okay as interrupt are currently globally
 	disabled. */
-	ucLowByte = inb( TIMSK );
+	ucLowByte = TIMSK;
 	ucLowByte |= portCOMPARE_MATCH_A_INTERRUPT_ENABLE;
-	outb( TIMSK, ucLowByte );
+	TIMSK = ucLowByte;
 }
 /*-----------------------------------------------------------*/
 

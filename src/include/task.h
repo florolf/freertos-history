@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -60,15 +60,6 @@ typedef void * xTaskHandle;
  * <HR>
  */
 #define tskIDLE_PRIORITY			( ( unsigned portCHAR ) 0 )
-
-/*
- * The maximum number of characters a task name can take.  This includes
- * the terminating null as a character. 
- *
- * \ingroup TaskUtils
- * <HR>
- */
-#define tskMAX_TASK_NAME_LEN		 ( 16 )
 
 /**
  * task. h

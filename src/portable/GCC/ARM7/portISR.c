@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -43,6 +43,11 @@
 	+ The critical section management functions have been changed.  These no
 	  longer modify the stack and are safe to use at all optimisation levels.
 	  The functions are now also the same for both ARM and THUMB modes.
+
+	Changes from V2.6.0
+
+	+ Removed the 'static' from the definition of vNonPreemptiveTick() to 
+	  allow the demo to link when using the cooperative scheduler.
 */
 
 
@@ -114,8 +119,8 @@ void vPortYieldProcessor( void )
 
 	/* The cooperative scheduler requires a normal IRQ service routine to 
 	simply increment the system tick. */
-	static void vNonPreemptiveTick( void ) __attribute__ ((interrupt ("IRQ")));
-	static void vNonPreemptiveTick( void )
+	void vNonPreemptiveTick( void ) __attribute__ ((interrupt ("IRQ")));
+	void vNonPreemptiveTick( void )
 	{		
 		vTaskIncrementTick();
 		T0_IR = portTIMER_MATCH_ISR_BIT;
