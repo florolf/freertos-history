@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -77,13 +77,13 @@ typedef xQueueHandle xSemaphoreHandle;
 														xSemaphore = xQueueCreate( ( unsigned portCHAR ) 1, semSEMAPHORE_QUEUE_ITEM_LENGTH );	\
 														if( xSemaphore != NULL )																\
 														{																						\
-															cSemaphoreGive( xSemaphore );														\
+															xSemaphoreGive( xSemaphore );														\
 														}																						\
 													}
 
 /**
  * semphr. h
- * cSemaphoreTake( 
+ * xSemaphoreTake( 
  *                   xSemaphoreHandle xSemaphore, 
  *                   portTickType xBlockTime 
  *               )</pre>
@@ -121,7 +121,7 @@ typedef xQueueHandle xSemaphoreHandle;
     {
         // See if we can obtain the semaphore.  If the semaphore is not available
         // wait 10 ticks to see if it becomes free.	
-        if( cSemaphoreTake( xSemaphore, ( portTickType ) 10 ) == pdTRUE )
+        if( xSemaphoreTake( xSemaphore, ( portTickType ) 10 ) == pdTRUE )
         {
             // We were able to obtain the semaphore and can now access the
             // shared resource.
@@ -130,7 +130,7 @@ typedef xQueueHandle xSemaphoreHandle;
 
             // We have finished accessing the shared resource.  Release the 
             // semaphore.
-            cSemaphoreGive( xSemaphore );
+            xSemaphoreGive( xSemaphore );
         }
         else
         {
@@ -140,19 +140,19 @@ typedef xQueueHandle xSemaphoreHandle;
     }
  }
  </pre>
- * \defgroup cSemaphoreTake cSemaphoreTake
+ * \defgroup xSemaphoreTake xSemaphoreTake
  * \ingroup Semaphores
  */
-#define cSemaphoreTake( xSemaphore, xBlockTime )	cQueueReceive( ( xQueueHandle ) xSemaphore, NULL, xBlockTime )
+#define xSemaphoreTake( xSemaphore, xBlockTime )	xQueueReceive( ( xQueueHandle ) xSemaphore, NULL, xBlockTime )
 
 /**
  * semphr. h
- * <pre>cSemaphoreGive( xSemaphoreHandle xSemaphore )</pre>
+ * <pre>xSemaphoreGive( xSemaphoreHandle xSemaphore )</pre>
  *
  * <i>Macro</i> to release a semaphore.  The semaphore must of been created using 
  * vSemaphoreCreateBinary (), and obtained using sSemaphoreTake ().
  *
- * This must not be used from an ISR.  See cSemaphoreGiveFromISR () for
+ * This must not be used from an ISR.  See xSemaphoreGiveFromISR () for
  * an alternative which can be used from an ISR.
  *
  * @param xSemaphore A handle to the semaphore being released.  This is the
@@ -174,7 +174,7 @@ typedef xQueueHandle xSemaphoreHandle;
 
     if( xSemaphore != NULL )
     {
-        if( cSemaphoreGive( xSemaphore ) != pdTRUE )
+        if( xSemaphoreGive( xSemaphore ) != pdTRUE )
         {
             // We would expect this call to fail because we cannot give
             // a semaphore without first "taking" it!
@@ -182,7 +182,7 @@ typedef xQueueHandle xSemaphoreHandle;
 
         // Obtain the semaphore - don't block if the semaphore is not
         // immediately available.
-        if( cSemaphoreTake( xSemaphore, ( portTickType ) 0 ) )
+        if( xSemaphoreTake( xSemaphore, ( portTickType ) 0 ) )
         {
             // We now have the semaphore and can access the shared resource.
 
@@ -190,7 +190,7 @@ typedef xQueueHandle xSemaphoreHandle;
 
             // We have finished accessing the shared resource so can free the
             // semaphore.
-            if( cSemaphoreGive( xSemaphore ) != pdTRUE )
+            if( xSemaphoreGive( xSemaphore ) != pdTRUE )
             {
                 // We would not expect this call to fail because we must have
                 // obtained the semaphore to get here.
@@ -199,31 +199,31 @@ typedef xQueueHandle xSemaphoreHandle;
     }
  }
  </pre>
- * \defgroup cSemaphoreGive cSemaphoreGive
+ * \defgroup xSemaphoreGive xSemaphoreGive
  * \ingroup Semaphores
  */
-#define cSemaphoreGive( xSemaphore )				cQueueSend( ( xQueueHandle ) xSemaphore, NULL, semGIVE_BLOCK_TIME )
+#define xSemaphoreGive( xSemaphore )				xQueueSend( ( xQueueHandle ) xSemaphore, NULL, semGIVE_BLOCK_TIME )
 
 /**
  * semphr. h
- * <pre>cSemaphoreGiveFromISR( 
+ * <pre>xSemaphoreGiveFromISR( 
  *                             xSemaphoreHandle xSemaphore, 
  *                             portSHORT sTaskPreviouslyWoken 
  *                           )</pre>
  *
  * <i>Macro</i> to  release a semaphore.  The semaphore must of been created using 
- * vSemaphoreCreateBinary(), and obtained using cSemaphoreTake().
+ * vSemaphoreCreateBinary(), and obtained using xSemaphoreTake().
  *
  * This macro can be used from an ISR.
  *
  * @param xSemaphore A handle to the semaphore being released.  This is the
- * handle returned by vSemaphoreCreateBinary ();
+ * handle returned by vSemaphoreCreateBinary();
  *
  * @param sTaskPreviouslyWoken This is included so an ISR can make multiple calls
- * to cSemaphoreGiveFromISR () from a single interrupt.  The first call
+ * to xSemaphoreGiveFromISR() from a single interrupt.  The first call
  * should always pass in pdFALSE.  Subsequent calls should pass in
  * the value returned from the previous call.  See the file serial .c in the
- * PC port for a good example of using cSemaphoreGiveFromISR().
+ * PC port for a good example of using xSemaphoreGiveFromISR().
  *
  * @return pdTRUE if a task was woken by releasing the semaphore.  This is 
  * used by the ISR to determine if a context switch may be required following
@@ -244,7 +244,7 @@ typedef xQueueHandle xSemaphoreHandle;
         // was created before this task was started
 
         // Block waiting for the semaphore to become available.
-        if( cSemaphoreTake( xSemaphore, LONG_TIME ) == pdTRUE )
+        if( xSemaphoreTake( xSemaphore, LONG_TIME ) == pdTRUE )
         {
             // It is time to execute.
 
@@ -271,17 +271,17 @@ typedef xQueueHandle xSemaphoreHandle;
     if( ucLocalTickCount >= TICKS_TO_WAIT )
     {
         // Unblock the task by releasing the semaphore.
-        cSemaphoreGive( xSemaphore );
+        xSemaphoreGive( xSemaphore );
 
         // Reset the count so we release the semaphore again in 10 ticks time.
         ucLocalTickCount = 0;
     }
  }
  </pre>
- * \defgroup cSemaphoreGiveISR cSemaphoreGiveFromISR
+ * \defgroup xSemaphoreGiveISR xSemaphoreGiveFromISR
  * \ingroup Semaphores
  */
-#define cSemaphoreGiveFromISR( xSemaphore, sTaskPreviouslyWoken )			cQueueSendFromISR( ( xQueueHandle ) xSemaphore, NULL, sTaskPreviouslyWoken )
+#define xSemaphoreGiveFromISR( xSemaphore, xTaskPreviouslyWoken )			xQueueSendFromISR( ( xQueueHandle ) xSemaphore, NULL, xTaskPreviouslyWoken )
 
 
 #endif

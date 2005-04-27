@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,6 +40,12 @@ typedef void (*pdTASK_CODE)( void * );
 
 #define pdPASS		( 1 )
 #define pdFAIL		( 0 )
+
+/* Error definitions. */
+#define errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY	( -1 )
+#define errNO_TASK_TO_RUN						( -2 )
+#define errQUEUE_FULL							( -3 )
+
 
 #endif
 

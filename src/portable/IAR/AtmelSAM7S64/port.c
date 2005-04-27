@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,8 +40,7 @@
 #include <intrinsic.h>
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Constants required to setup the initial stack. */
@@ -50,7 +49,7 @@
 
 /* Constants required to setup the PIT. */
 #define portPIT_CLOCK_DIVISOR			( ( unsigned portLONG ) 16 )
-#define portPIT_COUNTER_VALUE			( ( ( portCPU_CLOCK_HZ / portPIT_CLOCK_DIVISOR ) / 1000UL ) * portTICK_RATE_MS )
+#define portPIT_COUNTER_VALUE			( ( ( configCPU_CLOCK_HZ / portPIT_CLOCK_DIVISOR ) / 1000UL ) * portTICK_RATE_MS )
 
 /* Constants required to handle critical sections. */
 #define portNO_CRITICAL_NESTING 		( ( unsigned portLONG ) 0 )
@@ -135,7 +134,7 @@ portSTACK_TYPE *pxOriginalTOS;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
 extern void vPortStartFirstTask( void );
 
@@ -158,7 +157,7 @@ void vPortEndScheduler( void )
 }
 /*-----------------------------------------------------------*/
 
-#if portUSE_PREEMPTION == 0
+#if configUSE_PREEMPTION == 0
 
 	/* The cooperative scheduler requires a normal IRQ service routine to 
 	simply increment the system tick. */
@@ -194,7 +193,7 @@ AT91PS_PITC pxPIT = AT91C_BASE_PITC;
 
 	/* Setup the AIC for PIT interrupts.  The interrupt routine chosen depends
 	on whether the preemptive or cooperative scheduler is being used. */
-	#if portUSE_PREEMPTION == 0
+	#if configUSE_PREEMPTION == 0
 
 		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortNonPreemptiveTick );
 

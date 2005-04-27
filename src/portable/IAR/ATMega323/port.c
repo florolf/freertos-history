@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -19,21 +19,20 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http://www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
 
 #include <stdlib.h>
 
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /*-----------------------------------------------------------
@@ -67,15 +66,15 @@ extern void vPortStart( void );
 
 /*-----------------------------------------------------------*/
 
-/* 
- * See header file for description. 
+/*
+ * See header file for description.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
 unsigned portSHORT usAddress;
 portSTACK_TYPE *pxTopOfHardwareStack;
 
-	/* Place a few bytes of known values on the bottom of the stack. 
+	/* Place a few bytes of known values on the bottom of the stack.
 	This is just useful for debugging. */
 
 	*pxTopOfStack = 0x11;
@@ -85,7 +84,7 @@ portSTACK_TYPE *pxTopOfHardwareStack;
 	*pxTopOfStack = 0x33;
 	pxTopOfStack--;
 
-	/* Remember where the top of the hardware stack is - this is required 
+	/* Remember where the top of the hardware stack is - this is required
 	below. */
 	pxTopOfHardwareStack = pxTopOfStack;
 
@@ -96,16 +95,16 @@ portSTACK_TYPE *pxTopOfHardwareStack;
 
 
 
-	/* The IAR compiler requires two stacks per task.  First there is the 
+	/* The IAR compiler requires two stacks per task.  First there is the
 	hardware call stack which uses the AVR stack pointer.  Second there is the
 	software stack (local variables, parameter passing, etc.) which uses the
-	AVR Y register.  
+	AVR Y register.
 	
-	This function places both stacks within the memory block passed in as the 
+	This function places both stacks within the memory block passed in as the
 	first parameter.  The hardware stack is placed at the bottom of the memory
 	block.  A gap is then left for the hardware stack to grow.  Next the software
 	stack is placed.  The amount of space between the software and hardware
-	stacks is defined by portCALL_STACK_SIZE.
+	stacks is defined by configCALL_STACK_SIZE.
 
 
 
@@ -120,14 +119,14 @@ portSTACK_TYPE *pxTopOfHardwareStack;
 	pxTopOfStack--;
 
 
-	/* Leave enough space for the hardware stack before starting the software 
-	stack.  The '- 2' is because we have already used two spaces for the 
+	/* Leave enough space for the hardware stack before starting the software
+	stack.  The '- 2' is because we have already used two spaces for the
 	address of the start of the task. */
-	pxTopOfStack -= ( portCALL_STACK_SIZE - 2 );
+	pxTopOfStack -= ( configCALL_STACK_SIZE - 2 );
 
 
 
-	/* Next simulate the stack as if after a call to portSAVE_CONTEXT().  
+	/* Next simulate the stack as if after a call to portSAVE_CONTEXT().
 	portSAVE_CONTEXT places the flags on the stack immediately after r0
 	to ensure the interrupts get disabled as soon as possible, and so ensuring
 	the stack use is minimal should a context switch interrupt occur. */
@@ -228,16 +227,12 @@ portSTACK_TYPE *pxTopOfHardwareStack;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
-	/* In this port we ignore the parameter and use the portUSE_PREEMPTION
-	definition instead. */
-	( void ) sUsePreemption;
-
 	/* Setup the hardware to generate the tick. */
 	prvSetupTimerInterrupt();
 
-	/* Restore the context of the first task that is going to run. 
+	/* Restore the context of the first task that is going to run.
 	Normally we would just call portRESTORE_CONTEXT() here, but as the IAR
 	compiler does not fully support inline assembler we have to make a call.*/
 	vPortStart();
@@ -264,14 +259,14 @@ unsigned portLONG ulCompareMatch;
 unsigned portCHAR ucHighByte, ucLowByte;
 
 	/* Using 16bit timer 1 to generate the tick.  Correct fuses must be
-	selected for the portCPU_CLOCK_HZ clock. */
+	selected for the configCPU_CLOCK_HZ clock. */
 
-	ulCompareMatch = portCPU_CLOCK_HZ / portTICK_RATE_HZ;
+	ulCompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
 
 	/* We only have 16 bits so have to scale to get our required tick rate. */
 	ulCompareMatch /= portCLOCK_PRESCALER;
 
-	/* Setup compare match value for compare match A.  Interrupts are disabled 
+	/* Setup compare match value for compare match A.  Interrupts are disabled
 	before this is called so we need not worry here. */
 	ucLowByte = ( unsigned portCHAR ) ( ulCompareMatch & ( unsigned portLONG ) 0xff );
 	ulCompareMatch >>= 8;
@@ -289,7 +284,7 @@ unsigned portCHAR ucHighByte, ucLowByte;
 }
 /*-----------------------------------------------------------*/
 
-#if portUSE_PREEMPTION == 1
+#if configUSE_PREEMPTION == 1
 
 	/*
 	 * Tick ISR for preemptive scheduler.  We can use a __task attribute as

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -41,13 +41,16 @@ Changes from V2.4.2:
 
 	+ pvPortMalloc and vPortFree have been removed.  The projects now use
 	  the definitions from the source/portable/MemMang directory.
+
+Changes from V2.6.1:
+
+	+ usPortCheckFreeStackSpace() has been moved to tasks.c.
 */
 
 	
 
 #include <stdlib.h>
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 
 /*-----------------------------------------------------------*/
 
@@ -137,22 +140,6 @@ portSTACK_TYPE DS_Reg = 0, *pxOriginalSP;
 	/*lint +e950 +e611 +e923 */
 
 	return pxTopOfStack;
-}
-/*-----------------------------------------------------------*/
-
-unsigned portSHORT usPortCheckFreeStackSpace( const unsigned portCHAR *pucStackByte, unsigned portCHAR ucStackFillByte )
-{
-register unsigned portSHORT usCount = 0;
-
-	while( *pucStackByte == ucStackFillByte )
-	{
-		pucStackByte -= portSTACK_GROWTH;
-		usCount++;
-	}
-
-	usCount /= sizeof( portSTACK_TYPE );
-
-	return usCount;
 }
 /*-----------------------------------------------------------*/
 

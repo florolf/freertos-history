@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -38,8 +38,7 @@
 #include <string.h>
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Constants required to setup timer 2 to produce the RTOS tick. */
@@ -94,11 +93,11 @@ static void prvSetupTimerInterrupt( void );
 	pxXRAMStack = ( xdata portSTACK_TYPE * ) *( ( xdata portSTACK_TYPE ** ) pxCurrentTCB );		\
 																								\
 	/* Set pxRAMStack to point to the first byte to be coped from the stack. */					\
-	pxRAMStack = ( data portSTACK_TYPE * data ) portSTACK_START;								\
+	pxRAMStack = ( data portSTACK_TYPE * data ) configSTACK_START;								\
 																								\
 	/* Calculate the size of the stack we are about to copy from the current					\
 	stack pointer value. */																		\
-	ucStackBytes = SP - ( portSTACK_START - 1 );												\
+	ucStackBytes = SP - ( configSTACK_START - 1 );												\
 																								\
 	/* Before starting to copy the stack, store the calculated stack size so					\
 	the stack can be restored when the task is resumed. */										\
@@ -125,7 +124,7 @@ static void prvSetupTimerInterrupt( void );
 	/* Setup the pointers as per portCOPY_STACK_TO_XRAM(), but this time to						\
 	copy the data back out of XRAM and into the stack. */										\
 	pxXRAMStack = ( xdata portSTACK_TYPE * ) *( ( xdata portSTACK_TYPE ** ) pxCurrentTCB );		\
-	pxRAMStack = ( data portSTACK_TYPE * data ) ( portSTACK_START - 1 );						\
+	pxRAMStack = ( data portSTACK_TYPE * data ) ( configSTACK_START - 1 );						\
 																								\
 	/* The first value stored in XRAM was the size of the stack - i.e. the						\
 	number of bytes we need to copy back. */													\
@@ -304,12 +303,8 @@ portSTACK_TYPE *pxStartOfStack;
 /* 
  * See header file for description. 
  */
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
-	/* Stop compiler warnings.  This port uses a constant defined in
-	portmacro.h to specify whether or not preemption is used. */
-	( void ) sUsePreemption;
-
 	/* Setup timer 2 to generate the RTOS tick. */
 	prvSetupTimerInterrupt();	
 
@@ -358,7 +353,7 @@ void vPortYield( void ) _naked
 }
 /*-----------------------------------------------------------*/
 
-#if portUSE_PREEMPTION == 1
+#if configUSE_PREEMPTION == 1
 	void vTimer2ISR( void ) interrupt 5 _naked
 	{
 		/* Preemptive context switch function triggered by the timer 2 ISR.
@@ -392,8 +387,8 @@ static void prvSetupTimerInterrupt( void )
 unsigned portCHAR ucOriginalSFRPage;
 
 /* Constants calculated to give the required timer capture values. */
-const unsigned portLONG ulTicksPerSecond = portCPU_CLOCK_HZ / portCLOCK_DIVISOR;
-const unsigned portLONG ulCaptureTime = ulTicksPerSecond / portTICK_RATE_HZ;
+const unsigned portLONG ulTicksPerSecond = configCPU_CLOCK_HZ / portCLOCK_DIVISOR;
+const unsigned portLONG ulCaptureTime = ulTicksPerSecond / configTICK_RATE_HZ;
 const unsigned portLONG ulCaptureValue = portMAX_TIMER_VALUE - ulCaptureTime;
 const unsigned portCHAR ucLowCaptureByte = ( unsigned portCHAR ) ( ulCaptureValue & ( unsigned portLONG ) 0xff );
 const unsigned portCHAR ucHighCaptureByte = ( unsigned portCHAR ) ( ulCaptureValue >> ( unsigned portLONG ) 8 );

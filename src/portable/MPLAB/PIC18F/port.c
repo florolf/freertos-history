@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -55,8 +55,7 @@ Changes from V2.3.1
 */
 
 /* Scheduler include files. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* MPLAB library include file. */
@@ -84,7 +83,7 @@ enable state to be unchanged when the interrupted task is switched back in. */
 area's get used by the compiler for temporary storage, especially when 
 performing mathematical operations, or when using 32bit data types.  This
 constant defines the size of memory area which must be saved. */
-#define portCOMPILER_MANAGED_MEMORY_SIZE	0x13
+#define portCOMPILER_MANAGED_MEMORY_SIZE	( ( unsigned portCHAR ) 0x13 )
 
 /* We require the address of the pxCurrentTCB variable, but don't want to know
 any details of its type. */
@@ -471,9 +470,9 @@ unsigned portCHAR ucBlock;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
-	/* In this port we ignore the parameter and use the portUSE_PREEMPTION
+	/* In this port we ignore the parameter and use the configUSE_PREEMPTION
 	definition instead. */
 
 	/* Setup a timer for the tick ISR is using the preemptive scheduler. */
@@ -494,7 +493,7 @@ void vPortEndScheduler( void )
 {
 	/* It is unlikely that the scheduler for the PIC port will get stopped
 	once running.  If required disable the tick interrupt here, then return 
-	to sPortStartScheduler(). */
+	to xPortStartScheduler(). */
 }
 /*-----------------------------------------------------------*/
 
@@ -570,7 +569,7 @@ static void prvTickISR( void )
 	/* Maintain the tick count. */
 	vTaskIncrementTick();
 
-	#if portUSE_PREEMPTION == 1
+	#if configUSE_PREEMPTION == 1
 	{
 		/* Switch to the highest priority task that is ready to run. */
 		vTaskSwitchContext();
@@ -586,7 +585,7 @@ static void prvTickISR( void )
  */
 static void prvSetupTimerInterrupt( void )
 {
-const unsigned portLONG ulConstCompareValue = ( ( portCPU_CLOCK_HZ / portTIMER_FOSC_SCALE ) / portTICK_RATE_HZ );
+const unsigned portLONG ulConstCompareValue = ( ( configCPU_CLOCK_HZ / portTIMER_FOSC_SCALE ) / configTICK_RATE_HZ );
 unsigned portLONG ulCompareValue;
 unsigned portCHAR ucByte;
 

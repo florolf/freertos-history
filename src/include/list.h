@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -81,7 +81,7 @@ typedef struct xLIST_ITEM xListItem;		/* For some reason lint wants this as two 
  */
 typedef struct xLIST
 {
-	unsigned portSHORT usNumberOfItems;
+	unsigned portBASE_TYPE uxNumberOfItems;
 	volatile xListItem * pxHead;			/*< Pointer to the xListEnd item.  xListEnd contains a wrap back pointer to true list head. */
 	volatile xListItem * pxIndex;			/*< Used to walk through the list.  Points to the last item returned by a call to pvListGetOwnerOfNextEntry(). */
 	volatile xListItem xListEnd;			/*< List item that contains the maximum possible item value meaning it is always at the end of the list and is therefore used as a marker. */
@@ -126,7 +126,12 @@ typedef struct xLIST
  * \ingroup LinkedList
  * <HR>
  */
-#define listLIST_IS_EMPTY( pxList )				( ( pxList )->usNumberOfItems == ( unsigned portSHORT ) 0 )
+#define listLIST_IS_EMPTY( pxList )				( ( pxList )->uxNumberOfItems == ( unsigned portBASE_TYPE ) 0 )
+
+/*
+ * Access macro to return the number of items in the list.
+ */
+#define listCURRENT_LIST_LENGTH( pxList )		( ( pxList )->uxNumberOfItems )
 
 /*
  * Access function to obtain the owner of the next entry in a list.
@@ -178,7 +183,7 @@ typedef struct xLIST
  * \ingroup LinkedList
  * <HR>
  */
-#define listGET_OWNER_OF_HEAD_ENTRY( pxList )  ( ( pxList->usNumberOfItems != ( unsigned portSHORT ) 0 ) ? ( pxList->pxHead->pxNext->pvOwner ) : ( NULL ) )
+#define listGET_OWNER_OF_HEAD_ENTRY( pxList )  ( ( pxList->uxNumberOfItems != ( unsigned portBASE_TYPE ) 0 ) ? ( pxList->pxHead->pxNext->pvOwner ) : ( NULL ) )
 
 /*
  * Check to see if a list item is within a list.  The list item maintains a

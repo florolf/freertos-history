@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -36,13 +36,16 @@ Changes from V1.00:
 	+ pxPortInitialiseStack() now initialises the stack of new tasks to the
 	  same format used by the compiler.  This allows the compiler generated
 	  interrupt mechanism to be used for context switches.
+
+Changes from V2.6.1
+
+	+ Move usPortCheckFreeStackSpace() to tasks.c.
 */
 
 
 #include <dos.h>
 #include <stdlib.h>
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 
 /*-----------------------------------------------------------*/
 
@@ -119,21 +122,4 @@ portSTACK_TYPE DS_Reg = 0;
 	return pxTopOfStack;
 }
 /*-----------------------------------------------------------*/
-
-unsigned portSHORT usPortCheckFreeStackSpace( const unsigned portCHAR *pucStackByte, unsigned portCHAR ucStackFillByte )
-{
-register unsigned portSHORT usCount = 0;
-
-	while( *pucStackByte == ucStackFillByte )
-	{
-		pucStackByte -= portSTACK_GROWTH;
-		usCount++;
-	}
-
-	usCount /= sizeof( portSTACK_TYPE );
-
-	return usCount;
-}
-/*-----------------------------------------------------------*/
-
 

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -43,8 +43,7 @@ Changes from V2.6.0
 #include <avr/interrupt.h>
 #include <avr/signal.h>
 
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /*-----------------------------------------------------------
@@ -304,9 +303,9 @@ unsigned portSHORT usAddress;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
-	/* In this port we ignore the parameter and use the portUSE_PREEMPTION
+	/* In this port we ignore the parameter and use the configUSE_PREEMPTION
 	definition instead. */
 
 	/* Setup the hardware to generate the tick. */
@@ -373,9 +372,9 @@ unsigned portLONG ulCompareMatch;
 unsigned portCHAR ucHighByte, ucLowByte;
 
 	/* Using 16bit timer 1 to generate the tick.  Correct fuses must be
-	selected for the portCPU_CLOCK_HZ clock. */
+	selected for the configCPU_CLOCK_HZ clock. */
 
-	ulCompareMatch = portCPU_CLOCK_HZ / portTICK_RATE_HZ;
+	ulCompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
 
 	/* We only have 16 bits so have to scale to get our required tick rate. */
 	ulCompareMatch /= portCLOCK_PRESCALER;
@@ -400,7 +399,7 @@ unsigned portCHAR ucHighByte, ucLowByte;
 }
 /*-----------------------------------------------------------*/
 
-#if portUSE_PREEMPTION == 1
+#if configUSE_PREEMPTION == 1
 
 	/*
 	 * Tick ISR for preemptive scheduler.  We can use a naked attribute as
