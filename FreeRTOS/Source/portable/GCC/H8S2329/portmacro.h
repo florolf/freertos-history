@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -34,82 +34,42 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-/* IO definitions for the chosen device. */
-#include <2329S.h>
-
 /*-----------------------------------------------------------
- * Port specific definitions for the H8S port.
- *----------------------------------------------------------*/
-
-/* These are the only definitions that can be modified!. */
-
-#define portUSE_PREEMPTION		1
-#define portCPU_CLOCK_HZ		( ( unsigned portLONG ) 22118400 )
-#define portTICK_RATE_HZ		( ( portTickType ) 1000 )
-#define portMAX_PRIORITIES		( ( unsigned portCHAR ) 4 )
-#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 200 )
-#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 15 * 1024 ) )
-
-/* The maximum number of characters a task name can take, 
-including the null terminator. */
-#define portMAX_TASK_NAME_LEN		 ( 8 )
-
-/* Set the following definitions to 1 to include the component, or zero
-to exclude the component. */
-
-/* Include/exclude the stated API function. */
-#define INCLUDE_vTaskPrioritySet		1
-#define INCLUDE_ucTaskPriorityGet		1
-#define INCLUDE_vTaskDelete				1
-#define INCLUDE_vTaskCleanUpResources	0
-#define INCLUDE_vTaskSuspend			1
-#define INCLUDE_vTaskDelayUntil			1
-#define INCLUDE_vTaskDelay				1
-
-/* Use/don't use the trace visualisation. */
-#define USE_TRACE_FACILITY				0
-
-/* 
- * The tick count (and times defined in tick count units) can be either a 16bit
- * or a 32 bit value.  See documentation on http://www.FreeRTOS.org to decide
- * which to use.
+ * Port specific definitions.  
+ *
+ * The settings in this file configure FreeRTOS correctly for the
+ * given hardware and compiler.
+ *
+ * These settings should not be altered.
+ *-----------------------------------------------------------
  */
-#define USE_16_BIT_TICKS	1
 
-
-/*-----------------------------------------------------------
- * Do not modify anything below here. 
- *----------------------------------------------------------*/
-
-/* General port definitions. */
-
+/* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
 #define portSHORT		short
 #define portSTACK_TYPE	unsigned portCHAR
+#define portBASE_TYPE	char
 
-#define portBYTE_ALIGNMENT			2
-
-#if( USE_16_BIT_TICKS == 1 )
+#if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffff
 #else
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
-
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / portTICK_RATE_HZ )		
-
-/* The trap instruction used to force a context switch. */
-#define portYIELD()					asm volatile( "TRAPA #0" );
-
 /*-----------------------------------------------------------*/
 
-/* Interrupt and critical section macros. */
+/* Hardware specifics. */
+#define portBYTE_ALIGNMENT			2
+#define portSTACK_GROWTH			( -1 )
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portYIELD()					asm volatile( "TRAPA #0" );
+/*-----------------------------------------------------------*/
 
+/* Critical section handling. */
 #define portENABLE_INTERRUPTS()		asm volatile( "ANDC	#0x7F, CCR" );
 #define portDISABLE_INTERRUPTS()	asm volatile( "ORC  #0x80, CCR" );
 
@@ -119,8 +79,9 @@ to exclude the component. */
 
 /* Pop the CCR to set the interrupt masking back to its previous state. */
 #define  portEXIT_CRITICAL()    	asm volatile( "LDC  @ER7+, CCR" );
-
 /*-----------------------------------------------------------*/
+
+/* Task utilities. */
 
 /* Context switch macros.  These macros are very simple as the context 
 is saved simply by selecting the saveall attribute of the context switch 
@@ -157,7 +118,11 @@ extern void* pxCurrentTCB;										\
 		vTaskSwitchContext();								\
 	}														\
 	} portRESTORE_STACK_POINTER();
+/*-----------------------------------------------------------*/
 
+/* Task function macros as described on the FreeRTOS.org WEB site. */
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
 #endif /* PORTMACRO_H */
 

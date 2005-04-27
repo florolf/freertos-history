@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -42,8 +42,7 @@ definitions. */
 #pragma ARM
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Constants required to handle interrupts. */
@@ -108,7 +107,7 @@ void vPortYieldProcessor( void ) __task
  * the preemptive scheduler is being used.
  */
 
-#if portUSE_PREEMPTION == 0
+#if configUSE_PREEMPTION == 0
 
 	/* 
 	 * The cooperative scheduler requires a normal IRQ service routine to 

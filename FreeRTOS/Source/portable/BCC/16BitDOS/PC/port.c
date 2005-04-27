@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -30,13 +30,18 @@
 	***************************************************************************
 */
 
+/*
+Changes from V2.6.1
+
+	+ Replaced the sUsingPreemption variable with the configUSE_PREEMPTION
+	  macro to be consistent with the later ports.
+*/
 
 #include <stdlib.h>
 #include <dos.h>
 #include <setjmp.h>
 
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 #include "portasm.h"
 
@@ -60,13 +65,17 @@ directly.  We chain to the DOS tick as close as possible to the standard DOS
 tick rate. */
 static void prvPortResetPIC( void );
 
-/* Tick service routine used by the scheduler when cooperative scheduling is 
-being used. */
-static void __interrupt __far prvNonPreemptiveTick( void );
-
-/* Tick service routine used by the scheduler when preemptive scheduling is
-being used. */
-static void __interrupt __far prvPreemptiveTick( void );
+/* The ISR used depends on whether the preemptive or cooperative
+scheduler is being used. */
+#if( configUSE_PREEMPTION == 1 )
+	/* Tick service routine used by the scheduler when preemptive scheduling is
+	being used. */
+	static void __interrupt __far prvPreemptiveTick( void );
+#else
+	/* Tick service routine used by the scheduler when cooperative scheduling is
+	being used. */
+	static void __interrupt __far prvNonPreemptiveTick( void );
+#endif
 
 /* Trap routine used by taskYIELD() to manually cause a context switch. */
 static void __interrupt __far prvYieldProcessor( void );
@@ -74,10 +83,10 @@ static void __interrupt __far prvYieldProcessor( void );
 /*lint -e956 File scopes necessary here. */
 
 /* Used to signal when to chain to the DOS tick, and when to just clear the PIC ourselves. */
-static portSHORT sDOSTickCounter;							
+static portSHORT sDOSTickCounter;
 
 /* Set true when the vectors are set so the scheduler will service the tick. */
-static portSHORT sSchedulerRunning = pdFALSE;				
+static portBASE_TYPE xSchedulerRunning = pdFALSE;				
 
 /* Points to the original routine installed on the vector we use for manual context switches.  This is then used to restore the original routine during prvExitFunction(). */
 static void ( __interrupt __far *pxOldSwitchISR )();		
@@ -91,7 +100,7 @@ static jmp_buf xJumpBuf;
 /*lint +e956 */
 
 /*-----------------------------------------------------------*/
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
 pxISR pxOriginalTickISR;
 	
@@ -103,7 +112,7 @@ pxISR pxOriginalTickISR;
 	pxOriginalTickISR = _dos_getvect( portTIMER_INT_NUMBER );
 	pxOldSwitchISRPlus1 = _dos_getvect( portSWITCH_INT_NUMBER + 1 );
 
-	prvSetTickFrequency( portTICK_RATE_HZ );
+	prvSetTickFrequency( configTICK_RATE_HZ );
 
 	/* Put our manual switch (yield) function on a known
 	vector. */
@@ -113,16 +122,19 @@ pxISR pxOriginalTickISR;
 	call it when we want. */
 	_dos_setvect( portSWITCH_INT_NUMBER + 1, pxOriginalTickISR );
 
-	if( sUsePreemption != pdFALSE )
-	{		
+	/* The ISR used depends on whether the preemptive or cooperative
+	scheduler is being used. */
+	#if( configUSE_PREEMPTION == 1 )
+	{
 		/* Put our tick switch function on the timer interrupt. */
 		_dos_setvect( portTIMER_INT_NUMBER, prvPreemptiveTick );
 	}
-	else
+	#else
 	{
 		/* We want the timer interrupt to just increment the tick count. */
 		_dos_setvect( portTIMER_INT_NUMBER, prvNonPreemptiveTick );
 	}
+    #endif
 
 	/* Setup a counter that is used to call the DOS interrupt as close
 	to it's original frequency as can be achieved given our chosen tick
@@ -133,46 +145,49 @@ pxISR pxOriginalTickISR;
 	if( setjmp( xJumpBuf ) != 0 )
 	{
 		prvExitFunction();
-		sSchedulerRunning = pdFALSE;
+		xSchedulerRunning = pdFALSE;
 	}
 	else
 	{
-		sSchedulerRunning = pdTRUE;
+		xSchedulerRunning = pdTRUE;
 
 		/* Kick off the scheduler by setting up the context of the first task. */
 		portFIRST_CONTEXT();
 	}
 
-	return sSchedulerRunning;
+	return xSchedulerRunning;
 }
 /*-----------------------------------------------------------*/
 
-static void __interrupt __far prvPreemptiveTick( void )
-{
-	/* Get the scheduler to update the task states following the tick. */
-	vTaskIncrementTick();
+/* The ISR used depends on whether the preemptive or cooperative
+scheduler is being used. */
+#if( configUSE_PREEMPTION == 1 )
+	static void __interrupt __far prvPreemptiveTick( void )
+	{
+		/* Get the scheduler to update the task states following the tick. */
+		vTaskIncrementTick();
 
-	/* Switch in the context of the next task to be run. */
-	portSWITCH_CONTEXT();
+		/* Switch in the context of the next task to be run. */
+		portSWITCH_CONTEXT();
 
-	/* Reset the PIC ready for the next time. */
-	prvPortResetPIC();
-}
+		/* Reset the PIC ready for the next time. */
+		prvPortResetPIC();
+	}
+#else
+	static void __interrupt __far prvNonPreemptiveTick( void )
+	{
+		/* Same as preemptive tick, but the cooperative scheduler is being used
+		so we don't have to switch in the context of the next task. */
+		vTaskIncrementTick();
+		prvPortResetPIC();
+	}
+#endif
 /*-----------------------------------------------------------*/
 
 static void __interrupt __far prvYieldProcessor( void )
 {
 	/* Switch in the context of the next task to be run. */
 	portSWITCH_CONTEXT();
-}
-/*-----------------------------------------------------------*/
-
-static void __interrupt __far prvNonPreemptiveTick( void )
-{
-	/* Same as preemptive tick, but the cooperative scheduler is being used
-	so we don't have to switch in the context of the next task. */
-	vTaskIncrementTick();
-	prvPortResetPIC();
 }
 /*-----------------------------------------------------------*/
 
@@ -217,7 +232,7 @@ void ( __interrupt __far *pxOriginalTickISR )();
 	/* Interrupts should be disabled here anyway - but no 
 	harm in making sure. */
 	portDISABLE_INTERRUPTS();
-	if( sSchedulerRunning == pdTRUE )
+	if( xSchedulerRunning == pdTRUE )
 	{
 		/* Set the DOS tick back onto the timer ticker. */
 		pxOriginalTickISR = _dos_getvect( portSWITCH_INT_NUMBER + 1 );

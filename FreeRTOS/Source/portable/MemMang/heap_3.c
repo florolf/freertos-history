@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -44,21 +44,20 @@
 
 #include <stdlib.h>
 
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /*-----------------------------------------------------------*/
 
-void *pvPortMalloc( unsigned portSHORT usWantedSize )
+void *pvPortMalloc( size_t xWantedSize )
 {
 void *pvReturn;
 
 	vTaskSuspendAll();
 	{
-		pvReturn = malloc( ( size_t ) usWantedSize );
+		pvReturn = malloc( xWantedSize );
 	}
-	cTaskResumeAll();
+	xTaskResumeAll();
 
 	return pvReturn;
 }
@@ -72,7 +71,7 @@ void vPortFree( void *pv )
 		{
 			free( pv );
 		}
-		cTaskResumeAll();
+		xTaskResumeAll();
 	}
 }
 

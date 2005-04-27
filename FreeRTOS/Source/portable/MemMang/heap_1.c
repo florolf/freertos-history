@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -36,6 +36,11 @@ Changes between V2.5.1 and V2.5.1
 
 	+ The memory pool has been defined within a struct to ensure correct memory
 	  alignment on 32bit systems.
+
+Changes between V2.6.1 and V3.0.0
+
+	+ An overflow check has been added to ensure the next free byte variable 
+	  does not wrap around.
 */
 
 
@@ -47,21 +52,20 @@ Changes between V2.5.1 and V2.5.1
  * management pages of http://www.FreeRTOS.org for more information.
  */
 #include <stdlib.h>
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Setup the correct byte alignment mask for the defined byte alignment. */
 #if portBYTE_ALIGNMENT == 4
-	#define heapBYTE_ALIGNMENT_MASK	( ( unsigned portSHORT ) 0x0003 )
+	#define heapBYTE_ALIGNMENT_MASK	( ( size_t ) 0x0003 )
 #endif
 
 #if portBYTE_ALIGNMENT == 2
-	#define heapBYTE_ALIGNMENT_MASK	( ( unsigned portSHORT ) 0x0001 )
+	#define heapBYTE_ALIGNMENT_MASK	( ( size_t ) 0x0001 )
 #endif
 
 #if portBYTE_ALIGNMENT == 1 
-	#define heapBYTE_ALIGNMENT_MASK	( ( unsigned portSHORT ) 0x0000 )
+	#define heapBYTE_ALIGNMENT_MASK	( ( size_t ) 0x0000 )
 #endif
 
 #ifndef heapBYTE_ALIGNMENT_MASK
@@ -73,35 +77,36 @@ alignment without using any non-portable code. */
 static struct xRTOS_HEAP
 {
 	unsigned portLONG ulDummy;
-	unsigned portCHAR ucHeap[ portTOTAL_HEAP_SIZE ];
+	unsigned portCHAR ucHeap[ configTOTAL_HEAP_SIZE ];
 } xHeap;
 
-static unsigned portSHORT usNextFreeByte = ( unsigned portSHORT ) 0;
+static size_t xNextFreeByte = ( size_t ) 0;
 /*-----------------------------------------------------------*/
 
-void *pvPortMalloc( unsigned portSHORT usWantedSize )
+void *pvPortMalloc( size_t xWantedSize )
 {
 void *pvReturn = NULL;
 
 	/* Ensure that blocks are always aligned to the required number of bytes. */
-	if( usWantedSize & heapBYTE_ALIGNMENT_MASK )
+	if( xWantedSize & heapBYTE_ALIGNMENT_MASK )
 	{
 		/* Byte alignment required. */
-		usWantedSize += ( portBYTE_ALIGNMENT - ( usWantedSize & heapBYTE_ALIGNMENT_MASK ) );
+		xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & heapBYTE_ALIGNMENT_MASK ) );
 	}
 
 	vTaskSuspendAll();
 	{
 		/* Check there is enough room left for the allocation. */
-		if( ( usNextFreeByte + usWantedSize ) < portTOTAL_HEAP_SIZE )
+		if( ( ( xNextFreeByte + xWantedSize ) < configTOTAL_HEAP_SIZE ) &&
+			( ( xNextFreeByte + xWantedSize ) > xNextFreeByte )	)/* Check for overflow. */
 		{
 			/* Return the next free byte then increment the index past this
 			block. */
-			pvReturn = &( xHeap.ucHeap[ usNextFreeByte ] );
-			usNextFreeByte += usWantedSize;			
+			pvReturn = &( xHeap.ucHeap[ xNextFreeByte ] );
+			xNextFreeByte += xWantedSize;			
 		}	
 	}
-	cTaskResumeAll();
+	xTaskResumeAll();
 
 	return pvReturn;
 }
@@ -119,7 +124,7 @@ void vPortFree( void *pv )
 void vPortInitialiseBlocks( void )
 {
 	/* Only required when static memory is not cleared. */
-	usNextFreeByte = ( unsigned portSHORT ) 0;
+	xNextFreeByte = ( size_t ) 0;
 }
 
 

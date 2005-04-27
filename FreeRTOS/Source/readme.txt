@@ -3,7 +3,7 @@ components and are common to every port, and one or more files that are
 specific to a particular microcontroller and or compiler.
 
 + The FreeRTOS/Source directory contains the three files that are common to 
-every port.
+every port.  The kernel is contained within these three files.
 
 + The FreeRTOS/Source/Portable directory contains the files that are specific to 
 a particular microcontroller and or compiler.

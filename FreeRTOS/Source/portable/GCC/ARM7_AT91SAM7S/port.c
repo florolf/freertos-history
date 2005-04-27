@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -51,8 +51,7 @@
 #include <stdlib.h>
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Constants required to setup the task context. */
@@ -67,10 +66,9 @@
 #define portINTERRUPT_ON_MATCH		( ( unsigned portLONG ) 0x01 )
 #define portRESET_COUNT_ON_MATCH	( ( unsigned portLONG ) 0x02 )
 
-/* Constants required to setup the VIC for the tick ISR. */
-#define portTIMER_VIC_CHANNEL		( ( unsigned portLONG ) 0x0004 )
-#define portTIMER_VIC_CHANNEL_BIT	( ( unsigned portLONG ) 0x0010 )
-#define portTIMER_VIC_ENABLE		( ( unsigned portLONG ) 0x0020 )
+/* Constants required to setup the PIT. */
+#define portPIT_CLOCK_DIVISOR			( ( unsigned portLONG ) 16 )
+#define portPIT_COUNTER_VALUE			( ( ( configCPU_CLOCK_HZ / portPIT_CLOCK_DIVISOR ) / 1000UL ) * portTICK_RATE_MS )
 
 /*-----------------------------------------------------------*/
 
@@ -163,7 +161,7 @@ portSTACK_TYPE *pxOriginalTOS;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
@@ -189,50 +187,27 @@ void vPortEndScheduler( void )
  */
 static void prvSetupTimerInterrupt( void )
 {
-unsigned portLONG ulCompareMatch;
+AT91PS_PITC pxPIT = AT91C_BASE_PITC;
 
-	/* A 1ms tick does not require the use of the timer prescale.  This is
-	defaulted to zero but can be used if necessary. */
-	T0_PC = portPRESCALE_VALUE;
+	/* Setup the AIC for PIT interrupts.  The interrupt routine chosen depends
+	on whether the preemptive or cooperative scheduler is being used. */
+	#if configUSE_PREEMPTION == 0
 
-	/* Calculate the match value required for our wanted tick rate. */
-	ulCompareMatch = portCPU_CLOCK_HZ / portTICK_RATE_HZ;
+		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortNonPreemptiveTick );
 
-	/* Protect against divide by zero.  Using an if() statement still results
-	in a warning - hence the #if. */
-	#if portPRESCALE_VALUE != 0
-	{
-		ulCompareMatch /= portPRESCALE_VALUE;
-	}
-	#endif
-	T0_MR0 = ulCompareMatch;
-
-	/* Generate tick with timer 0 compare match. */
-	T0_MCR = portRESET_COUNT_ON_MATCH | portINTERRUPT_ON_MATCH;
-
-	/* Setup the VIC for the timer. */
-	VICIntSelect &= ~( portTIMER_VIC_CHANNEL_BIT );
-	VICIntEnable |= portTIMER_VIC_CHANNEL_BIT;
-	
-	/* The ISR installed depends on whether the preemptive or cooperative
-	scheduler is being used. */
-	#if portUSE_PREEMPTION == 1
-	{
-		extern void ( vPreemptiveTick )( void );
-		VICVectAddr0 = ( portLONG ) vPreemptiveTick;
-	}
 	#else
-	{
-		extern void ( vNonPreemptiveTick )( void );
-		VICVectAddr0 = ( portLONG ) vNonPreemptiveTick;
-	}
+		
+		extern void ( vPreemptiveTick )( void );
+		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPreemptiveTick );
+
 	#endif
 
-	VICVectCntl0 = portTIMER_VIC_CHANNEL | portTIMER_VIC_ENABLE;
+	/* Configure the PIT period. */
+	pxPIT->PITC_PIMR = AT91C_SYSC_PITEN | AT91C_SYSC_PITIEN | portPIT_COUNTER_VALUE;
 
-	/* Start the timer - interrupts are disabled when this function is called
-	so it is okay to do this here. */
-	T0_TCR = portENABLE_TIMER;
+	/* Enable the interrupt.  Global interrupts are disables at this point so 
+	this is safe. */
+	AT91F_AIC_EnableIt( AT91C_BASE_AIC, AT91C_ID_SYS );
 }
 /*-----------------------------------------------------------*/
 

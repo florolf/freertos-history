@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -45,13 +45,16 @@ Changed from V2.0.0
 Changed from V2.2.0
 
 	+ Explicit use of 'signed' qualifier on portCHAR types added.
+
+Changes from V3.0.0
+
+	+ API changes as described on the FreeRTOS.org WEB site.
+
 */
 
 #include <stdlib.h>
 #include <string.h>
-#include "projdefs.h"
-#include "portable.h"
-#include "errors.h"
+#include "FreeRTOS.h"
 #include "task.h"
 #include "list.h"
 
@@ -60,7 +63,7 @@ Changed from V2.2.0
  *----------------------------------------------------------*/
 
 /* Constants used with the cRxLock and cTxLock structure members. */
-#define queueUNLOCKED	( ( signed portCHAR ) -1 )
+#define queueUNLOCKED	( ( signed portBASE_TYPE ) -1 )
 
 /*
  * Definition of the queue used by the scheduler.
@@ -77,12 +80,12 @@ typedef struct QueueDefinition
 	xList xTasksWaitingToSend;				/*< List of tasks that are blocked waiting to post onto this queue.  Stored in priority order. */
 	xList xTasksWaitingToReceive;			/*< List of tasks that are blocked waiting to read from this queue.  Stored in priority order. */
 
-	unsigned portCHAR ucMessagesWaiting;	/*< The number of items currently in the queue. */
-	unsigned portCHAR ucLength;				/*< The length of the queue defined as the number of items it will hold, not the number of bytes. */
-	unsigned portCHAR ucItemSize;			/*< The size of each items that the queue will hold. */
+	unsigned portBASE_TYPE uxMessagesWaiting;/*< The number of items currently in the queue. */
+	unsigned portBASE_TYPE uxLength;		/*< The length of the queue defined as the number of items it will hold, not the number of bytes. */
+	unsigned portBASE_TYPE uxItemSize;		/*< The size of each items that the queue will hold. */
 
-	signed portCHAR cRxLock;				/*< Stores the number of items received from the queue (removed from the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
-	signed portCHAR cTxLock;				/*< Stores the number of items transmitted to the queue (added to the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
+	signed portBASE_TYPE xRxLock;				/*< Stores the number of items received from the queue (removed from the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
+	signed portBASE_TYPE xTxLock;				/*< Stores the number of items transmitted to the queue (added to the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
 } xQUEUE;
 /*-----------------------------------------------------------*/
 
@@ -98,13 +101,13 @@ typedef xQUEUE * xQueueHandle;
  * include the API header file (as it defines xQueueHandle differently).  These
  * functions are documented in the API header file. 
  */
-xQueueHandle xQueueCreate( unsigned portCHAR ucQueueLength, unsigned portCHAR ucItemSize );
-signed portCHAR cQueueSend( xQueueHandle xQueue, const void * pvItemToQueue, portTickType xTicksToWait );
-unsigned portCHAR ucQueueMessagesWaiting( xQueueHandle pxQueue );
+xQueueHandle xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBASE_TYPE uxItemSize );
+signed portBASE_TYPE xQueueSend( xQueueHandle xQueue, const void * pvItemToQueue, portTickType xTicksToWait );
+unsigned portBASE_TYPE uxQueueMessagesWaiting( xQueueHandle pxQueue );
 void vQueueDelete( xQueueHandle xQueue );
-signed portCHAR cQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portCHAR cTaskPreviouslyWoken );
-signed portCHAR cQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait );
-signed portCHAR cQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portCHAR *pcTaskWoken );
+signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xTaskPreviouslyWoken );
+signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait );
+signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portBASE_TYPE *pxTaskWoken );
 
 /* 
  * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not 
@@ -114,21 +117,21 @@ signed portCHAR cQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, sign
  * to indicate that a task may require unblocking.  When the queue in unlocked
  * these lock counts are inspected, and the appropriate action taken.
  */
-static signed portCHAR prvUnlockQueue( xQueueHandle pxQueue );
+static signed portBASE_TYPE prvUnlockQueue( xQueueHandle pxQueue );
 
 /*
  * Uses a critical section to determine if there is any data in a queue.
  *
  * @return pdTRUE if the queue contains no items, otherwise pdFALSE.
  */
-static signed portCHAR prvIsQueueEmpty( const xQueueHandle pxQueue );
+static signed portBASE_TYPE prvIsQueueEmpty( const xQueueHandle pxQueue );
 
 /*
  * Uses a critical section to determine if there is any space in a queue.
  *
  * @return pdTRUE if there is no space, otherwise pdFALSE;
  */
-static signed portCHAR prvIsQueueFull( const xQueueHandle pxQueue );
+static signed portBASE_TYPE prvIsQueueFull( const xQueueHandle pxQueue );
 
 /*
  * Macro that copies an item into the queue.  This is done by copying the item
@@ -137,9 +140,9 @@ static signed portCHAR prvIsQueueFull( const xQueueHandle pxQueue );
  */
 #define prvCopyQueueData( pxQueue, pvItemToQueue )												\
 {																								\
-	memcpy( ( void * ) pxQueue->pcWriteTo, pvItemToQueue, ( unsigned ) pxQueue->ucItemSize );	\
-	++( pxQueue->ucMessagesWaiting );															\
-	pxQueue->pcWriteTo += pxQueue->ucItemSize;													\
+	memcpy( ( void * ) pxQueue->pcWriteTo, pvItemToQueue, ( unsigned ) pxQueue->uxItemSize );	\
+	++( pxQueue->uxMessagesWaiting );															\
+	pxQueue->pcWriteTo += pxQueue->uxItemSize;													\
 	if( pxQueue->pcWriteTo >= pxQueue->pcTail )													\
 	{																							\
 		pxQueue->pcWriteTo = pxQueue->pcHead;													\
@@ -154,8 +157,8 @@ static signed portCHAR prvIsQueueFull( const xQueueHandle pxQueue );
 #define prvLockQueue( pxQueue )			\
 {										\
 	taskENTER_CRITICAL();				\
-		++( pxQueue->cRxLock );			\
-		++( pxQueue->cTxLock );			\
+		++( pxQueue->xRxLock );			\
+		++( pxQueue->xTxLock );			\
 	taskEXIT_CRITICAL();				\
 }
 /*-----------------------------------------------------------*/
@@ -165,34 +168,34 @@ static signed portCHAR prvIsQueueFull( const xQueueHandle pxQueue );
  * PUBLIC QUEUE MANAGEMENT API documented in queue.h
  *----------------------------------------------------------*/
 
-xQueueHandle xQueueCreate( unsigned portCHAR ucQueueLength, unsigned portCHAR ucItemSize )
+xQueueHandle xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBASE_TYPE uxItemSize )
 {
 xQUEUE *pxNewQueue;
-unsigned portSHORT usQueueSizeInBytes;
+size_t xQueueSizeInBytes;
 
 	/* Allocate the new queue structure. */
-	if( ucQueueLength > ( unsigned portCHAR ) 0 )
+	if( uxQueueLength > ( unsigned portBASE_TYPE ) 0 )
 	{
 		pxNewQueue = ( xQUEUE * ) pvPortMalloc( sizeof( xQUEUE ) );
 		if( pxNewQueue != NULL )
 		{
 			/* Create the list of pointers to queue items.  The queue is one byte 
 			longer than asked for to make wrap checking easier/faster. */
-			usQueueSizeInBytes = ( unsigned portSHORT ) ( ucQueueLength * ucItemSize ) + ( unsigned portSHORT ) 1;
+			xQueueSizeInBytes = ( size_t ) ( uxQueueLength * uxItemSize ) + ( size_t ) 1;
 
-			pxNewQueue->pcHead = ( signed portCHAR * ) pvPortMalloc( usQueueSizeInBytes );
+			pxNewQueue->pcHead = ( signed portCHAR * ) pvPortMalloc( xQueueSizeInBytes );
 			if( pxNewQueue->pcHead != NULL )
 			{
 				/* Initialise the queue members as described above where the 
 				queue type is defined. */
-				pxNewQueue->pcTail = pxNewQueue->pcHead + ( ucQueueLength * ucItemSize );
-				pxNewQueue->ucMessagesWaiting = ( unsigned portCHAR ) 0;
+				pxNewQueue->pcTail = pxNewQueue->pcHead + ( uxQueueLength * uxItemSize );
+				pxNewQueue->uxMessagesWaiting = 0;
 				pxNewQueue->pcWriteTo = pxNewQueue->pcHead;
-				pxNewQueue->pcReadFrom = pxNewQueue->pcHead + ( ( ucQueueLength - ( unsigned portCHAR ) 1 ) * ucItemSize );
-				pxNewQueue->ucLength = ucQueueLength;
-				pxNewQueue->ucItemSize = ucItemSize;
-				pxNewQueue->cRxLock = queueUNLOCKED;
-				pxNewQueue->cTxLock = queueUNLOCKED;
+				pxNewQueue->pcReadFrom = pxNewQueue->pcHead + ( ( uxQueueLength - 1 ) * uxItemSize );
+				pxNewQueue->uxLength = uxQueueLength;
+				pxNewQueue->uxItemSize = uxItemSize;
+				pxNewQueue->xRxLock = queueUNLOCKED;
+				pxNewQueue->xTxLock = queueUNLOCKED;
 
 				/* Likewise ensure the event queues start with the correct state. */
 				vListInitialise( &( pxNewQueue->xTasksWaitingToSend ) );
@@ -213,15 +216,15 @@ unsigned portSHORT usQueueSizeInBytes;
 }
 /*-----------------------------------------------------------*/
 
-signed portCHAR cQueueSend( xQueueHandle pxQueue, const void *pvItemToQueue, portTickType xTicksToWait )
+signed portBASE_TYPE xQueueSend( xQueueHandle pxQueue, const void *pvItemToQueue, portTickType xTicksToWait )
 {
-signed portCHAR cReturn;
+signed portBASE_TYPE xReturn;
 
 	/* Make sure other tasks do not access the queue. */
 	vTaskSuspendAll();
 
 	/* It is important that this is the only thread/ISR that modifies the
-	ready or delayed lists until cTaskResumeAll() is called.  Places where 
+	ready or delayed lists until xTaskResumeAll() is called.  Places where 
 	the ready/delayed lists are modified include:
 
 		+ vTaskDelay() -  Nothing can call vTaskDelay as the scheduler is 
@@ -231,10 +234,10 @@ signed portCHAR cReturn;
 		  is suspended.
 		+ prvCheckDelayedTasks() - This will not get executed while the 
 		  scheduler is suspended.
-		+ sTaskCreate() - Has a critical section around the access.
+		+ xTaskCreate() - Has a critical section around the access.
 		+ vTaskResume() - Has a critical section around the access.
-		+ cTaskResumeAll() - Has a critical section around the access.
-		+ cTaskRemoveFromEventList - Checks to see if the scheduler is 
+		+ xTaskResumeAll() - Has a critical section around the access.
+		+ xTaskRemoveFromEventList - Checks to see if the scheduler is 
 		  suspended.  If so then the TCB being removed from the event is 
 		  removed from the event and added to the xPendingReadyList.
 	*/
@@ -246,7 +249,7 @@ signed portCHAR cReturn;
 	queue being modified here.  Places where the event list is modified
 	include:
 
-		+ cQueueSendFromISR().  This checks the lock on the queue to see if
+		+ xQueueSendFromISR().  This checks the lock on the queue to see if
 		  it has access.  If the queue is locked then the Tx lock count is 
 		  incremented to signify that a task waiting for data can be made ready
 		  once the queue lock is removed.  If the queue is not locked then
@@ -254,7 +257,7 @@ signed portCHAR cReturn;
 		  from the delayed list or placed in the ready list until the scheduler 
 		  is unlocked.  
 
-		+ cQueueReceiveFromISR().  As per cQueueSendFromISR().
+		+ xQueueReceiveFromISR().  As per xQueueSendFromISR().
 	*/
 		
 	/* If the queue is already full we may have to block. */
@@ -297,12 +300,12 @@ signed portCHAR cReturn;
 				
 				Tasks that have been placed on the pending ready list cannot
 				be tasks that are waiting for events on this queue.  See 
-				in comment cTaskRemoveFromEventList(). */
+				in comment xTaskRemoveFromEventList(). */
 				prvUnlockQueue( pxQueue );
 
 				/* Resuming the scheduler may cause a yield.  If so then there
 				is no point yielding again here. */
-				if( !cTaskResumeAll() )
+				if( !xTaskResumeAll() )
 				{
 					taskYIELD();
 				}
@@ -316,26 +319,26 @@ signed portCHAR cReturn;
 		}
 	}
 		
-	/* When we are here it is possible that we unlblocked as space became 
+	/* When we are here it is possible that we unblocked as space became 
 	available on the queue.  It is also possible that an ISR posted to the
 	queue since we left the critical section, so it may be that again there
 	is no space.  This would only happen if a task and ISR post onto the
 	same queue. */
 	taskENTER_CRITICAL();
 	{
-		if( pxQueue->ucMessagesWaiting < pxQueue->ucLength )
+		if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
 		{
 			/* There is room in the queue, copy the data into the queue. */			
 			prvCopyQueueData( pxQueue, pvItemToQueue );		
-			cReturn = ( signed portCHAR ) pdPASS;
+			xReturn = pdPASS;
 
 			/* Update the TxLock count so prvUnlockQueue knows to check for
 			tasks waiting for data to become available in the queue. */
-			++( pxQueue->cTxLock );
+			++( pxQueue->xTxLock );
 		}
 		else
 		{
-			cReturn = errQUEUE_FULL;
+			xReturn = errQUEUE_FULL;
 		}
 	}
 	taskEXIT_CRITICAL();
@@ -349,7 +352,7 @@ signed portCHAR cReturn;
 		by an event while the scheduler was locked.  Resuming the 
 		scheduler may cause a yield, in which case there is no point
 		yielding again here. */
-		if( !cTaskResumeAll() )
+		if( !xTaskResumeAll() )
 		{
 			taskYIELD();
 		}
@@ -358,35 +361,35 @@ signed portCHAR cReturn;
 	{
 		/* Resume the scheduler - making ready any tasks that were woken
 		by an event while the scheduler was locked. */
-		cTaskResumeAll();
+		xTaskResumeAll();
 	}
 
-	return cReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
-signed portCHAR cQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portCHAR cTaskPreviouslyWoken )
+signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xTaskPreviouslyWoken )
 {
-	/* Similar to cQueueSend, except we don't block if there is no room in the
+	/* Similar to xQueueSend, except we don't block if there is no room in the
 	queue.  Also we don't directly wake a task that was blocked on a queue
 	read, instead we return a flag to say whether a context switch is required
 	or not (i.e. has a task with a higher priority than us been woken by this
 	post). */
-	if( pxQueue->ucMessagesWaiting < pxQueue->ucLength )
+	if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
 	{
 		prvCopyQueueData( pxQueue, pvItemToQueue );
 
 		/* If the queue is locked we do not alter the event list.  This will
 		be done when the queue is unlocked later. */
-		if( pxQueue->cTxLock == queueUNLOCKED )
+		if( pxQueue->xTxLock == queueUNLOCKED )
 		{
 			/* We only want to wake one task per ISR, so check that a task has
 			not already been woken. */
-			if( !cTaskPreviouslyWoken )		
+			if( !xTaskPreviouslyWoken )		
 			{
 				if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
 				{
-					if( cTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != ( signed portCHAR ) pdFALSE )
+					if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
 					{
 						/* The task waiting has a higher priority so record that a 
 						context	switch is required. */
@@ -399,20 +402,20 @@ signed portCHAR cQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQue
 		{
 			/* Increment the lock count so the task that unlocks the queue 
 			knows that data was posted while it was locked. */
-			++( pxQueue->cTxLock );
+			++( pxQueue->xTxLock );
 		}
 	}
 
-	return cTaskPreviouslyWoken;
+	return xTaskPreviouslyWoken;
 }
 /*-----------------------------------------------------------*/
 
-signed portCHAR cQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait )
+signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait )
 {
-signed portCHAR cReturn;
+signed portBASE_TYPE xReturn;
 
-	/* This function is very similar to cQueueSend().  See comments within
-	cQueueSend() for a more detailed explanation.
+	/* This function is very similar to xQueueSend().  See comments within
+	xQueueSend() for a more detailed explanation.
 
 	Make sure other tasks do not access the queue. */
 	vTaskSuspendAll();
@@ -431,7 +434,7 @@ signed portCHAR cReturn;
 			taskENTER_CRITICAL();
 			{
 				prvUnlockQueue( pxQueue );
-				if( !cTaskResumeAll() )
+				if( !xTaskResumeAll() )
 				{
 					taskYIELD();
 				}
@@ -445,24 +448,24 @@ signed portCHAR cReturn;
 
 	taskENTER_CRITICAL();
 	{
-		if( pxQueue->ucMessagesWaiting > ( unsigned portCHAR ) 0 )
+		if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
 		{
-			pxQueue->pcReadFrom += pxQueue->ucItemSize;
+			pxQueue->pcReadFrom += pxQueue->uxItemSize;
 			if( pxQueue->pcReadFrom >= pxQueue->pcTail )
 			{
 				pxQueue->pcReadFrom = pxQueue->pcHead;
 			}
-			--( pxQueue->ucMessagesWaiting );
-			memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->ucItemSize );
+			--( pxQueue->uxMessagesWaiting );
+			memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
 
 			/* Increment the lock count so prvUnlockQueue knows to check for
 			tasks waiting for space to become available on the queue. */
-			++( pxQueue->cRxLock );
-			cReturn = ( signed portCHAR ) pdPASS;
+			++( pxQueue->xRxLock );
+			xReturn = pdPASS;
 		}
 		else
 		{
-			cReturn = ( signed portCHAR ) pdFAIL;
+			xReturn = pdFAIL;
 		}
 	}
 	taskEXIT_CRITICAL();
@@ -470,52 +473,52 @@ signed portCHAR cReturn;
 	/* We no longer require exclusive access to the queue. */
 	if( prvUnlockQueue( pxQueue ) )
 	{
-		if( !cTaskResumeAll() )
+		if( !xTaskResumeAll() )
 		{
 			taskYIELD();
 		}
 	}
 	else
 	{
-		cTaskResumeAll();
+		xTaskResumeAll();
 	}
 
-	return cReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
-signed portCHAR cQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portCHAR *pcTaskWoken )
+signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portBASE_TYPE *pxTaskWoken )
 {
-signed portCHAR cReturn;
+signed portBASE_TYPE xReturn;
 
 	/* We cannot block from an ISR, so check there is data available. */
-	if( pxQueue->ucMessagesWaiting > ( unsigned portCHAR ) 0 )
+	if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
 	{
 		/* Copy the data from the queue. */
-		pxQueue->pcReadFrom += pxQueue->ucItemSize;
+		pxQueue->pcReadFrom += pxQueue->uxItemSize;
 		if( pxQueue->pcReadFrom >= pxQueue->pcTail )
 		{
 			pxQueue->pcReadFrom = pxQueue->pcHead;
 		}
-		--( pxQueue->ucMessagesWaiting );
-		memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->ucItemSize );
+		--( pxQueue->uxMessagesWaiting );
+		memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
 
 		/* If the queue is locked we will not modify the event list.  Instead
 		we update the lock count so the task that unlocks the queue will know
 		that an ISR has removed data while the queue was locked. */
-		if( pxQueue->cRxLock == queueUNLOCKED )
+		if( pxQueue->xRxLock == queueUNLOCKED )
 		{
 			/* We only want to wake one task per ISR, so check that a task has
 			not already been woken. */
-			if( !( *pcTaskWoken ) )
+			if( !( *pxTaskWoken ) )
 			{
 				if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
 				{
-					if( cTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != ( signed portCHAR ) pdFALSE )
+					if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
 					{
 						/* The task waiting has a higher priority than us so
 						force a context switch. */
-						*pcTaskWoken = ( signed portCHAR ) pdTRUE;
+						*pxTaskWoken = pdTRUE;
 					}
 				}
 			}
@@ -524,29 +527,29 @@ signed portCHAR cReturn;
 		{
 			/* Increment the lock count so the task that unlocks the queue 
 			knows that data was removed while it was locked. */
-			++( pxQueue->cRxLock );
+			++( pxQueue->xRxLock );
 		}
 
-		cReturn = ( signed portCHAR ) pdPASS;
+		xReturn = pdPASS;
 	}
 	else
 	{
-		cReturn = ( signed portCHAR ) pdFAIL;
+		xReturn = pdFAIL;
 	}
 
-	return cReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
-unsigned portCHAR ucQueueMessagesWaiting( xQueueHandle pxQueue )
+unsigned portBASE_TYPE uxQueueMessagesWaiting( xQueueHandle pxQueue )
 {
-unsigned portCHAR ucReturn;
+unsigned portBASE_TYPE uxReturn;
 
 	taskENTER_CRITICAL();
-		ucReturn = pxQueue->ucMessagesWaiting;
+		uxReturn = pxQueue->uxMessagesWaiting;
 	taskEXIT_CRITICAL();
 
-	return ucReturn;
+	return uxReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -557,9 +560,9 @@ void vQueueDelete( xQueueHandle pxQueue )
 }
 /*-----------------------------------------------------------*/
 
-static signed portCHAR prvUnlockQueue( xQueueHandle pxQueue )
+static signed portBASE_TYPE prvUnlockQueue( xQueueHandle pxQueue )
 {
-signed portCHAR cYieldRequired = ( signed portCHAR ) pdFALSE;
+signed portBASE_TYPE xYieldRequired = pdFALSE;
 
 	/* THIS FUNCTION MUST BE CALLED WITH THE SCHEDULER SUSPENDED. */
 
@@ -569,12 +572,12 @@ signed portCHAR cYieldRequired = ( signed portCHAR ) pdFALSE;
 	updated. */
 	taskENTER_CRITICAL();
 	{
-		--( pxQueue->cTxLock );
+		--( pxQueue->xTxLock );
 
 		/* See if data was added to the queue while it was locked. */
-		if( pxQueue->cTxLock > queueUNLOCKED )
+		if( pxQueue->xTxLock > queueUNLOCKED )
 		{
-			pxQueue->cTxLock = queueUNLOCKED;
+			pxQueue->xTxLock = queueUNLOCKED;
 
 			/* Data was posted while the queue was locked.  Are any tasks
 			blocked waiting for data to become available? */
@@ -582,11 +585,11 @@ signed portCHAR cYieldRequired = ( signed portCHAR ) pdFALSE;
 			{
 				/* Tasks that are removed from the event list will get added to
 				the pending ready list as the scheduler is still suspended. */
-				if( cTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != ( signed portCHAR ) pdFALSE )
+				if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
 				{
 					/* The task waiting has a higher priority so record that a 
 					context	switch is required. */
-					cYieldRequired = ( signed portCHAR ) pdTRUE;
+					xYieldRequired = pdTRUE;
 				}
 			}			
 		}
@@ -596,47 +599,47 @@ signed portCHAR cYieldRequired = ( signed portCHAR ) pdFALSE;
 	/* Do the same for the Rx lock. */
 	taskENTER_CRITICAL();
 	{
-		--( pxQueue->cRxLock );
+		--( pxQueue->xRxLock );
 
-		if( pxQueue->cRxLock > queueUNLOCKED )
+		if( pxQueue->xRxLock > queueUNLOCKED )
 		{
-			pxQueue->cRxLock = queueUNLOCKED;
+			pxQueue->xRxLock = queueUNLOCKED;
 
 			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
 			{
-				if( cTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != ( signed portCHAR ) pdFALSE )
+				if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
 				{
-					cYieldRequired = ( signed portCHAR ) pdTRUE;
+					xYieldRequired = pdTRUE;
 				}
 			}			
 		}
 	}
 	taskEXIT_CRITICAL();
 
-	return cYieldRequired;
+	return xYieldRequired;
 }
 /*-----------------------------------------------------------*/
 
-static signed portCHAR prvIsQueueEmpty( const xQueueHandle pxQueue )
+static signed portBASE_TYPE prvIsQueueEmpty( const xQueueHandle pxQueue )
 {
-signed portCHAR cReturn;
+signed portBASE_TYPE xReturn;
 
 	taskENTER_CRITICAL();
-		cReturn = ( pxQueue->ucMessagesWaiting == ( unsigned portCHAR ) 0 );
+		xReturn = ( pxQueue->uxMessagesWaiting == ( unsigned portBASE_TYPE ) 0 );
 	taskEXIT_CRITICAL();
 
-	return cReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
-static signed portCHAR prvIsQueueFull( const xQueueHandle pxQueue )
+static signed portBASE_TYPE prvIsQueueFull( const xQueueHandle pxQueue )
 {
-signed portCHAR cReturn;
+signed portBASE_TYPE xReturn;
 
 	taskENTER_CRITICAL();
-		cReturn = ( pxQueue->ucMessagesWaiting == pxQueue->ucLength );
+		xReturn = ( pxQueue->uxMessagesWaiting == pxQueue->uxLength );
 	taskEXIT_CRITICAL();
 
-	return cReturn;
+	return xReturn;
 }
 

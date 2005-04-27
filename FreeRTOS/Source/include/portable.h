@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -20,11 +20,11 @@
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
 	the source code for any proprietary components.  See the licensing section 
-	of http://www.FreeRTOS.org for full details of how and when the exception
+	of http:www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
+	See http:www.FreeRTOS.org for documentation, latest information, license 
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
 	***************************************************************************
@@ -57,18 +57,12 @@
 	#include "../portable/IAR/ATMega323/portmacro.h"
 #endif
 
-#ifdef BCC_INDUSTRIAL_PC_PORT
-	#include "..\portable\BCC\16BitDOS\PC\prtmacro.h"
-    typedef void ( __interrupt __far *pxISR )();
-#endif
-
-#ifdef BCC_FLASH_LITE_186_PORT
-	#include "..\portable\BCC\16BitDOS\flsh186\prtmacro.h"
-    typedef void ( __interrupt __far *pxISR )();
-#endif
-
 #ifdef MPLAB_PIC18F_PORT
 	#include "..\..\source\portable\MPLAB\PIC18F\portmacro.h"
+#endif
+
+#ifdef _FEDPICC
+	#include "libFreeRTOS/Include/portmacro.h"
 #endif
 
 #ifdef SDCC_CYGNAL
@@ -76,7 +70,7 @@
 #endif
 
 #ifdef GCC_ARM7
-	#include "../../Source/portable/GCC/ARM7/portmacro.h"
+	#include "../../Source/portable/GCC/ARM7_LPC2000/portmacro.h"
 #endif
 
 #ifdef GCC_MSP430
@@ -95,6 +89,25 @@
 	#include "../../Source/portable/GCC/H8S2329/portmacro.h"
 #endif
 
+#ifdef GCC_AT91FR40008
+	#include "../../Source/portable/GCC/ARM7_AT91FR40008/portmacro.h"
+#endif
+
+#ifdef BCC_INDUSTRIAL_PC_PORT
+	/* A short file name has to be used in place of the normal
+	FreeRTOSConfig.h when using the Borland compiler. */
+	#include "frconfig.h"
+	#include "..\portable\BCC\16BitDOS\PC\prtmacro.h"
+    typedef void ( __interrupt __far *pxISR )();
+#endif
+
+#ifdef BCC_FLASH_LITE_186_PORT
+	/* A short file name has to be used in place of the normal
+	FreeRTOSConfig.h when using the Borland compiler. */
+	#include "frconfig.h"
+	#include "..\portable\BCC\16BitDOS\flsh186\prtmacro.h"
+    typedef void ( __interrupt __far *pxISR )();
+#endif
 /*
  * Setup the stack of a new task so it is ready to be placed under the 
  * scheduler control.  The registers have to be placed on the stack in
@@ -105,7 +118,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 /*
  * Map to the memory management routines required for the port. 
  */
-void *pvPortMalloc( unsigned portSHORT usSize );
+void *pvPortMalloc( size_t xSize );
 void vPortFree( void *pv );
 void vPortInitialiseBlocks( void );
 
@@ -113,23 +126,15 @@ void vPortInitialiseBlocks( void );
  * Setup the hardware ready for the scheduler to take control.  This generally
  * sets up a tick interrupt and sets timers for the correct tick frequency.
  */
-portSHORT sPortStartScheduler( portSHORT sUsePreemption );
+portBASE_TYPE xPortStartScheduler( void );
 
 /*
- * Undo any hardware/ISR setup that was performed by sPortStartScheduler() so
+ * Undo any hardware/ISR setup that was performed by xPortStartScheduler() so
  * the hardware is left in its original condition after the scheduler stops
  * executing.
  */
 void vPortEndScheduler( void );
 
-/*
- * Finds the high water mark of stack usage.  Returns the smallest amount of 
- * free stack that has been available since the task started.
- *
- * THIS FUNCTION IS INTENDED FOR DEBUGGING ONLY, AND SHOULD NOT BE CALLED FROM
- * NORMAL APPLICATION CODE>
- */
-unsigned portSHORT usPortCheckFreeStackSpace( const unsigned portCHAR *pucStackByte, unsigned portCHAR ucStackFillByte );
 
 #endif /* PORTABLE_H */
 

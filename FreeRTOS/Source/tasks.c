@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -19,13 +19,13 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http://www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
@@ -40,12 +40,12 @@ Changes from V1.01:
 
 	+ More use of 8bit data types.
 	+ Function name prefixes changed where the data type returned has changed.
-	+ USE_TRACE_FACILITY is no longer defined by default.
+	+ configUSE_TRACE_FACILITY is no longer defined by default.
 
 Changes from V1.2.0
 
 	+ Introduced ucTopReadyPriority.  This tracks the highest priority ready
-	  queue that contains a valid TCB and thus makes the context switch 
+	  queue that contains a valid TCB and thus makes the context switch
 	  slightly faster.
 
 	+ prvAddTaskToReadyQueue() has been made a macro.
@@ -71,8 +71,8 @@ Changes from V2.0.0
 
 Changes from V2.1.0
 
-	+ Bug fix - pxCurrentTCB is now initialised before the call to 
-	  prvInitialiseTaskLists().  Previously pxCurrentTCB could be accessed 
+	+ Bug fix - pxCurrentTCB is now initialised before the call to
+	  prvInitialiseTaskLists().  Previously pxCurrentTCB could be accessed
 	  while null.
 
 Changed from V2.1.1
@@ -83,7 +83,7 @@ Changed from V2.1.1
 Changes from V2.2.0
 
 	+ Explicit use of 'signed' qualifier on portCHAR types added.
-	+ Changed odd calculation of initial pxTopOfStack value when 
+	+ Changed odd calculation of initial pxTopOfStack value when
 	  portSTACK_GROWTH < 0.
 	+ Removed pcVersionNumber definition.
 
@@ -99,37 +99,57 @@ Changes from V2.5.5
 
 Changes from V2.6.0
 
- 	+ Updated the vWriteTraceToBuffer macro to always be 4 byte aligned so it 
+ 	+ Updated the vWriteTraceToBuffer macro to always be 4 byte aligned so it
 	  can be used on ARM architectures.
-	+ tskMAX_TASK_NAME_LEN definition replaced with the port specific 
-	  portMAX_TASK_NAME_LEN definition.
-	+ Removed the call to strcpy when copying across the task name into the 
+	+ tskMAX_TASK_NAME_LEN definition replaced with the port specific
+	  configMAX_TASK_NAME_LEN definition.
+	+ Removed the call to strcpy when copying across the task name into the
 	  TCB.
 	+ Added ucTasksDeleted variable to prevent vTaskSuspendAll() being called
 	  too often in the idle task.
+
+Changes between V3.0.0 and V2.6.1
+
+	+ When resuming the scheduler a yield is performed if either a tick has
+	  been missed, or a task is moved from the pending ready list into a ready
+	  list.  Previously a yield was not performed on this second condition.
+	+ Introduced the type portBASE_TYPE.  This necessitates several API
+	  changes.
+	+ Removed the sUsingPreemption variable.  The constant defined in
+	  portmacro.h is now used directly.
+	+ The idle task can now include an optional hook function - and no longer
+	  completes its time slice if other tasks with equal priority to it are
+	  ready to run.
+	+ See the FreeRTOS.org documentation for more information on V2.x.x to 
+	  V3.x.x modifications.
+
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
-#include "errors.h"
 
 /*
  * Macro to define the amount of stack available to the idle task.
  */
-#define tskIDLE_STACK_SIZE	portMINIMAL_STACK_SIZE
+#define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
 
-/* 
- * Default portMAX_TASK_NAME_LEN for backwards compatibility with old 
- * portmacro.h files. 
+/*
+ * Default configMAX_TASK_NAME_LEN for backwards compatibility with old
+ * portmacro.h files.
  */
-#ifndef portMAX_TASK_NAME_LEN
-	#define portMAX_TASK_NAME_LEN 16
+#ifndef configMAX_TASK_NAME_LEN
+	#define configMAX_TASK_NAME_LEN 16
 #endif
+
+#if configMAX_TASK_NAME_LEN < 1
+	#undef configMAX_TASK_NAME_LEN
+	#define configMAX_TASK_NAME_LEN 1
+#endif
+
 
 /*
  * Task control block.  A task control block (TCB) is allocated to each task,
@@ -137,16 +157,14 @@ Changes from V2.6.0
  */
 typedef struct tskTaskControlBlock
 {
-	portSTACK_TYPE		*pxTopOfStack;						/*< Points to the location of the last item placed on the tasks stack.  THIS MUST BE THE FIRST MEMBER OF THE STRUCT. */
-	portSTACK_TYPE		*pxStack;							/*< Points to the start of the stack. */
-	unsigned portSHORT	usStackDepth;						/*< Total depth of the stack (when empty).  This is defined as the number of variables the stack can hold, not the number of bytes. */
-	signed portCHAR		pcTaskName[ portMAX_TASK_NAME_LEN ];/*< Descriptive name given to the task when created.  Facilitates debugging only. */
-	unsigned portCHAR	ucPriority;							/*< The priority of the task where 0 is the lowest priority. */
-
-	xListItem			xGenericListItem;					/*< List item used to place the TCB in ready and blocked queues. */
-	xListItem			xEventListItem;						/*< List item used to place the TCB in event lists. */
-
-	unsigned portCHAR	ucTCBNumber;						/*< This is used for tracing the scheduler only. */
+	portSTACK_TYPE			*pxTopOfStack;		/*< Points to the location of the last item placed on the tasks stack.  THIS MUST BE THE FIRST MEMBER OF THE STRUCT. */
+	portSTACK_TYPE			*pxStack;			/*< Points to the start of the stack. */
+	unsigned portBASE_TYPE	uxTCBNumber;		/*< This is used for tracing the scheduler and making debugging easier only. */
+	unsigned portBASE_TYPE	uxPriority;			/*< The priority of the task where 0 is the lowest priority. */
+	xListItem				xGenericListItem;	/*< List item used to place the TCB in ready and blocked queues. */
+	xListItem				xEventListItem;		/*< List item used to place the TCB in event lists. */
+	signed portCHAR			pcTaskName[ configMAX_TASK_NAME_LEN ];/*< Descriptive name given to the task when created.  Facilitates debugging only. */
+	unsigned portSHORT		usStackDepth;		/*< Total depth of the stack (when empty).  This is defined as the number of variables the stack can hold, not the number of bytes. */
 } tskTCB;
 
 /*lint -e956 */
@@ -155,7 +173,7 @@ volatile tskTCB * volatile pxCurrentTCB = NULL;
 
 /* Lists for ready and blocked tasks. --------------------*/
 
-static volatile xList pxReadyTasksLists[ portMAX_PRIORITIES ];	/*< Prioratised ready tasks. */
+static volatile xList pxReadyTasksLists[ configMAX_PRIORITIES ];	/*< Prioratised ready tasks. */
 static volatile xList xDelayedTaskList1;						/*< Delayed tasks. */
 static volatile xList xDelayedTaskList2;						/*< Delayed tasks (two lists are used - one for delays that have overflowed the current tick count. */
 static volatile xList *pxDelayedTaskList;						/*< Points to the delayed task list currently being used. */
@@ -165,7 +183,7 @@ static volatile xList xPendingReadyList;						/*< Tasks that have been readied w
 #if( INCLUDE_vTaskDelete == 1 )
 
 	static volatile xList xTasksWaitingTermination;				/*< Tasks that have been deleted - but the their memory not yet freed. */
-	static volatile unsigned portCHAR ucTasksDeleted = ( unsigned portCHAR ) 0;
+	static volatile unsigned portBASE_TYPE uxTasksDeleted = ( unsigned portBASE_TYPE ) 0;
 
 #endif
 
@@ -176,14 +194,13 @@ static volatile xList xPendingReadyList;						/*< Tasks that have been readied w
 #endif
 
 /* File private variables. --------------------------------*/
-static portSHORT sUsingPreemption = pdFALSE;
-static unsigned portSHORT usCurrentNumberOfTasks = ( unsigned portSHORT ) 0;              
-static volatile portTickType xTickCount = ( portTickType ) 0;				/* Modified by tick ISR. */
-static unsigned portCHAR ucTopUsedPriority = tskIDLE_PRIORITY;
-static volatile unsigned portCHAR ucTopReadyPriority = tskIDLE_PRIORITY;
-static signed portCHAR cSchedulerRunning = pdFALSE;
-static volatile unsigned portCHAR ucSchedulerSuspended = pdFALSE;
-static volatile unsigned portCHAR ucMissedTicks = ( unsigned portCHAR ) 0;
+static unsigned portBASE_TYPE uxCurrentNumberOfTasks		= ( unsigned portBASE_TYPE ) 0;
+static volatile portTickType xTickCount						= ( portTickType ) 0;
+static unsigned portBASE_TYPE uxTopUsedPriority				= tskIDLE_PRIORITY;
+static volatile unsigned portBASE_TYPE uxTopReadyPriority	= tskIDLE_PRIORITY;
+static signed portBASE_TYPE xSchedulerRunning				= pdFALSE;
+static volatile unsigned portBASE_TYPE uxSchedulerSuspended	= ( unsigned portBASE_TYPE ) pdFALSE;
+static volatile unsigned portBASE_TYPE uxMissedTicks		= ( unsigned portBASE_TYPE ) 0;
 
 /* Debugging and trace facilities private variables and macros. ------------*/
 
@@ -201,16 +218,16 @@ static volatile unsigned portCHAR ucMissedTicks = ( unsigned portCHAR ) 0;
 #define tskDELETED_CHAR		( ( signed portCHAR ) 'D' )
 #define tskSUSPENDED_CHAR	( ( signed portCHAR ) 'S' )
 
-/* 
+/*
  * Macros and private variables used by the trace facility.
  */
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
-	#define tskSIZE_OF_EACH_TRACE_LINE			( sizeof( unsigned portLONG ) + sizeof( unsigned portCHAR ) )
+	#define tskSIZE_OF_EACH_TRACE_LINE			( ( unsigned portLONG ) ( sizeof( unsigned portLONG ) + sizeof( unsigned portLONG ) ) )
 	static volatile signed portCHAR * volatile pcTraceBuffer;
 	static signed portCHAR *pcTraceBufferStart;
 	static signed portCHAR *pcTraceBufferEnd;
-	static signed portCHAR cTracing = ( signed portCHAR ) pdFALSE;
+	static signed portBASE_TYPE xTracing = pdFALSE;
 
 #endif
 
@@ -220,27 +237,27 @@ static volatile unsigned portCHAR ucMissedTicks = ( unsigned portCHAR ) 0;
  * As this macro is called each context switch it is a good idea to undefine
  * it if not using the facility.
  */
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
 	#define vWriteTraceToBuffer()														\
 	{																					\
-		if( cTracing )																	\
+		if( xTracing )																	\
 		{																				\
-			static unsigned portCHAR ucPreviousTask = 255;								\
+			static unsigned portBASE_TYPE uxPreviousTask = 255;							\
 																						\
-			if( ucPreviousTask != pxCurrentTCB->ucTCBNumber )							\
+			if( uxPreviousTask != pxCurrentTCB->uxTCBNumber )							\
 			{																			\
 				if( ( pcTraceBuffer + tskSIZE_OF_EACH_TRACE_LINE ) < pcTraceBufferEnd )	\
 				{																		\
-					ucPreviousTask = pxCurrentTCB->ucTCBNumber;							\
+					uxPreviousTask = pxCurrentTCB->uxTCBNumber;							\
 					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) xTickCount;		\
 					pcTraceBuffer += sizeof( unsigned portLONG );						\
-					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) ucPreviousTask;	\
+					*( unsigned portLONG * ) pcTraceBuffer = ( unsigned portLONG ) uxPreviousTask;	\
 					pcTraceBuffer += sizeof( unsigned portLONG );						\
 				}																		\
 				else																	\
 				{																		\
-					cTracing = ( signed portCHAR ) pdFALSE;								\
+					xTracing = pdFALSE;													\
 				}																		\
 			}																			\
 		}																				\
@@ -257,22 +274,22 @@ static volatile unsigned portCHAR ucMissedTicks = ( unsigned portCHAR ) 0;
  * Place the task represented by pxTCB into the appropriate ready queue for
  * the task.  It is inserted at the end of the list.  One quirk of this is
  * that if the task being inserted is at the same priority as the currently
- * executing task, then it will only be rescheduled after the currently 
+ * executing task, then it will only be rescheduled after the currently
  * executing task has been rescheduled.
  */
 #define prvAddTaskToReadyQueue( pxTCB )																			\
 {																												\
 	listSET_LIST_ITEM_VALUE( &( pxTCB->xGenericListItem ), 0 );													\
-	if( pxTCB->ucPriority > ucTopReadyPriority )																\
+	if( pxTCB->uxPriority > uxTopReadyPriority )																\
 	{																											\
-		ucTopReadyPriority = pxTCB->ucPriority;																	\
+		uxTopReadyPriority = pxTCB->uxPriority;																	\
 	}																											\
-	vListInsertEnd( ( xList * ) &( pxReadyTasksLists[ pxTCB->ucPriority ] ), &( pxTCB->xGenericListItem ) );	\
+	vListInsertEnd( ( xList * ) &( pxReadyTasksLists[ pxTCB->uxPriority ] ), &( pxTCB->xGenericListItem ) );	\
 }	
 
 
 /*
- * Macro that looks at the list of tasks that are currently delayed to see if 
+ * Macro that looks at the list of tasks that are currently delayed to see if
  * any require waking.
  *
  * Tasks are stored in the queue in the order of their wake time - meaning
@@ -301,8 +318,8 @@ register tskTCB *pxTCB;																			\
 
 /*
  * Several functions take an xTaskHandle parameter that can optionally be NULL,
- * where NULL is used to indicate that the handle of the currently executing 
- * task should be used in place of the parameter.  This macro simply checks to 
+ * where NULL is used to indicate that the handle of the currently executing
+ * task should be used in place of the parameter.  This macro simply checks to
  * see if the parameter is NULL and returns a pointer to the appropriate TCB.
  */
 #define prvGetTCBFromHandle( pxHandle ) ( ( pxHandle == NULL ) ? ( tskTCB * ) pxCurrentTCB : ( tskTCB * ) pxHandle )
@@ -314,26 +331,32 @@ register tskTCB *pxTCB;																			\
  * Utility to ready a TCB for a given task.  Mainly just copies the parameters
  * into the TCB structure.
  */
-static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStackDepth, const signed portCHAR * const pcName, unsigned portCHAR ucPriority );
+static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStackDepth, const signed portCHAR * const pcName, unsigned portBASE_TYPE uxPriority );
 
 /*
- * Utility to ready all the lists used by the scheduler.  This is called 
+ * Utility to ready all the lists used by the scheduler.  This is called
  * automatically upon the creation of the first task.
  */
-static portSHORT prvInitialiseTaskLists( void );
+static void prvInitialiseTaskLists( void );
 
 /*
  * The idle task, which as all tasks is implemented as a never ending loop.
  * The idle task is automatically created and added to the ready lists upon
  * creation of the first user task.
+ *
+ * The portTASK_FUNCTION_PROTO() macro is used to allow port/compiler specific
+ * language extensions.  The equivalent prototype for this function is:
+ *
+ * void prvIdleTask( void *pvParameters );
+ *
  */
-static void prvIdleTask( void *pvParameters );
+static portTASK_FUNCTION_PROTO( prvIdleTask, pvParameters );
 
 /*
- * Utility to free all memory allocated by the scheduler to hold a TCB, 
- * including the stack pointed to by the TCB.  
+ * Utility to free all memory allocated by the scheduler to hold a TCB,
+ * including the stack pointed to by the TCB.
  *
- * This does not free memory allocated by the task itself (i.e. memory 
+ * This does not free memory allocated by the task itself (i.e. memory
  * allocated by calls to pvPortMalloc from within the tasks application code).
  */
 #if( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
@@ -362,11 +385,22 @@ static tskTCB *prvAllocateTCBAndStack( unsigned portSHORT usStackDepth );
  * THIS FUNCTION IS INTENDED FOR DEBUGGING ONLY, AND SHOULD NOT BE CALLED FROM
  * NORMAL APPLICATION CODE.
  */
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
 	static void prvListTaskWithinSingleList( signed portCHAR *pcWriteBuffer, xList *pxList, signed portCHAR cStatus );
+
 #endif
 
+/*
+ * When a task is created, the stack of the task is filled with a known value.
+ * This function determines the 'high water mark' of the task stack by
+ * determining how much of the stack remains at the original preset value.
+ */
+#if( configUSE_TRACE_FACILITY == 1 )
+
+	unsigned portSHORT usTaskCheckFreeStackSpace( const unsigned portCHAR *pucStackByte );
+
+#endif
 
 /*lint +e956 */
 
@@ -378,13 +412,13 @@ static tskTCB *prvAllocateTCBAndStack( unsigned portSHORT usStackDepth );
  * TASK CREATION API documented in task.h
  *----------------------------------------------------------*/
 
-portSHORT sTaskCreate( pdTASK_CODE pvTaskCode, const signed portCHAR * const pcName, unsigned portSHORT usStackDepth, void *pvParameters, unsigned portCHAR ucPriority, xTaskHandle *pxCreatedTask )
+signed portBASE_TYPE xTaskCreate( pdTASK_CODE pvTaskCode, const signed portCHAR * const pcName, unsigned portSHORT usStackDepth, void *pvParameters, unsigned portBASE_TYPE uxPriority, xTaskHandle *pxCreatedTask )
 {
-portSHORT sReturn;
+signed portBASE_TYPE xReturn;
 tskTCB * pxNewTCB;
-static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - this is guarded before use. */
+static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberate - this is guarded before use. */
 
-	/* Allocate the memory required by the TCB and stack for the new task.  
+	/* Allocate the memory required by the TCB and stack for the new task.
 	checking that the allocation was successful. */
 	pxNewTCB = prvAllocateTCBAndStack( usStackDepth );
 
@@ -393,18 +427,15 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 		portSTACK_TYPE *pxTopOfStack;
 
 		/* Setup the newly allocated TCB with the initial state of the task. */
-		prvInitialiseTCBVariables( pxNewTCB, usStackDepth, pcName, ucPriority );
+		prvInitialiseTCBVariables( pxNewTCB, usStackDepth, pcName, uxPriority );
 
 		/* Calculate the top of stack address.  This depends on whether the
-		stack grows from high memory to low (as per the 80x86) or visa versa. 
+		stack grows from high memory to low (as per the 80x86) or visa versa.
 		portSTACK_GROWTH is used to make the result positive or negative as
 		required by the port. */
 		#if portSTACK_GROWTH < 0
 		{
-			portLONG lStackSize; 
-
-			lStackSize = ( portLONG ) ( pxNewTCB->usStackDepth - ( unsigned portSHORT ) 1 );
-			pxTopOfStack = pxNewTCB->pxStack + lStackSize;
+			pxTopOfStack = pxNewTCB->pxStack + ( pxNewTCB->usStackDepth - 1 );
 		}
 		#else
 		{
@@ -422,27 +453,25 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 		ready list, so must make sure no interrupts occur. */
 		portENTER_CRITICAL();
 		{
-			usCurrentNumberOfTasks++;
-			if( usCurrentNumberOfTasks == ( unsigned portSHORT ) 1 )
+			uxCurrentNumberOfTasks++;
+			if( uxCurrentNumberOfTasks == ( unsigned portBASE_TYPE ) 1 )
 			{
 				/* As this is the first task it must also be the current task. */
 				pxCurrentTCB = ( volatile tskTCB * volatile ) pxNewTCB;
 
 				/* This is the first task to be created so do the preliminary
-				initialisation required.  We will not recover if this call 
+				initialisation required.  We will not recover if this call
 				fails, but we will report the failure. */
-				sReturn = prvInitialiseTaskLists();
+				prvInitialiseTaskLists();
 			}
 			else
-			{
-				sReturn = pdPASS;
-
+			{	
 				/* If the scheduler is not already running, make this task the
 				current task if it is the highest priority task to be created
 				so far. */
-				if( cSchedulerRunning == pdFALSE )
+				if( xSchedulerRunning == pdFALSE )
 				{
-					if( pxCurrentTCB->ucPriority <= ucPriority )
+					if( pxCurrentTCB->uxPriority <= uxPriority )
 					{
 						pxCurrentTCB = ( volatile tskTCB * volatile ) pxNewTCB;	
 					}
@@ -451,46 +480,48 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 			/* Remember the top priority to make context switching faster.  Use
 			the priority in pxNewTCB as this has been capped to a valid value. */
-			if( pxNewTCB->ucPriority > ucTopUsedPriority )
+			if( pxNewTCB->uxPriority > uxTopUsedPriority )
 			{
-				ucTopUsedPriority = pxNewTCB->ucPriority;
+				uxTopUsedPriority = pxNewTCB->uxPriority;
 			}
 
 			/* Add a counter into the TCB for tracing only. */
-			pxNewTCB->ucTCBNumber = ucTaskNumber;
-			ucTaskNumber++;
+			pxNewTCB->uxTCBNumber = uxTaskNumber;
+			uxTaskNumber++;
 
 			prvAddTaskToReadyQueue( pxNewTCB );
+
+			xReturn = pdPASS;
 		}
 		portEXIT_CRITICAL();
 	}
 	else
 	{
-		sReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
+		xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 	}
 
-	if( sReturn == pdPASS )
+	if( xReturn == pdPASS )
 	{
 		if( ( void * ) pxCreatedTask != NULL )
 		{
 			/* Pass the TCB out - in an anonymous way.  The calling function/
-			task can use this as a handle to delete the task later if 
+			task can use this as a handle to delete the task later if
 			required.*/
 			*pxCreatedTask = ( xTaskHandle ) pxNewTCB;
 		}
 
-		if( cSchedulerRunning != pdFALSE )
+		if( xSchedulerRunning != pdFALSE )
 		{
 			/* If the created task is of a higher priority than the current task
 			then it should run now. */
-			if( pxCurrentTCB->ucPriority < ucPriority )
+			if( pxCurrentTCB->uxPriority < uxPriority )
 			{
 				taskYIELD();
 			}
 		}
 	}
 
-	return sReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -507,7 +538,7 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 			/* Remove task from the ready list and place in the	termination list.
 			This will stop the task from be scheduled.  The idle task will check
-			the termination list and free up any memory allocated by the 
+			the termination list and free up any memory allocated by the
 			scheduler for the TCB and stack. */
 			vListRemove( &( pxTCB->xGenericListItem ) );
 
@@ -522,7 +553,7 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 			/* Increment the ucTasksDeleted variable so the idle task knows
 			there is a task that has been deleted and that it should therefore
 			check the xTasksWaitingTermination list. */
-			++ucTasksDeleted;
+			++uxTasksDeleted;
 		}
 		taskEXIT_CRITICAL();
 
@@ -548,7 +579,7 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 	void vTaskDelayUntil( portTickType *pxPreviousWakeTime, portTickType xTimeIncrement )
 	{
 	portTickType xTimeToWake;
-	portCHAR cAlreadyYielded, cShouldDelay = ( portCHAR ) pdFALSE;
+	portBASE_TYPE xAlreadyYielded, xShouldDelay = pdFALSE;
 
 		vTaskSuspendAll();
 		{
@@ -557,14 +588,14 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 			if( xTickCount < *pxPreviousWakeTime )
 			{
-				/* The tick count has overflowed since this function was 
-				lasted called.  In this case the only time we should ever 
-				actually delay is if the wake time has also	overflowed, 
-				and the wake time is greater than the tick time.  When this 
+				/* The tick count has overflowed since this function was
+				lasted called.  In this case the only time we should ever
+				actually delay is if the wake time has also	overflowed,
+				and the wake time is greater than the tick time.  When this
 				is the case it is as if neither time had overflowed. */
 				if( ( xTimeToWake < *pxPreviousWakeTime ) && ( xTimeToWake > xTickCount ) )
 				{
-					cShouldDelay = ( portCHAR ) pdTRUE;
+					xShouldDelay = pdTRUE;
 				}
 			}
 			else
@@ -574,17 +605,17 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 				tick time is less than the wake time. */
 				if( ( xTimeToWake < *pxPreviousWakeTime ) || ( xTimeToWake > xTickCount ) )
 				{
-					cShouldDelay = ( portCHAR ) pdTRUE;
+					xShouldDelay = pdTRUE;
 				}
 			}
 
 			/* Update the wake time ready for the next call. */
 			*pxPreviousWakeTime = xTimeToWake;
 
-			if( cShouldDelay )
+			if( xShouldDelay )
 			{
-				/* We must remove ourselves from the ready list before adding 
-				ourselves to the blocked list as the same list item is used for 
+				/* We must remove ourselves from the ready list before adding
+				ourselves to the blocked list as the same list item is used for
 				both lists. */
 				vListRemove( ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 
@@ -593,25 +624,25 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 				if( xTimeToWake < xTickCount )
 				{
-					/* Wake time has overflowed.  Place this item in the 
+					/* Wake time has overflowed.  Place this item in the
 					overflow list. */
 					vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 				}
 				else
 				{
-					/* The wake time has not overflowed, so we can use the 
+					/* The wake time has not overflowed, so we can use the
 					current block list. */
 					vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 				}
 			}
 		}
-		cAlreadyYielded = cTaskResumeAll();
+		xAlreadyYielded = xTaskResumeAll();
 
-		/* Force a reschedule if cTaskResumeAll has not already done so, we may 
+		/* Force a reschedule if xTaskResumeAll has not already done so, we may
 		have put ourselves to sleep. */
-		if( !cAlreadyYielded )
+		if( !xAlreadyYielded )
 		{
-			taskYIELD(); 
+			taskYIELD();
 		}
 	}
 #endif
@@ -621,27 +652,27 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 	void vTaskDelay( portTickType xTicksToDelay )
 	{
 	portTickType xTimeToWake;
-	signed portCHAR cAlreadyYielded = pdFALSE;
+	signed portBASE_TYPE xAlreadyYielded = pdFALSE;
 
 		/* A delay time of zero just forces a reschedule. */
 		if( xTicksToDelay > ( portTickType ) 0 )
 		{
 			vTaskSuspendAll();
 			{
-				/* A task that is removed from the event list while the 
-				scheduler is suspended will not get placed in the ready 
-				list or removed from the blocked list until the scheduler 
-				is resumed.  
+				/* A task that is removed from the event list while the
+				scheduler is suspended will not get placed in the ready
+				list or removed from the blocked list until the scheduler
+				is resumed.
 				
-				This task cannot be in an event list as it is the currently 
+				This task cannot be in an event list as it is the currently
 				executing task. */
 
-				/* Calculate the time to wake - this may overflow but this is 
+				/* Calculate the time to wake - this may overflow but this is
 				not a problem. */
 				xTimeToWake = xTickCount + xTicksToDelay;
 
-				/* We must remove ourselves from the ready list before adding 
-				ourselves to the blocked list as the same list item is used for 
+				/* We must remove ourselves from the ready list before adding
+				ourselves to the blocked list as the same list item is used for
 				both lists. */
 				vListRemove( ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 
@@ -650,47 +681,47 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 				if( xTimeToWake < xTickCount )
 				{
-					/* Wake time has overflowed.  Place this item in the 
+					/* Wake time has overflowed.  Place this item in the
 					overflow list. */
 					vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 				}
 				else
 				{
-					/* The wake time has not overflowed, so we can use the 
+					/* The wake time has not overflowed, so we can use the
 					current block list. */
 					vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 				}
 			}
-			cAlreadyYielded = cTaskResumeAll();
+			xAlreadyYielded = xTaskResumeAll();
 		}
 		
-		/* Force a reschedule if cTaskResumeAll has not already done so, we may 
+		/* Force a reschedule if xTaskResumeAll has not already done so, we may
 		have put ourselves to sleep. */
-		if( !cAlreadyYielded )
+		if( !xAlreadyYielded )
 		{
-			taskYIELD(); 
+			taskYIELD();
 		}
 	}
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_ucTaskPriorityGet == 1 )
+#if( INCLUDE_uxTaskPriorityGet == 1 )
 
-	unsigned portCHAR ucTaskPriorityGet( xTaskHandle pxTask )
+	unsigned portBASE_TYPE uxTaskPriorityGet( xTaskHandle pxTask )
 	{
 	tskTCB *pxTCB;
-	unsigned portCHAR ucReturn;
+	unsigned portBASE_TYPE uxReturn;
 
 		taskENTER_CRITICAL();
 		{
 			/* If null is passed in here then we are changing the
 			priority of the calling function. */
 			pxTCB = prvGetTCBFromHandle( pxTask );
-			ucReturn = pxTCB->ucPriority;
+			uxReturn = pxTCB->uxPriority;
 		}
 		taskEXIT_CRITICAL();
 
-		return ucReturn;
+		return uxReturn;
 	}
 
 #endif
@@ -698,15 +729,15 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 
 #if( INCLUDE_vTaskPrioritySet == 1 )
 
-	void vTaskPrioritySet( xTaskHandle pxTask, unsigned portCHAR ucNewPriority )
+	void vTaskPrioritySet( xTaskHandle pxTask, unsigned portBASE_TYPE uxNewPriority )
 	{
 	tskTCB *pxTCB;
-	unsigned portCHAR ucCurrentPriority;
+	unsigned portBASE_TYPE uxCurrentPriority;
 
 		/* Ensure the new priority is valid. */
-		if( ucNewPriority >= portMAX_PRIORITIES )
+		if( uxNewPriority >= configMAX_PRIORITIES )
 		{
-			ucNewPriority = portMAX_PRIORITIES - ( unsigned portCHAR ) 1;
+			uxNewPriority = configMAX_PRIORITIES - 1;
 		}
 
 		taskENTER_CRITICAL();
@@ -714,17 +745,17 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 			/* If null is passed in here then we are changing the
 			priority of the calling function. */
 			pxTCB = prvGetTCBFromHandle( pxTask );
-			ucCurrentPriority = pxTCB->ucPriority;
+			uxCurrentPriority = pxTCB->uxPriority;
 
-			if( ucCurrentPriority != ucNewPriority )
+			if( uxCurrentPriority != uxNewPriority )
 			{
-				pxTCB->ucPriority = ucNewPriority;
+				pxTCB->uxPriority = uxNewPriority;
 
-				/* If the task is in the blocked or suspended list we need do 
-				nothing more than change it's priority variable. However, if 
-				the task is in a ready list it needs to be removed and placed 
+				/* If the task is in the blocked or suspended list we need do
+				nothing more than change it's priority variable. However, if
+				the task is in a ready list it needs to be removed and placed
 				in the queue appropriate to its new priority. */
-				if( listIS_CONTAINED_WITHIN( &( pxReadyTasksLists[ ucCurrentPriority ] ), &( pxTCB->xGenericListItem ) ) )
+				if( listIS_CONTAINED_WITHIN( &( pxReadyTasksLists[ uxCurrentPriority ] ), &( pxTCB->xGenericListItem ) ) )
 				{
 					/* The task is currently in its ready list - remove before adding
 					it to it's new ready list. */
@@ -782,7 +813,7 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 	void vTaskResume( xTaskHandle pxTaskToResume )
 	{
 	tskTCB *pxTCB;
-	portSHORT sYieldRequired;
+	portBASE_TYPE xYieldRequired;
 
 		/* Remove the task from whichever list it is currently in, and place
 		it in the ready list. */
@@ -794,14 +825,14 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
 		{
 			taskENTER_CRITICAL();
 			{
-				sYieldRequired = ( pxTCB->ucPriority >= pxCurrentTCB->ucPriority );
+				xYieldRequired = ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority );
 				vListRemove( &( pxTCB->xGenericListItem ) );
 				prvAddTaskToReadyQueue( pxTCB );
 			}
 			taskEXIT_CRITICAL();
 
 			/* We may have just resumed a higher priority task. */
-			if( sYieldRequired )
+			if( xYieldRequired )
 			{
 				/* This yield may not cause the task just resumed to run, but
 				will leave the lists in the correct state for the next yield. */
@@ -821,36 +852,42 @@ static unsigned portCHAR ucTaskNumber = 0; /*lint !e956 Static is deliberate - t
  *----------------------------------------------------------*/
 
 
-void vTaskStartScheduler( portSHORT sUsePreemption )
+void vTaskStartScheduler( void )
 {
+portBASE_TYPE xReturn;
+
 	/* Check a task has been created. */
 	if( pxCurrentTCB != NULL )
 	{
-		sUsingPreemption = sUsePreemption;
+		/* Add the idle task at the lowest priority. */
+		xReturn = xTaskCreate( prvIdleTask, ( const portCHAR * const ) "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, tskIDLE_PRIORITY, ( xTaskHandle * ) NULL );
 
-		/* Interrupts are turned off here, to ensure a tick does not occur
-		before or during the call to sPortStartScheduler().  The stacks of 
-		the created tasks contain a status word with interrupts switched on
-		so interrupts will automatically get re-enabled when the first task
-		starts to run.
-		
-		STEPPING THROUGH HERE USING A DEBUGGER CAN CAUSE BIG PROBLEMS IF THE
-		DEBUGGER ALLOWS INTERRUPTS TO BE PROCESSED. */
-		portDISABLE_INTERRUPTS();
-
-		cSchedulerRunning = pdTRUE;
-		xTickCount = ( portTickType ) 0;
-
-		/* Setting up the timer tick is hardware specific and thus in the 
-		portable interface. */
-		if( sPortStartScheduler( sUsePreemption ) )
+		if( xReturn == pdPASS )
 		{
-			/* Should not reach here as if the scheduler is running the
-			function will not return. */
-		}
-		else
-		{
-			/* Should only reach here if a task calls sTaskEndScheduler(). */
+			/* Interrupts are turned off here, to ensure a tick does not occur
+			before or during the call to xPortStartScheduler().  The stacks of
+			the created tasks contain a status word with interrupts switched on
+			so interrupts will automatically get re-enabled when the first task
+			starts to run.
+			
+			STEPPING THROUGH HERE USING A DEBUGGER CAN CAUSE BIG PROBLEMS IF THE
+			DEBUGGER ALLOWS INTERRUPTS TO BE PROCESSED. */
+			portDISABLE_INTERRUPTS();
+	
+			xSchedulerRunning = pdTRUE;
+			xTickCount = ( portTickType ) 0;
+	
+			/* Setting up the timer tick is hardware specific and thus in the
+			portable interface. */
+			if( xPortStartScheduler() )
+			{
+				/* Should not reach here as if the scheduler is running the
+				function will not return. */
+			}
+			else
+			{
+				/* Should only reach here if a task calls xTaskEndScheduler(). */
+			}
 		}
 	}
 }
@@ -858,11 +895,11 @@ void vTaskStartScheduler( portSHORT sUsePreemption )
 
 void vTaskEndScheduler( void )
 {
-	/* Stop the scheduler interrupts and call the portable scheduler end 
+	/* Stop the scheduler interrupts and call the portable scheduler end
 	routine so the original ISRs can be restored if necessary.  The port
 	layer must ensure interrupts enable	bit is left in the correct state. */
 	portDISABLE_INTERRUPTS();
-	cSchedulerRunning = pdFALSE;
+	xSchedulerRunning = pdFALSE;
 	vPortEndScheduler();
 }
 /*----------------------------------------------------------*/
@@ -870,15 +907,15 @@ void vTaskEndScheduler( void )
 void vTaskSuspendAll( void )
 {
 	portENTER_CRITICAL();
-		++ucSchedulerSuspended;
+		++uxSchedulerSuspended;
 	portEXIT_CRITICAL();
 }
 /*----------------------------------------------------------*/
 
-signed portCHAR cTaskResumeAll( void )
+signed portBASE_TYPE xTaskResumeAll( void )
 {
 register tskTCB *pxTCB;
-signed portCHAR cAlreadyYielded = ( signed portCHAR ) pdFALSE;
+signed portBASE_TYPE xAlreadyYielded = pdFALSE;
 
 	/* It is possible that an ISR caused a task to be removed from an event
 	list while the scheduler was suspended.  If this was the case then the
@@ -887,36 +924,50 @@ signed portCHAR cAlreadyYielded = ( signed portCHAR ) pdFALSE;
 	tasks from this list into their appropriate ready list. */
 	portENTER_CRITICAL();
 	{
-		--ucSchedulerSuspended;
+		--uxSchedulerSuspended;
 
-		if( ucSchedulerSuspended == pdFALSE )
-		{
-			if( usCurrentNumberOfTasks > ( unsigned portSHORT ) 0 )
+		if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
+		{			
+			if( uxCurrentNumberOfTasks > ( unsigned portBASE_TYPE ) 0 )
 			{
-				/* Move any readied tasks from the pending list into the 
+				portBASE_TYPE xYieldRequired = pdFALSE;
+				
+				/* Move any readied tasks from the pending list into the
 				appropriate ready list. */
 				while( ( pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY(  ( ( xList * ) &xPendingReadyList ) ) ) != NULL )
 				{
 					vListRemove( &( pxTCB->xEventListItem ) );
 					vListRemove( &( pxTCB->xGenericListItem ) );
 					prvAddTaskToReadyQueue( pxTCB );
+					
+					/* If we have moved a task that has a priority higher than
+					the current task then we should yield. */
+					if( pxTCB->uxPriority > pxCurrentTCB->uxPriority )
+					{
+						xYieldRequired = pdTRUE;
+					}
 				}
 
 				/* If any ticks occurred while the scheduler was suspended then
 				they should be processed now.  This ensures the tick count does not
 				slip, and that any delayed tasks are resumed at the correct time. */
-				if( ucMissedTicks > 0 )
+				if( uxMissedTicks > ( unsigned portBASE_TYPE ) 0 )
 				{
-					while( ucMissedTicks > 0 )
+					while( uxMissedTicks > ( unsigned portBASE_TYPE ) 0 )
 					{
 						vTaskIncrementTick();
-						--ucMissedTicks;
+						--uxMissedTicks;
 					}
 
 					/* As we have processed some ticks it is appropriate to yield
 					to ensure the highest priority task that is ready to run is
 					the task actually running. */
-					cAlreadyYielded = ( signed portCHAR ) pdTRUE;
+					xYieldRequired = pdTRUE;
+				}
+				
+				if( xYieldRequired == pdTRUE )
+				{
+					xAlreadyYielded = pdTRUE;
 					taskYIELD();
 				}
 			}
@@ -924,7 +975,7 @@ signed portCHAR cAlreadyYielded = ( signed portCHAR ) pdFALSE;
 	}
 	portEXIT_CRITICAL();
 
-	return cAlreadyYielded;
+	return xAlreadyYielded;
 }
 
 
@@ -938,7 +989,7 @@ signed portCHAR cAlreadyYielded = ( signed portCHAR ) pdFALSE;
 
 
 
-volatile portTickType xTaskGetTickCount( void )
+portTickType xTaskGetTickCount( void )
 {
 portTickType xTicks;
 
@@ -953,23 +1004,23 @@ portTickType xTicks;
 }
 /*-----------------------------------------------------------*/
 
-unsigned portSHORT usTaskGetNumberOfTasks( void )
+unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void )
 {
-unsigned portSHORT usNumberOfTasks;
+unsigned portBASE_TYPE uxNumberOfTasks;
 
 	taskENTER_CRITICAL();
-		usNumberOfTasks = usCurrentNumberOfTasks;
+		uxNumberOfTasks = uxCurrentNumberOfTasks;
 	taskEXIT_CRITICAL();
 
-	return usNumberOfTasks;
+	return uxNumberOfTasks;
 }
 /*-----------------------------------------------------------*/
 
-#if( ( USE_TRACE_FACILITY == 1 ) && ( INCLUDE_vTaskDelete == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
+#if( ( configUSE_TRACE_FACILITY == 1 ) && ( INCLUDE_vTaskDelete == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
 
 	void vTaskList( signed portCHAR *pcWriteBuffer )
 	{
-	unsigned portSHORT usQueue;
+	unsigned portBASE_TYPE uxQueue;
 
 		/* This is a VERY costly function that should be used for debug only.
 		It leaves interrupts disabled for a LONG time. */
@@ -982,17 +1033,17 @@ unsigned portSHORT usNumberOfTasks;
 			pcWriteBuffer[ 0 ] = ( signed portCHAR ) 0x00;
 			strcat( pcWriteBuffer, ( const signed portCHAR * ) "\r\n" );
 
-			usQueue = ( unsigned portSHORT ) ucTopUsedPriority + ( unsigned portSHORT ) 1;
+			uxQueue = uxTopUsedPriority + 1;
 
 			do
 			{
-				usQueue--;
+				uxQueue--;
 
-				if( !listLIST_IS_EMPTY( &( pxReadyTasksLists[ usQueue ] ) ) )
+				if( !listLIST_IS_EMPTY( &( pxReadyTasksLists[ uxQueue ] ) ) )
 				{
-					prvListTaskWithinSingleList( pcWriteBuffer, ( xList * ) &( pxReadyTasksLists[ usQueue ] ), tskREADY_CHAR );			
+					prvListTaskWithinSingleList( pcWriteBuffer, ( xList * ) &( pxReadyTasksLists[ uxQueue ] ), tskREADY_CHAR );			
 				}
-			}while( usQueue > ( unsigned portSHORT ) tskIDLE_PRIORITY );
+			}while( uxQueue > ( unsigned portSHORT ) tskIDLE_PRIORITY );
 
 			if( !listLIST_IS_EMPTY( pxDelayedTaskList ) )
 			{
@@ -1020,16 +1071,16 @@ unsigned portSHORT usNumberOfTasks;
 #endif
 /*----------------------------------------------------------*/
 
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
-	void vTaskStartTrace( signed portCHAR * pcBuffer, unsigned portSHORT usBufferSize )
+	void vTaskStartTrace( signed portCHAR * pcBuffer, unsigned portLONG ulBufferSize )
 	{
 		portENTER_CRITICAL();
 		{
 			pcTraceBuffer = ( volatile signed portCHAR * volatile )pcBuffer;
 			pcTraceBufferStart = pcBuffer;
-			pcTraceBufferEnd = pcBuffer + usBufferSize - tskSIZE_OF_EACH_TRACE_LINE;
-			cTracing = ( signed portCHAR ) pdTRUE;
+			pcTraceBufferEnd = pcBuffer + ( ulBufferSize - tskSIZE_OF_EACH_TRACE_LINE );
+			xTracing = pdTRUE;
 		}
 		portEXIT_CRITICAL();
 	}
@@ -1037,26 +1088,22 @@ unsigned portSHORT usNumberOfTasks;
 #endif
 /*----------------------------------------------------------*/
 
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
-	unsigned portSHORT usTaskEndTrace( void )
+	unsigned portLONG ulTaskEndTrace( void )
 	{
-	unsigned portSHORT usBufferLength;
+	unsigned portLONG ulBufferLength;
 
 		portENTER_CRITICAL();
-			cTracing = ( signed portCHAR ) pdFALSE;
+			xTracing = pdFALSE;
 		portEXIT_CRITICAL();
 
-		usBufferLength = ( unsigned portSHORT ) ( pcTraceBuffer - pcTraceBufferStart );
+		ulBufferLength = ( unsigned portLONG ) ( pcTraceBuffer - pcTraceBufferStart );
 
-		return usBufferLength;
+		return ulBufferLength;
 	}
 
 #endif
-
-
-
-
 
 
 
@@ -1071,7 +1118,7 @@ inline void vTaskIncrementTick( void )
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
 	tasks to be unblocked. */
-	if( ucSchedulerSuspended == ( unsigned portCHAR ) pdFALSE )
+	if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		++xTickCount;
 		if( xTickCount == ( portTickType ) 0 )
@@ -1090,7 +1137,7 @@ inline void vTaskIncrementTick( void )
 	}
 	else
 	{
-		++ucMissedTicks;
+		++uxMissedTicks;
 	}
 }
 /*-----------------------------------------------------------*/
@@ -1102,7 +1149,7 @@ inline void vTaskIncrementTick( void )
 	unsigned portSHORT usQueue;
 	volatile tskTCB *pxTCB;
 
-		usQueue = ( unsigned portSHORT ) ucTopUsedPriority + ( unsigned portSHORT ) 1;
+		usQueue = ( unsigned portSHORT ) uxTopUsedPriority + ( unsigned portSHORT ) 1;
 
 		/* Remove any TCB's from the ready queues. */
 		do
@@ -1158,7 +1205,7 @@ inline void vTaskIncrementTick( void )
 
 inline void vTaskSwitchContext( void )
 {
-	if( ucSchedulerSuspended != pdFALSE )
+	if( uxSchedulerSuspended != ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		/* The scheduler is currently suspended - do not allow a context
 		switch. */
@@ -1166,14 +1213,14 @@ inline void vTaskSwitchContext( void )
 	}
 
 	/* Find the highest priority queue that contains ready tasks. */
-	while( listLIST_IS_EMPTY( &( pxReadyTasksLists[ ucTopReadyPriority ] ) ) )
+	while( listLIST_IS_EMPTY( &( pxReadyTasksLists[ uxTopReadyPriority ] ) ) )
 	{
-		--ucTopReadyPriority;
+		--uxTopReadyPriority;
 	}
 
 	/* listGET_OWNER_OF_NEXT_ENTRY walks through the list, so the tasks of the
 	same priority get an equal share of the processor time. */
-	listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &( pxReadyTasksLists[ ucTopReadyPriority ] ) );
+	listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &( pxReadyTasksLists[ uxTopReadyPriority ] ) );
 	vWriteTraceToBuffer();
 }
 /*-----------------------------------------------------------*/
@@ -1214,16 +1261,17 @@ portTickType xTimeToWake;
 }
 /*-----------------------------------------------------------*/
 
-signed portCHAR cTaskRemoveFromEventList( const xList *pxEventList )
+signed portBASE_TYPE xTaskRemoveFromEventList( const xList *pxEventList )
 {
 tskTCB *pxUnblockedTCB;
+portBASE_TYPE xReturn;
 
 	/* THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED OR THE
 	SCHEDULER SUSPENDED.  It can also be called from within an ISR. */
 
-	/* The event list is sorted in priority order, so we can remove the 
+	/* The event list is sorted in priority order, so we can remove the
 	first in the list, remove the TCB from the delayed list, and add
-	it to the ready list. 
+	it to the ready list.
 	
 	If an event is for a queue that is locked then this function will never
 	get called - the lock count on the queue will get modified instead.  This
@@ -1231,7 +1279,7 @@ tskTCB *pxUnblockedTCB;
 	pxUnblockedTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY( pxEventList );
 	vListRemove( &( pxUnblockedTCB->xEventListItem ) );
 
-	if( ucSchedulerSuspended == ( unsigned portCHAR ) pdFALSE )
+	if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		vListRemove( &( pxUnblockedTCB->xGenericListItem ) );
 		prvAddTaskToReadyQueue( pxUnblockedTCB );
@@ -1243,29 +1291,38 @@ tskTCB *pxUnblockedTCB;
 		vListInsertEnd( ( xList * ) &( xPendingReadyList ), &( pxUnblockedTCB->xEventListItem ) );
 	}
 
-	if( pxUnblockedTCB->ucPriority > pxCurrentTCB->ucPriority )
+	if( pxUnblockedTCB->uxPriority > pxCurrentTCB->uxPriority )
 	{
 		/* Return true if the task removed from the event list has
 		a higher priority than the calling task.  This allows
-		the calling task to know if it should force a context 
+		the calling task to know if it should force a context
 		switch now. */
-		return ( signed portCHAR ) pdTRUE;
+		xReturn = pdTRUE;
 	}
 	else
 	{
-		return ( signed portCHAR ) pdFALSE;
+		xReturn = pdFALSE;
 	}
+
+	return xReturn;
 }
 
 
 
 
 
-/*-----------------------------------------------------------
+/*
+ * -----------------------------------------------------------
  * The Idle task.
- *----------------------------------------------------------*/
-
-static void prvIdleTask( void *pvParameters )
+ * ----------------------------------------------------------
+ *
+ * The portTASK_FUNCTION() macro is used to allow port/compiler specific
+ * language extensions.  The equivalent prototype for this function is:
+ *
+ * void prvIdleTask( void *pvParameters );
+ *
+ */
+static portTASK_FUNCTION( prvIdleTask, pvParameters )
 {
 	/* Stop warnings. */
 	( void ) pvParameters;
@@ -1275,14 +1332,44 @@ static void prvIdleTask( void *pvParameters )
 		/* See if any tasks have been deleted. */
 		prvCheckTasksWaitingTermination();
 
-		if( sUsingPreemption == pdFALSE )
+		#if( configUSE_PREEMPTION == 0 )
 		{
 			/* If we are not using preemption we keep forcing a task switch to
-			see if any other task has become available.  If we are using 
+			see if any other task has become available.  If we are using
 			preemption we don't need to do this as any task becoming available
 			will automatically get the processor anyway. */
 			taskYIELD();	
 		}
+		#else
+		{
+			/* When using preemption tasks of equal priority will be
+			timesliced.  If a task that is sharing the idle priority is ready
+			to run then the idle task should yield before the end of the 
+			timeslice.
+			
+			A critical region is not required here as we are just reading from 
+			the list, and an occasional incorrect value will not matter.  If 
+			the ready list at the idle priority contains more than one task 
+			then a task other than the idle task is ready to execute. */
+			if( listCURRENT_LIST_LENGTH( &( pxReadyTasksLists[ tskIDLE_PRIORITY ] ) ) > ( unsigned portBASE_TYPE ) 1 )
+			{
+				taskYIELD();
+			}
+		}
+		#endif
+
+		#if( configUSE_IDLE_HOOK == 1 )
+		{
+			extern void vApplicationIdleHook( void );
+
+			/* Call the user defined function from within the idle task.  This
+			allows the application designer to add background functionality
+			without the overhead of a separate task.
+			NOTE: vApplicationIdleHook() MUST NOT, UNDER ANY CIRCUMSTANCES,
+			CALL A FUNCTION THAT MIGHT BLOCK. */
+			vApplicationIdleHook();
+		}
+		#endif
 	}
 } /*lint !e715 pvParameters is not accessed but all task functions require the same prototype. */
 
@@ -1298,42 +1385,41 @@ static void prvIdleTask( void *pvParameters )
 
 
 
-static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStackDepth, const signed portCHAR * const pcName, unsigned portCHAR ucPriority )
+static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStackDepth, const signed portCHAR * const pcName, unsigned portBASE_TYPE uxPriority )
 {
 	pxTCB->usStackDepth = usStackDepth;
 
 	/* Store the function name in the TCB. */
-	strncpy( pxTCB->pcTaskName, pcName, ( unsigned portSHORT ) portMAX_TASK_NAME_LEN );
-	pxTCB->pcTaskName[ ( unsigned portSHORT ) portMAX_TASK_NAME_LEN - ( unsigned portSHORT ) 1 ] = '\0';
+	strncpy( ( char * ) pxTCB->pcTaskName, ( const char * ) pcName, ( unsigned portSHORT ) configMAX_TASK_NAME_LEN );
+	pxTCB->pcTaskName[ ( unsigned portSHORT ) configMAX_TASK_NAME_LEN - ( unsigned portSHORT ) 1 ] = '\0';
 
 	/* This is used as an array index so must ensure it's not too large. */
-	if( ucPriority >= ( unsigned portCHAR ) portMAX_PRIORITIES )
+	if( uxPriority >= configMAX_PRIORITIES )
 	{
-		ucPriority = ( unsigned portCHAR ) portMAX_PRIORITIES - ( unsigned portCHAR ) 1;
+		uxPriority = configMAX_PRIORITIES - 1;
 	}
-	pxTCB->ucPriority = ucPriority;
+	pxTCB->uxPriority = uxPriority;
 
 	vListInitialiseItem( &( pxTCB->xGenericListItem ) );
 	vListInitialiseItem( &( pxTCB->xEventListItem ) );
 
-	/* Set the pxTCB as a link back from the xListItem.  This is so we can get 
+	/* Set the pxTCB as a link back from the xListItem.  This is so we can get
 	back to	the containing TCB from a generic item in a list. */
 	listSET_LIST_ITEM_OWNER( &( pxTCB->xGenericListItem ), pxTCB );
 
 	/* Event lists are always in priority order. */
-	listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), ( portTickType ) ucPriority );
+	listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), ( portTickType ) uxPriority );
 	listSET_LIST_ITEM_OWNER( &( pxTCB->xEventListItem ), pxTCB );
 }
 /*-----------------------------------------------------------*/
 
-static portSHORT prvInitialiseTaskLists( void )
+static void prvInitialiseTaskLists( void )
 {
-register unsigned portCHAR ucPriority;
-portSHORT sReturn;
+unsigned portBASE_TYPE uxPriority;
 
-	for( ucPriority = ( unsigned portCHAR) 0; ucPriority < ( unsigned portCHAR ) portMAX_PRIORITIES; ucPriority++ )
+	for( uxPriority = 0; uxPriority < configMAX_PRIORITIES; uxPriority++ )
 	{
-		vListInitialise( ( xList * ) &( pxReadyTasksLists[ ucPriority ] ) );
+		vListInitialise( ( xList * ) &( pxReadyTasksLists[ uxPriority ] ) );
 	}
 
 	vListInitialise( ( xList * ) &xDelayedTaskList1 );
@@ -1352,15 +1438,10 @@ portSHORT sReturn;
 	}
 	#endif
 
-	/* Start with pxDelayedTaskList using list1 and the pxOverflowDelayedTaskList 
+	/* Start with pxDelayedTaskList using list1 and the pxOverflowDelayedTaskList
 	using list2. */
 	pxDelayedTaskList = &xDelayedTaskList1;
 	pxOverflowDelayedTaskList = &xDelayedTaskList2;
-
-	/* Add the idle task at the lowest priority. */
-	sReturn = sTaskCreate( prvIdleTask, ( const portCHAR * const ) "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, tskIDLE_PRIORITY, ( xTaskHandle * ) NULL );
-
-	return sReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -1368,17 +1449,17 @@ static void prvCheckTasksWaitingTermination( void )
 {							
 	#if( INCLUDE_vTaskDelete == 1 )
 	{				
-		portSHORT sListIsEmpty;
+		portBASE_TYPE xListIsEmpty;
 
 		/* ucTasksDeleted is used to prevent vTaskSuspendAll() being called
 		too often in the idle task. */
-		if( ucTasksDeleted > ( unsigned portCHAR ) 0 )
+		if( uxTasksDeleted > ( unsigned portBASE_TYPE ) 0 )
 		{
 			vTaskSuspendAll();
-				sListIsEmpty = listLIST_IS_EMPTY( &xTasksWaitingTermination );				
-			cTaskResumeAll();
+				xListIsEmpty = listLIST_IS_EMPTY( &xTasksWaitingTermination );				
+			xTaskResumeAll();
 
-			if( !sListIsEmpty )
+			if( !xListIsEmpty )
 			{
 				tskTCB *pxTCB;
 
@@ -1386,8 +1467,8 @@ static void prvCheckTasksWaitingTermination( void )
 				{			
 					pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY( ( ( xList * ) &xTasksWaitingTermination ) );
 					vListRemove( &( pxTCB->xGenericListItem ) );
-					--usCurrentNumberOfTasks;
-					--ucTasksDeleted;
+					--uxCurrentNumberOfTasks;
+					--uxTasksDeleted;
 				}
 				portEXIT_CRITICAL();
 
@@ -1409,10 +1490,10 @@ tskTCB *pxNewTCB;
 
 	if( pxNewTCB != NULL )
 	{
-		/* Allocate space for the stack used by the task being created.  
-		The base of the stack memory stored in the TCB so the task can 
+		/* Allocate space for the stack used by the task being created.
+		The base of the stack memory stored in the TCB so the task can
 		be deleted later if required. */
-		pxNewTCB->pxStack = ( portSTACK_TYPE * ) pvPortMalloc( usStackDepth * sizeof( portSTACK_TYPE ) );
+		pxNewTCB->pxStack = ( portSTACK_TYPE * ) pvPortMalloc( ( ( size_t )usStackDepth ) * sizeof( portSTACK_TYPE ) );
 
 		if( pxNewTCB->pxStack == NULL )
 		{
@@ -1431,7 +1512,7 @@ tskTCB *pxNewTCB;
 }
 /*-----------------------------------------------------------*/
 
-#if( USE_TRACE_FACILITY == 1 )
+#if( configUSE_TRACE_FACILITY == 1 )
 
 	static void prvListTaskWithinSingleList( signed portCHAR *pcWriteBuffer, xList *pxList, signed portCHAR cStatus )
 	{
@@ -1444,8 +1525,8 @@ tskTCB *pxNewTCB;
 		do
 		{
 			listGET_OWNER_OF_NEXT_ENTRY( pxNextTCB, pxList );
-			usStackRemaining = usPortCheckFreeStackSpace( ( unsigned portCHAR * ) pxNextTCB->pxStack, tskSTACK_FILL_BYTE );
-			sprintf( pcStatusString, "%s\t\t%c\t%u\t%u\t%d\r\n", pxNextTCB->pcTaskName, cStatus, pxNextTCB->ucPriority, usStackRemaining, pxNextTCB->ucTCBNumber );
+			usStackRemaining = usTaskCheckFreeStackSpace( ( unsigned portCHAR * ) pxNextTCB->pxStack );
+			sprintf( pcStatusString, "%s\t\t%c\t%u\t%u\t%u\r\n", pxNextTCB->pcTaskName, cStatus, ( unsigned int ) pxNextTCB->uxPriority, usStackRemaining, ( unsigned int ) pxNextTCB->uxTCBNumber );
 			strcat( pcWriteBuffer, pcStatusString );
 
 		} while( pxNextTCB != pxFirstTCB );
@@ -1453,6 +1534,26 @@ tskTCB *pxNewTCB;
 
 #endif
 /*-----------------------------------------------------------*/
+
+#if( configUSE_TRACE_FACILITY == 1 )
+	unsigned portSHORT usTaskCheckFreeStackSpace( const unsigned portCHAR *pucStackByte )
+	{
+	register unsigned portSHORT usCount = 0;
+
+		while( *pucStackByte == tskSTACK_FILL_BYTE )
+		{
+			pucStackByte -= portSTACK_GROWTH;
+			usCount++;
+		}
+
+		usCount /= sizeof( portSTACK_TYPE );
+
+		return usCount;
+	}
+#endif
+/*-----------------------------------------------------------*/
+
+
 
 #if( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
 

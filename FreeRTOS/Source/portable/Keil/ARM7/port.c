@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -44,8 +44,7 @@
 #include <stdlib.h>
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /* Constants required to setup the initial task context. */
@@ -153,7 +152,7 @@ portSTACK_TYPE *pxOriginalTOS;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR. */
 	prvSetupTimerInterrupt();
@@ -184,7 +183,7 @@ unsigned portLONG ulCompareMatch;
 	T0PC = portPRESCALE_VALUE;
 
 	/* Calculate the match value required for our wanted tick rate. */
-	ulCompareMatch = portCPU_CLOCK_HZ / portTICK_RATE_HZ;
+	ulCompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
 
 	/* Protect against divide by zero.  Using an if() statement still results
 	in a warning - hence the #if. */
@@ -205,7 +204,7 @@ unsigned portLONG ulCompareMatch;
 	
 	/* The ISR installed depends on whether the preemptive or cooperative
 	scheduler is being used. */
-	#if portUSE_PREEMPTION == 1
+	#if configUSE_PREEMPTION == 1
 	{	
 		#ifdef KEIL_THUMB_INTERWORK
 			extern void ( vPreemptiveTick )( void ) __arm __task;

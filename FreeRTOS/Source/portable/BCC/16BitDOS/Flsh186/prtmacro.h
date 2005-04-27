@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -33,100 +33,65 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include <conio.h>
-
 /*-----------------------------------------------------------
- * Port specific definitions for the Flashlite 186 port.
- *----------------------------------------------------------*/
-
-/* These are the only definitions that can be modified!. */
-
-#define portTICK_RATE_HZ		( ( portTickType ) 1000 )
-#define portMAX_PRIORITIES		( ( unsigned portSHORT ) 6 )
-#define portMINIMAL_STACK_SIZE	( ( unsigned portSHORT ) 128 )
-#define portTOTAL_HEAP_SIZE		( ( unsigned portSHORT ) ( 32 * 1024 ) )
-
-/* The maximum number of characters a task name can take, 
-including the null terminator. */
-#define portMAX_TASK_NAME_LEN		 ( 16 )
-
-/* Set the following definitions to 1 to include the component, or zero
-to exclude the component. */
-
-/* Include/exclude the stated API function. */
-#define INCLUDE_vTaskPrioritySet		0
-#define INCLUDE_ucTaskPriorityGet		0
-#define INCLUDE_vTaskDelete				1
-#define INCLUDE_vTaskCleanUpResources	1
-#define INCLUDE_vTaskSuspend			1
-#define INCLUDE_vTaskDelayUntil			1
-#define INCLUDE_vTaskDelay				1
-
-
-/* Use/don't use the trace visualisation. */
-#define USE_TRACE_FACILITY				0
-
-/* 
- * The tick count (and times defined in tick count units) can be either a 16bit
- * or a 32 bit value.  See documentation on http://www.FreeRTOS.org to decide
- * which to use.
+ * Port specific definitions.  
+ *
+ * The settings in this file configure FreeRTOS correctly for the
+ * given hardware and compiler.
+ *
+ * These settings should not be altered.
+ *-----------------------------------------------------------
  */
-#define USE_16_BIT_TICKS	1
 
-/*-----------------------------------------------------------
- * Do not modify anything below here. 
- *----------------------------------------------------------*/
-
+/* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
 #define portDOUBLE		long
 #define portLONG		long
 #define portSHORT		int
 #define portSTACK_TYPE	unsigned portSHORT
+#define portBASE_TYPE	portSHORT
 
-#if( USE_16_BIT_TICKS == 1 )
+#if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffff
 #else
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
-
 /*-----------------------------------------------------------*/
 
+/* Critical section handling. */
 #define portENTER_CRITICAL()			__asm{ pushf }  \
 										__asm{ cli 	 }	\
-/*-----------------------------------------------------------*/
 
 #define portEXIT_CRITICAL()				__asm{ popf }
-/*-----------------------------------------------------------*/
 
 #define portDISABLE_INTERRUPTS()		__asm{ cli }
-/*-----------------------------------------------------------*/
 
 #define portENABLE_INTERRUPTS()			__asm{ sti }
 /*-----------------------------------------------------------*/
 
-#define portSTACK_GROWTH	( -1 )
+/* Hardware specifics. */
+#define portSTACK_GROWTH				( -1 )
+#define portSWITCH_INT_NUMBER 			0x80
+#define portYIELD()						__asm{ int portSWITCH_INT_NUMBER } 
+#define portTICK_RATE_MS		( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT      2
+#define portINITIAL_SW		( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
 /*-----------------------------------------------------------*/
 
-#define portSWITCH_INT_NUMBER 	0x80
-#define portYIELD()			__asm{ int portSWITCH_INT_NUMBER } 
-/*-----------------------------------------------------------*/
-
+/* Compiler specifics. */
 #define portINPUT_BYTE( xAddr )				inp( xAddr )
 #define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
 #define portINPUT_WORD( xAddr )				inpw( xAddr )
 #define portOUTPUT_WORD( xAddr, usValue )	outpw( xAddr, usValue )
-/*-----------------------------------------------------------*/
-
-#define portTICK_RATE_MS		( ( portTickType ) 1000 / portTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT      2
-
-/*-----------------------------------------------------------*/
-#define portINITIAL_SW		( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
-
 #define inline
+/*-----------------------------------------------------------*/
+
+/* Task function macros as described on the FreeRTOS.org WEB site. */
+#define portTASK_FUNCTION_PROTO( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
 
 #endif /* PORTMACRO_H */
 

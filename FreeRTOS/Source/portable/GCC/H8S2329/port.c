@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -31,8 +31,7 @@
 */
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 
@@ -192,13 +191,9 @@ unsigned portLONG ulValue;
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
 extern void * pxCurrentTCB;
-
-	/* In this port we ignore the parameter and use the portUSE_PREEMPTION
-	definition instead. */
-	( void ) sUsePreemption;
 
 	/* Setup the hardware to generate the tick. */
 	prvSetupTimerInterrupt();
@@ -241,7 +236,7 @@ void vPortYield( void )
  * The interrupt handler installed for the RTOS tick depends on whether the 
  * preemptive or cooperative scheduler is being used. 
  */
-#if( portUSE_PREEMPTION == 1 )
+#if( configUSE_PREEMPTION == 1 )
 
 	/* 
 	 * The preemptive scheduler is used so the ISR calls vTaskSwitchContext().
@@ -286,7 +281,7 @@ void vPortYield( void )
  */
 static void prvSetupTimerInterrupt( void )
 {
-const unsigned portLONG ulCompareMatch = ( portCPU_CLOCK_HZ / portTICK_RATE_HZ ) / portCLOCK_DIV;
+const unsigned portLONG ulCompareMatch = ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) / portCLOCK_DIV;
 
 	/* Turn the module on. */
 	MSTPCR &= ~portMSTP13;
@@ -294,7 +289,7 @@ const unsigned portLONG ulCompareMatch = ( portCPU_CLOCK_HZ / portTICK_RATE_HZ )
 	/* Configure timer 1. */
 	TCR1 = portCLEAR_ON_TGRA_COMPARE_MATCH | portCLOCK_DIV_64;
 
-	/* Configure the compare match value for a tick of portTICK_RATE_HZ. */
+	/* Configure the compare match value for a tick of configTICK_RATE_HZ. */
 	TGR1A = ulCompareMatch;
 
 	/* Start the timer and enable the interrupt - we can do this here as 

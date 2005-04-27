@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -41,8 +41,7 @@
 #include <signal.h>
 
 /* Scheduler includes. */
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "task.h"
 
 /*-----------------------------------------------------------
@@ -207,12 +206,8 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 }
 /*-----------------------------------------------------------*/
 
-portSHORT sPortStartScheduler( portSHORT sUsePreemption )
+portBASE_TYPE xPortStartScheduler( void )
 {
-	/* In this port we ignore the parameter and use the portUSE_PREEMPTION
-	definition instead. */
-	( void ) sUsePreemption;
-
 	/* Setup the hardware to generate the tick.  Interrupts are disabled when
 	this function is called. */
 	prvSetupTimerInterrupt();
@@ -274,7 +269,7 @@ static void prvSetupTimerInterrupt( void )
 	TACTL |= TACLR;
 
 	/* Set the compare match value according to the tick rate we want. */
-	TACCR0 = portACLK_FREQUENCY_HZ / portTICK_RATE_HZ;
+	TACCR0 = portACLK_FREQUENCY_HZ / configTICK_RATE_HZ;
 
 	/* Enable the interrupts. */
 	TACCTL0 = CCIE;
@@ -292,7 +287,7 @@ static void prvSetupTimerInterrupt( void )
  * scheduler is being used or not.
  */
 
-#if portUSE_PREEMPTION == 1
+#if configUSE_PREEMPTION == 1
 
 	/*
 	 * Tick ISR for preemptive scheduler.  We can use a naked attribute as

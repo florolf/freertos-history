@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V2.6.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,7 +40,7 @@ Changes from V1.2.0
 	+ prvListGetOwnerOfNextEntry() and prvListGetOwnerOfHeadEntry() have been
 	  removed from the c file and added as macros to the h file.
 
-	+ usNumberOfItems has been added to the list structure.  This removes the
+	+ uxNumberOfItems has been added to the list structure.  This removes the
 	  need for a pointer comparison when checking if a list is empty, and so
 	  is slightly faster.
 
@@ -51,11 +51,18 @@ Changes from V1.2.0
 Changes from V2.0.0
 
 	+ Double linked the lists to allow faster removal item removal.
+
+Changes from V2.6.1
+
+	+ Make use of the new portBASE_TYPE definition where ever appropriate.
+
+Changes from V3.0.0
+
+	+ API changes as described on the FreeRTOS.org WEB site.
 */
 
 #include <stdlib.h>
-#include "projdefs.h"
-#include "portable.h"
+#include "FreeRTOS.h"
 #include "list.h"
 
 /*-----------------------------------------------------------
@@ -85,7 +92,7 @@ void vListInitialise( xList *pxList )
 	/* Make sure the marker items are not mistaken for being on a list. */
 	vListInitialiseItem( ( xListItem * ) &( pxList->xListEnd ) );
 
-	pxList->usNumberOfItems = ( unsigned portSHORT ) 0;
+	pxList->uxNumberOfItems = 0;
 }
 /*-----------------------------------------------------------*/
 
@@ -115,7 +122,7 @@ volatile xListItem * pxIndex;
 	/* Remember which list the item is in. */
 	pxNewListItem->pvContainer = ( void * ) pxList;
 
-	( pxList->usNumberOfItems )++;
+	( pxList->uxNumberOfItems )++;
 }
 /*-----------------------------------------------------------*/
 
@@ -160,7 +167,7 @@ register portTickType xValueOfInsertion;
 	item later. */
 	pxNewListItem->pvContainer = ( void * ) pxList;
 
-	( pxList->usNumberOfItems )++;
+	( pxList->uxNumberOfItems )++;
 }
 /*-----------------------------------------------------------*/
 
@@ -182,7 +189,7 @@ xList * pxList;
 	}
 
 	pxItemToRemove->pvContainer = NULL;
-	( pxList->usNumberOfItems )--;
+	( pxList->uxNumberOfItems )--;
 }
 /*-----------------------------------------------------------*/
 
