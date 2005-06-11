@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -32,7 +32,10 @@
 
 /* 
 Changes from V3.0.0
+	+ ucCriticalNesting is now initialised to 0x7F to prevent interrupts from being
+          handled before the scheduler is started.
 
+Changes from V3.0.1
 */
 
 /* Scheduler include files. */
@@ -86,7 +89,13 @@ unsigned portSHORT usCalcMinStackSize		= 0;
 
 /*-----------------------------------------------------------*/
 
-register unsigned portCHAR ucCriticalNesting = portNO_CRITICAL_SECTION_NESTING;
+/*
+ * We initialise ucCriticalNesting to the middle value an 
+ * unsigned char can contain. This way portENTER_CRITICAL()
+ * and portEXIT_CRITICAL() can be called without interrupts
+ * being enabled before the scheduler starts.
+ */
+register unsigned portCHAR ucCriticalNesting = 0x7F;
 
 /*-----------------------------------------------------------*/
 
@@ -238,9 +247,10 @@ void vPortEndScheduler( void )
 {
 	/*
 	 * It is unlikely that the scheduler for the PIC port will get stopped
-	 * once running.  If required disable the tick interrupt here, then return 
-	 * to sPortStartScheduler().
+	 * once running. When called a reset is done which is probably the
+	 * most valid action.
 	 */
+	_Pragma(asmline reset);
 }
 
 /*-----------------------------------------------------------*/
@@ -282,7 +292,6 @@ void *pvReturn;
 
 	return pvReturn;
 }
-/*-----------------------------------------------------------*/
 
 void vPortFree( void *pv )
 {

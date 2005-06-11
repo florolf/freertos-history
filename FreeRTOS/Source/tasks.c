@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -137,6 +137,14 @@ Changes between V3.0.0 and V2.6.1
  */
 #define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
 
+/* 
+ * Define configIDLE_SHOULD_YIELD for backwards compatability with old
+ * version.
+ */
+#ifndef configIDLE_SHOULD_YIELD
+	#define configIDLE_SHOULD_YIELD		1
+#endif
+
 /*
  * Default configMAX_TASK_NAME_LEN for backwards compatibility with old
  * portmacro.h files.
@@ -180,14 +188,14 @@ static volatile xList *pxDelayedTaskList;						/*< Points to the delayed task li
 static volatile xList *pxOverflowDelayedTaskList;				/*< Points to the delayed task list currently being used to hold tasks that have overflowed the current tick count. */
 static volatile xList xPendingReadyList;						/*< Tasks that have been readied while the scheduler was suspended.  They will be moved to the ready queue when the scheduler is resumed. */
 
-#if( INCLUDE_vTaskDelete == 1 )
+#if ( INCLUDE_vTaskDelete == 1 )
 
 	static volatile xList xTasksWaitingTermination;				/*< Tasks that have been deleted - but the their memory not yet freed. */
 	static volatile unsigned portBASE_TYPE uxTasksDeleted = ( unsigned portBASE_TYPE ) 0;
 
 #endif
 
-#if( INCLUDE_vTaskSuspend == 1 )
+#if ( INCLUDE_vTaskSuspend == 1 )
 
 	static volatile xList xSuspendedTaskList;					/*< Tasks that are currently suspended. */
 
@@ -221,7 +229,7 @@ static volatile unsigned portBASE_TYPE uxMissedTicks		= ( unsigned portBASE_TYPE
 /*
  * Macros and private variables used by the trace facility.
  */
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	#define tskSIZE_OF_EACH_TRACE_LINE			( ( unsigned portLONG ) ( sizeof( unsigned portLONG ) + sizeof( unsigned portLONG ) ) )
 	static volatile signed portCHAR * volatile pcTraceBuffer;
@@ -237,7 +245,7 @@ static volatile unsigned portBASE_TYPE uxMissedTicks		= ( unsigned portBASE_TYPE
  * As this macro is called each context switch it is a good idea to undefine
  * it if not using the facility.
  */
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	#define vWriteTraceToBuffer()														\
 	{																					\
@@ -359,7 +367,7 @@ static portTASK_FUNCTION_PROTO( prvIdleTask, pvParameters );
  * This does not free memory allocated by the task itself (i.e. memory
  * allocated by calls to pvPortMalloc from within the tasks application code).
  */
-#if( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
+#if ( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
 	static void prvDeleteTCB( tskTCB *pxTCB );
 #endif
 
@@ -385,7 +393,7 @@ static tskTCB *prvAllocateTCBAndStack( unsigned portSHORT usStackDepth );
  * THIS FUNCTION IS INTENDED FOR DEBUGGING ONLY, AND SHOULD NOT BE CALLED FROM
  * NORMAL APPLICATION CODE.
  */
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	static void prvListTaskWithinSingleList( signed portCHAR *pcWriteBuffer, xList *pxList, signed portCHAR cStatus );
 
@@ -396,7 +404,7 @@ static tskTCB *prvAllocateTCBAndStack( unsigned portSHORT usStackDepth );
  * This function determines the 'high water mark' of the task stack by
  * determining how much of the stack remains at the original preset value.
  */
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	unsigned portSHORT usTaskCheckFreeStackSpace( const unsigned portCHAR *pucStackByte );
 
@@ -525,7 +533,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 }
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskDelete == 1 )
+#if ( INCLUDE_vTaskDelete == 1 )
 
 	void vTaskDelete( xTaskHandle pxTaskToDelete )
 	{
@@ -575,7 +583,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
  * TASK CONTROL API documented in task.h
  *----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskDelayUntil == 1 )
+#if ( INCLUDE_vTaskDelayUntil == 1 )
 	void vTaskDelayUntil( portTickType *pxPreviousWakeTime, portTickType xTimeIncrement )
 	{
 	portTickType xTimeToWake;
@@ -648,7 +656,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskDelay == 1 )
+#if ( INCLUDE_vTaskDelay == 1 )
 	void vTaskDelay( portTickType xTicksToDelay )
 	{
 	portTickType xTimeToWake;
@@ -705,7 +713,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_uxTaskPriorityGet == 1 )
+#if ( INCLUDE_uxTaskPriorityGet == 1 )
 
 	unsigned portBASE_TYPE uxTaskPriorityGet( xTaskHandle pxTask )
 	{
@@ -727,7 +735,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskPrioritySet == 1 )
+#if ( INCLUDE_vTaskPrioritySet == 1 )
 
 	void vTaskPrioritySet( xTaskHandle pxTask, unsigned portBASE_TYPE uxNewPriority )
 	{
@@ -774,7 +782,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskSuspend == 1 )
+#if ( INCLUDE_vTaskSuspend == 1 )
 
 	void vTaskSuspend( xTaskHandle pxTaskToSuspend )
 	{
@@ -808,7 +816,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 #endif
 /*-----------------------------------------------------------*/
 
-#if( INCLUDE_vTaskSuspend == 1 )
+#if ( INCLUDE_vTaskSuspend == 1 )
 
 	void vTaskResume( xTaskHandle pxTaskToResume )
 	{
@@ -1016,7 +1024,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
 }
 /*-----------------------------------------------------------*/
 
-#if( ( configUSE_TRACE_FACILITY == 1 ) && ( INCLUDE_vTaskDelete == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
+#if ( ( configUSE_TRACE_FACILITY == 1 ) && ( INCLUDE_vTaskDelete == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
 
 	void vTaskList( signed portCHAR *pcWriteBuffer )
 	{
@@ -1071,7 +1079,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
 #endif
 /*----------------------------------------------------------*/
 
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	void vTaskStartTrace( signed portCHAR * pcBuffer, unsigned portLONG ulBufferSize )
 	{
@@ -1088,7 +1096,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
 #endif
 /*----------------------------------------------------------*/
 
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	unsigned portLONG ulTaskEndTrace( void )
 	{
@@ -1142,7 +1150,7 @@ inline void vTaskIncrementTick( void )
 }
 /*-----------------------------------------------------------*/
 
-#if( ( INCLUDE_vTaskCleanUpResources == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
+#if ( ( INCLUDE_vTaskCleanUpResources == 1 ) && ( INCLUDE_vTaskSuspend == 1 ) )
 
 	void vTaskCleanUpResources( void )
 	{
@@ -1332,7 +1340,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		/* See if any tasks have been deleted. */
 		prvCheckTasksWaitingTermination();
 
-		#if( configUSE_PREEMPTION == 0 )
+		#if ( configUSE_PREEMPTION == 0 )
 		{
 			/* If we are not using preemption we keep forcing a task switch to
 			see if any other task has become available.  If we are using
@@ -1340,7 +1348,9 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 			will automatically get the processor anyway. */
 			taskYIELD();	
 		}
-		#else
+		#endif
+
+		#if ( ( configUSE_PREEMPTION == 1 ) && ( configIDLE_SHOULD_YIELD == 1 ) )
 		{
 			/* When using preemption tasks of equal priority will be
 			timesliced.  If a task that is sharing the idle priority is ready
@@ -1358,9 +1368,9 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		}
 		#endif
 
-		#if( configUSE_IDLE_HOOK == 1 )
+		#if ( configUSE_IDLE_HOOK == 1 )
 		{
-			extern void vApplicationIdleHook( void );
+			extern void vApplicationIdleHook( void ); 
 
 			/* Call the user defined function from within the idle task.  This
 			allows the application designer to add background functionality
@@ -1426,13 +1436,13 @@ unsigned portBASE_TYPE uxPriority;
 	vListInitialise( ( xList * ) &xDelayedTaskList2 );
 	vListInitialise( ( xList * ) &xPendingReadyList );
 
-	#if( INCLUDE_vTaskDelete == 1 )
+	#if ( INCLUDE_vTaskDelete == 1 )
 	{
 		vListInitialise( ( xList * ) &xTasksWaitingTermination );
 	}
 	#endif
 
-	#if( INCLUDE_vTaskSuspend == 1 )
+	#if ( INCLUDE_vTaskSuspend == 1 )
 	{
 		vListInitialise( ( xList * ) &xSuspendedTaskList );
 	}
@@ -1447,7 +1457,7 @@ unsigned portBASE_TYPE uxPriority;
 
 static void prvCheckTasksWaitingTermination( void )
 {							
-	#if( INCLUDE_vTaskDelete == 1 )
+	#if ( INCLUDE_vTaskDelete == 1 )
 	{				
 		portBASE_TYPE xListIsEmpty;
 
@@ -1512,7 +1522,7 @@ tskTCB *pxNewTCB;
 }
 /*-----------------------------------------------------------*/
 
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 
 	static void prvListTaskWithinSingleList( signed portCHAR *pcWriteBuffer, xList *pxList, signed portCHAR cStatus )
 	{
@@ -1535,7 +1545,7 @@ tskTCB *pxNewTCB;
 #endif
 /*-----------------------------------------------------------*/
 
-#if( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_FACILITY == 1 )
 	unsigned portSHORT usTaskCheckFreeStackSpace( const unsigned portCHAR *pucStackByte )
 	{
 	register unsigned portSHORT usCount = 0;
@@ -1555,7 +1565,7 @@ tskTCB *pxNewTCB;
 
 
 
-#if( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
+#if ( ( INCLUDE_vTaskDelete == 1 ) || ( INCLUDE_vTaskCleanUpResources == 1 ) )
 
 	static void prvDeleteTCB( tskTCB *pxTCB )
 	{

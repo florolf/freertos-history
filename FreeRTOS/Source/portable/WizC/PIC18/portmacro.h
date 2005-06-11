@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -33,6 +33,7 @@
 /* 
 Changes from V3.0.0
 
+Changes from V3.0.1
 */
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
@@ -404,7 +405,7 @@ extern void vPortYield( void );
 /*-----------------------------------------------------------*/
 
 #define portTASK_FUNCTION( xFunction, pvParameters )	 	\
-	void pointed xFunction( void *pvParameters )			\
+	void pointed xFunction( void *pvParameters )		\
 	_Pragma(asmfunc xFunction)
 
 #define portTASK_FUNCTION_PROTO		portTASK_FUNCTION

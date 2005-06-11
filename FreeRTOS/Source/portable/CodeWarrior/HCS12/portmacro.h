@@ -63,66 +63,105 @@
 /*-----------------------------------------------------------*/
 
 /* Hardware specifics. */
-#define portBYTE_ALIGNMENT			2
+#define portBYTE_ALIGNMENT			1
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portYIELD()					asm volatile( "TRAPA #0" );
+#define portYIELD()					__asm( "swi" );
 /*-----------------------------------------------------------*/
 
 /* Critical section handling. */
-#define portENABLE_INTERRUPTS()		asm volatile( "ANDC	#0x7F, CCR" );
-#define portDISABLE_INTERRUPTS()	asm volatile( "ORC  #0x80, CCR" );
+#define portENABLE_INTERRUPTS()				__asm( "cli" )	
+#define portDISABLE_INTERRUPTS()			__asm( "sei" )
 
-/* Push the CCR then disable interrupts. */
-#define portENTER_CRITICAL()  		asm volatile( "STC	CCR, @-ER7" ); \
-                               		portDISABLE_INTERRUPTS();
+/*
+ * Disable interrupts before incrementing the count of critical section nesting.
+ * The nesting count is maintained so we know when interrupts should be
+ * re-enabled.  Once interrupts are disabled the nesting count can be accessed
+ * directly.  Each task maintains its own nesting count.
+ */
+#define portENTER_CRITICAL()  									\
+{																\
+	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																\
+	portDISABLE_INTERRUPTS();									\
+	uxCriticalNesting++;										\
+}
 
-/* Pop the CCR to set the interrupt masking back to its previous state. */
-#define  portEXIT_CRITICAL()    	asm volatile( "LDC  @ER7+, CCR" );
+/*
+ * Interrupts are disabled so we can access the nesting count directly.  If the
+ * nesting is found to be 0 (no nesting) then we are leaving the critical 
+ * section and interrupts can be re-enabled.
+ */
+#define  portEXIT_CRITICAL()									\
+{																\
+	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																\
+	uxCriticalNesting--;										\
+	if( uxCriticalNesting == 0 )								\
+	{															\
+		portENABLE_INTERRUPTS();								\
+	}															\
+}
 /*-----------------------------------------------------------*/
 
 /* Task utilities. */
 
-/* Context switch macros.  These macros are very simple as the context 
-is saved simply by selecting the saveall attribute of the context switch 
-interrupt service routines.  These macros save and restore the stack
-pointer to the TCB. */
+/* 
+ * These macros are very simple as the processor automatically saves and 
+ * restores its registers as interrupts are entered and exited.  In
+ * addition to the (automatically stacked) registers we also stack the 
+ * critical nesting count.  Each task maintains its own critical nesting
+ * count as it is legitimate for a task to yield from within a critical
+ * section.
+ */
 
-#define portSAVE_STACK_POINTER()								\
-extern void* pxCurrentTCB;										\
+/* 
+ * Load the stack pointer for the task, then pull the critical nesting
+ * count from the stack.  The remains of the context are restored by
+ * the RTI instruction.
+ */
+#define portRESTORE_CONTEXT()									\
+{																\
+	extern volatile void * pxCurrentTCB;						\
+	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
 																\
-	asm volatile(												\
-					"MOV.L	@_pxCurrentTCB, ER5			\n\t" 	\
-					"MOV.L	ER7, @ER5					\n\t"	\
-				);
+	__asm( "ldx pxCurrentTCB" );								\
+	__asm( "lds 0, x" );										\
+	__asm( "pula" );											\
+	__asm( "staa uxCriticalNesting" );							\
+}
 
-
-#define	portRESTORE_STACK_POINTER()								\
-extern void* pxCurrentTCB;										\
+/* 
+ * By the time this macro is called the processor has already stacked the
+ * registers.  Simply stack the nesting count then save the task stack
+ * pointer.
+ */
+#define portSAVE_CONTEXT()										\
+{																\
+	extern volatile void * pxCurrentTCB;						\
+	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
 																\
-	asm volatile(												\
-					"MOV.L	@_pxCurrentTCB, ER5			\n\t"	\
-					"MOV.L	@ER5, ER7					\n\t"	\
-				);
+	__asm( "ldaa uxCriticalNesting" );							\
+	__asm( "psha" );											\
+	__asm( "ldx pxCurrentTCB" );								\
+	__asm( "sts 0, x" );										\
+}
 
-/*-----------------------------------------------------------*/
+/*
+ * Utility macro to call macros above in correct order in order to perform a
+ * task switch from within a standard ISR.
+ */
+#define portTASK_SWITCH_FROM_ISR()								\
+	portSAVE_CONTEXT();											\
+	vTaskSwitchContext();										\
+	portRESTORE_CONTEXT();
 
-/* Macros to allow a context switch from within an application ISR. */
-
-#define portENTER_SWITCHING_ISR() portSAVE_STACK_POINTER(); {
-
-#define portEXIT_SWITCHING_ISR( x )							\
-	if( x )													\
-	{														\
-		extern void vTaskSwitchContext( void );				\
-		vTaskSwitchContext();								\
-	}														\
-	} portRESTORE_STACK_POINTER();
-/*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+
+#define inline
 
 #endif /* PORTMACRO_H */
 

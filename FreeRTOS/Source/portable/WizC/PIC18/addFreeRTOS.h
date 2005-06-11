@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -28,6 +28,12 @@
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
 	***************************************************************************
+*/
+
+/*
+Changes from V3.0.0
+
+Changes from V3.0.1
 */
 
 /*
