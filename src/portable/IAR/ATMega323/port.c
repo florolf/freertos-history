@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -44,8 +44,8 @@
 
 /* Hardware constants for timer 1. */
 #define portCLEAR_COUNTER_ON_MATCH				( ( unsigned portCHAR ) 0x08 )
-#define portPRESCALE_256						( ( unsigned portCHAR ) 0x04 )
-#define portCLOCK_PRESCALER						( ( unsigned portLONG ) 256 )
+#define portPRESCALE_64							( ( unsigned portCHAR ) 0x03 )
+#define portCLOCK_PRESCALER						( ( unsigned portLONG ) 64 )
 #define portCOMPARE_MATCH_A_INTERRUPT_ENABLE	( ( unsigned portCHAR ) 0x10 )
 
 /* The number of bytes used on the hardware stack by the task start address. */
@@ -266,6 +266,9 @@ unsigned portCHAR ucHighByte, ucLowByte;
 	/* We only have 16 bits so have to scale to get our required tick rate. */
 	ulCompareMatch /= portCLOCK_PRESCALER;
 
+	/* Adjust for correct value. */
+	ulCompareMatch -= ( unsigned portLONG ) 1;
+
 	/* Setup compare match value for compare match A.  Interrupts are disabled
 	before this is called so we need not worry here. */
 	ucLowByte = ( unsigned portCHAR ) ( ulCompareMatch & ( unsigned portLONG ) 0xff );
@@ -275,7 +278,7 @@ unsigned portCHAR ucHighByte, ucLowByte;
 	OCR1AL = ucLowByte;
 
 	/* Setup clock source and compare match behaviour. */
-	ucLowByte = portCLEAR_COUNTER_ON_MATCH | portPRESCALE_256;
+	ucLowByte = portCLEAR_COUNTER_ON_MATCH | portPRESCALE_64;
 	TCCR1B = ucLowByte;
 
 	/* Enable the interrupt - this is okay as interrupt are currently globally

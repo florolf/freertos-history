@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -32,22 +32,55 @@
 
 /* 
 Changes from V3.0.0
+	+ ISRcode pulled inline to reduce stack-usage.
 
+	+ Added functionality to only call vTaskSwitchContext() once
+	  when handling multiple interruptsources in a single interruptcall.
+
+	+ Filename changed to a .c extension to allow stepping through code
+	  using F7.
+
+Changes from V3.0.1
 */
 
-#ifndef _FREERTOS_DRIVERS_TICK_TICK_H
-#define _FREERTOS_DRIVERS_TICK_TICK_H
 /*
- * Freertos InterruptTest for the clocktick
+ * ISR for the tick.
+ * This increments the tick count and, if using the preemptive scheduler, 
+ * performs a context switch.  This must be identical to the manual 
+ * context switch in how it stores the context of a task. 
  */
-{
-	extern void portTICKisr( void );
 
-	if( bCCP1IF && bCCP1IE ) {			// Was the interrupt the SystemClock?
-		portTICKisr();
+#ifndef _FREERTOS_DRIVERS_TICK_ISRTICK_C
+#define _FREERTOS_DRIVERS_TICK_ISRTICK_C
+
+{
+	/*
+	 * Was the interrupt the SystemClock?
+	 */
+	if( bCCP1IF && bCCP1IE )
+	{
+		/*
+		 * Reset the interrupt flag
+		 */
+		bCCP1IF = 0;
+	
+		/*
+	 	 * Maintain the tick count.
+	 	 */
+		vTaskIncrementTick();
+		
+		#if configUSE_PREEMPTION == 1
+		{
+			/*
+		 	 * Ask for a switch to the highest priority task
+		 	 * that is ready to run.
+		 	 */
+			uxSwitchRequested = pdTRUE;
+		}
+		#endif
 	}
 }
 
-#pragma wizcpp uselib "$__PATHNAME__/Tick.c"
+#pragma wizcpp uselib     "$__PATHNAME__/Tick.c"
 
-#endif	/* _FREERTOS_DRIVERS_TICK_TICK_H */
+#endif	/* _FREERTOS_DRIVERS_TICK_ISRTICK_C */

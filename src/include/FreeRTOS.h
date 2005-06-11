@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,7 +40,7 @@
 #include <stddef.h>
 
 /* Basic FreeRTOS definitions. */
-#include "ProjDefs.h"
+#include "projdefs.h"
 
 /* Application specific configuration options. */
 #include "FreeRTOSConfig.h"

@@ -70,20 +70,20 @@ echo.
 :RESET_READONLY
   echo.
   echo   Removing ReadOnly attributes
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"        >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"        >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"       >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"       >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"   >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.h"   >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"   >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"        >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"    >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"    >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"       >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"      >nul
-  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"        >nul
-  attrib -R "%FEDLIBSUSER%\FreeRTOS.h"                        >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"         >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"         >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"        >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"        >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"    >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\isrTick.c" >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"    >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"         >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"     >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"     >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"        >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"       >nul
+  attrib -R "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"         >nul
+  attrib -R "%FEDLIBSUSER%\FreeRTOS.h"                         >nul
   echo   Done
 
 :CREATE_DIRECTORIES
@@ -102,57 +102,27 @@ echo.
   echo   Copying Files...
 :COPY_MODULES
   echo     Modules...
-  copy /V /Y "port.c"                      "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"        >nul
-  copy /V /Y "..\..\..\list.c"             "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"        >nul
-  copy /V /Y "..\..\..\queue.c"            "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"       >nul
-  copy /V /Y "..\..\..\tasks.c"            "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"       >nul
+  copy /V /Y "Port.c"                      "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"         >nul
+  copy /V /Y "..\..\..\List.c"             "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"         >nul
+  copy /V /Y "..\..\..\Queue.c"            "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"        >nul
+  copy /V /Y "..\..\..\Tasks.c"            "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"        >nul
 
 :COPY_DRIVERS
   echo     Drivers...
-  copy /V /Y "Drivers\Tick\Tick.c"         "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"   >nul
-  copy /V /Y "Drivers\Tick\Tick.h"         "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.h"   >nul
+  copy /V /Y "Drivers\Tick\Tick.c"         "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"    >nul
+  copy /V /Y "Drivers\Tick\isrTick.c"      "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\isrTick.c" >nul
 
 :COPY_HEADERS
   echo     Headers...
-  copy /V /Y "portmacro.h"                 "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"   >nul
-  copy /V /Y "..\..\..\include\list.h"     "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"        >nul
-  copy /V /Y "..\..\..\include\portable.h" "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"    >nul
-  copy /V /Y "..\..\..\include\projdefs.h" "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"    >nul
-  copy /V /Y "..\..\..\include\queue.h"    "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"       >nul
-  copy /V /Y "..\..\..\include\semphr.h"   "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"      >nul
-  copy /V /Y "..\..\..\include\task.h"     "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"        >nul
+  copy /V /Y "portmacro.h"                 "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"    >nul
+  copy /V /Y "..\..\..\include\List.h"     "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"         >nul
+  copy /V /Y "..\..\..\include\Portable.h" "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"     >nul
+  copy /V /Y "..\..\..\include\Projdefs.h" "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"     >nul
+  copy /V /Y "..\..\..\include\Queue.h"    "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"        >nul
+  copy /V /Y "..\..\..\include\Semphr.h"   "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"       >nul
+  copy /V /Y "..\..\..\include\Task.h"     "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"         >nul
+  copy /V /Y "addFreeRTOS.h" + "..\..\..\include\FreeRTOS.h" "%FEDLIBSUSER%\FreeRTOS.h"       >nul
 
-  copy /V /Y "addFreeRTOS.h" + "..\..\..\include\FreeRTOS.h" "%FEDLIBSUSER%\FreeRTOS.h"      >nul
-
-:HEADER_CHECK
-  set CHECKHEADER=Stddef.h
-  if exist "%FEDLIBS%\%CHECKHEADER%"     goto HEADER_OK
-  if exist "%FEDLIBSUSER%\%CHECKHEADER%" goto HEADER_OK
-  echo.
-  echo       Your installation has no %CHECKHEADER%.
-  copy /V /Y "Include\%CHECKHEADER%"  "%FEDLIBSUSER%\%CHECKHEADER%" >nul
-  echo       I have created %CHECKHEADER% in %FEDLIBSUSER%.
-:HEADER_OK
-
-:HEADER_CHECK
-  set CHECKHEADER=Stdio.h
-  if exist "%FEDLIBS%\%CHECKHEADER%"     goto HEADER_OK
-  if exist "%FEDLIBSUSER%\%CHECKHEADER%" goto HEADER_OK
-  echo.
-  echo       Your installation has no %CHECKHEADER%.
-  copy /V /Y "Include\%CHECKHEADER%"  "%FEDLIBSUSER%\%CHECKHEADER%" >nul
-  echo       I have created %CHECKHEADER% in %FEDLIBSUSER%.
-:HEADER_OK
-
-:HEADER_CHECK
-  set CHECKHEADER=String.h
-  if exist "%FEDLIBS%\%CHECKHEADER%"     goto HEADER_OK
-  if exist "%FEDLIBSUSER%\%CHECKHEADER%" goto HEADER_OK
-  echo.
-  echo       Your installation has no %CHECKHEADER%.
-  copy /V /Y "Include\%CHECKHEADER%"  "%FEDLIBSUSER%\%CHECKHEADER%" >nul
-  echo       I have created %CHECKHEADER% in %FEDLIBSUSER%.
-:HEADER_OK
 
   echo   Done
 
@@ -160,28 +130,29 @@ echo.
 :SET_READONLY
   echo.
   echo   Setting files to ReadOnly
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"        >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"        >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"       >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"       >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"   >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.h"   >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"   >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"        >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"    >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"    >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"       >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"      >nul
-  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"        >nul
-  attrib +R "%FEDLIBSUSER%\FreeRTOS.h"                        >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Port.c"         >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\List.c"         >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Queue.c"        >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Modules\Tasks.c"        >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\Tick.c"    >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Drivers\Tick\isrTick.c" >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Portmacro.h"    >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\List.h"         >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Portable.h"     >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Projdefs.h"     >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Queue.h"        >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Semphr.h"       >nul
+  attrib +R "%FEDLIBSUSER%\libFreeRTOS\Include\Task.h"         >nul
+  attrib +R "%FEDLIBSUSER%\FreeRTOS.h"                         >nul
   echo   Done
 
 
 :FINISHED
   echo.
-  echo My work has finished. You can now use %PACKAGENAME%.
-  echo I hope you have fun with it.
-  echo Byebye!
+  echo The installation of %PACKAGENAME% is completed.
+  echo.
+  echo Please review the installation instructions as additional libraries and
+  echo fedC/wizC configuration settings are needed for FreeRTOS to function correctly.
 
   goto ENDIT
 

@@ -30,12 +30,6 @@
 	***************************************************************************
 */
 
-/*
-Changes from V1.2.3
-
-	+ portCPU_CLOSK_HZ definition changed to 8MHz base 10, previously it
-	  base 16.
-*/
 
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
@@ -50,14 +44,16 @@ Changes from V1.2.3
  *-----------------------------------------------------------
  */
 
+#include <intrinsic.h>
+
 /* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portCHAR
-#define portBASE_TYPE	portCHAR
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	portLONG
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -66,43 +62,52 @@ Changes from V1.2.3
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
+/*-----------------------------------------------------------*/	
+
+/* Hardware specifics. */
+#define portSTACK_GROWTH			( -1 )
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT			4
+#define portYIELD()					asm ( "SWI 0" );
+/*-----------------------------------------------------------*/	
+
+/* Critical section handling. */
+__arm __interwork void vPortDisableInterruptsFromThumb( void );
+__arm __interwork void vPortEnableInterruptsFromThumb( void );
+__arm __interwork void vPortEnterCritical( void );
+__arm __interwork void vPortExitCritical( void );
+
+#define portDISABLE_INTERRUPTS()	__disable_interrupt()
+#define portENABLE_INTERRUPTS()		__enable_interrupt()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
+/*-----------------------------------------------------------*/	
+
+/* Task utilities. */
+#define portEND_SWITCHING_ISR( xSwitchRequired ) 	\
+{													\
+extern void vTaskSwitchContext( void );				\
+													\
+	if( xSwitchRequired ) 							\
+	{												\
+		vTaskSwitchContext();						\
+	}												\
+}
+/*-----------------------------------------------------------*/	
+
+/* EIC utilities. */
+#define portEIC_CICR_ADDR		*( ( unsigned portLONG * ) 0xFFFFF804 )
+#define portEIC_IPR_ADDR		*( ( unsigned portLONG * ) 0xFFFFF840 )
+#define portCLEAR_EIC()			portEIC_IPR_ADDR = 0x01 << portEIC_CICR_ADDR
 
 /*-----------------------------------------------------------*/	
 
-/* Critical section management. */
-#define portENTER_CRITICAL()	asm( "in r15, 3fh" );		\
-								asm( "cli" );				\
-								asm( "st -y, r15" )
-
-#define portEXIT_CRITICAL()		asm( "ld r15, y+" );		\
-								asm( "out 3fh, r15" )
-
-#define portDISABLE_INTERRUPTS()	asm( "cli" );
-#define portENABLE_INTERRUPTS()		asm( "sti" );
-/*-----------------------------------------------------------*/
-
-/* Architecture specifics. */
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			1
-/*-----------------------------------------------------------*/
-
-/* Kernel utilities. */
-void vPortYield( void );
-#define portYIELD()	vPortYield()
-
-#ifdef IAR_MEGA_AVR
-	#define outb( PORT, VALUE ) PORT = VALUE
-#endif
-/*-----------------------------------------------------------*/
-
-/* Compiler specifics. */
+/* Compiler specifics */
 #define inline
-/*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void * pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void * pvParameters )
 
 #endif /* PORTMACRO_H */
 

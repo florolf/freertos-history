@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -85,14 +85,16 @@ static size_t xNextFreeByte = ( size_t ) 0;
 
 void *pvPortMalloc( size_t xWantedSize )
 {
-void *pvReturn = NULL;
+void *pvReturn = NULL; 
 
 	/* Ensure that blocks are always aligned to the required number of bytes. */
-	if( xWantedSize & heapBYTE_ALIGNMENT_MASK )
-	{
-		/* Byte alignment required. */
-		xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & heapBYTE_ALIGNMENT_MASK ) );
-	}
+	#if portBYTE_ALIGNMENT != 1
+		if( xWantedSize & heapBYTE_ALIGNMENT_MASK )
+		{
+			/* Byte alignment required. */
+			xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & heapBYTE_ALIGNMENT_MASK ) );
+		}
+	#endif
 
 	vTaskSuspendAll();
 	{

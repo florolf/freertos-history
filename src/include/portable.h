@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.0.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -85,6 +85,10 @@
 	#include "..\..\Source\portable\IAR\AtmelSAM7S64\portmacro.h"
 #endif
 
+#ifdef STR71X_IAR 
+	#include "..\..\Source\portable\IAR\STR71x\portmacro.h"
+#endif
+
 #ifdef GCC_H8S
 	#include "../../Source/portable/GCC/H8S2329/portmacro.h"
 #endif
@@ -92,6 +96,10 @@
 #ifdef GCC_AT91FR40008
 	#include "../../Source/portable/GCC/ARM7_AT91FR40008/portmacro.h"
 #endif
+
+#ifdef HCS12_CODE_WARRIOR
+	#include "../../Source/portable/CodeWarrior/HCS12/portmacro.h"
+#endif	    
 
 #ifdef BCC_INDUSTRIAL_PC_PORT
 	/* A short file name has to be used in place of the normal
