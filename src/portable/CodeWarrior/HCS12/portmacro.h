@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -112,44 +112,81 @@
  * addition to the (automatically stacked) registers we also stack the 
  * critical nesting count.  Each task maintains its own critical nesting
  * count as it is legitimate for a task to yield from within a critical
- * section.
+ * section.  If the banked memory model is being used then the PPAGE
+ * register is also stored as part of the tasks context.
  */
 
-/* 
- * Load the stack pointer for the task, then pull the critical nesting
- * count from the stack.  The remains of the context are restored by
- * the RTI instruction.
- */
-#define portRESTORE_CONTEXT()									\
-{																\
-	extern volatile void * pxCurrentTCB;						\
-	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
-																\
-	__asm( "ldx pxCurrentTCB" );								\
-	__asm( "lds 0, x" );										\
-	__asm( "pula" );											\
-	__asm( "staa uxCriticalNesting" );							\
-}
+#ifdef BANKED_MODEL
+	/* 
+	 * Load the stack pointer for the task, then pull the critical nesting
+	 * count and PPAGE register from the stack.  The remains of the 
+	 * context are restored by the RTI instruction.
+	 */
+	#define portRESTORE_CONTEXT()									\
+	{																\
+		extern volatile void * pxCurrentTCB;						\
+		extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																	\
+		__asm( "ldx pxCurrentTCB" );								\
+		__asm( "lds 0, x" );										\
+		__asm( "pula" );											\
+		__asm( "staa uxCriticalNesting" );							\
+		__asm( "pula" );											\
+		__asm( "staa 0x30" ); /* 0x30 = PPAGE */					\
+	}
 
-/* 
- * By the time this macro is called the processor has already stacked the
- * registers.  Simply stack the nesting count then save the task stack
- * pointer.
- */
-#define portSAVE_CONTEXT()										\
-{																\
-	extern volatile void * pxCurrentTCB;						\
-	extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
-																\
-	__asm( "ldaa uxCriticalNesting" );							\
-	__asm( "psha" );											\
-	__asm( "ldx pxCurrentTCB" );								\
-	__asm( "sts 0, x" );										\
-}
+	/* 
+	 * By the time this macro is called the processor has already stacked the
+	 * registers.  Simply stack the nesting count and PPAGE value, then save 
+	 * the task stack pointer.
+	 */
+	#define portSAVE_CONTEXT()										\
+	{																\
+		extern volatile void * pxCurrentTCB;						\
+		extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																	\
+		__asm( "ldaa 0x30" );  /* 0x30 = PPAGE */					\
+		__asm( "psha" );											\
+		__asm( "ldaa uxCriticalNesting" );							\
+		__asm( "psha" );											\
+		__asm( "ldx pxCurrentTCB" );								\
+		__asm( "sts 0, x" );										\
+	}
+#else
+
+	/* 
+	 * These macros are as per the BANKED versions above, but without saving
+	 * and restoring the PPAGE register.
+	 */
+
+	#define portRESTORE_CONTEXT()									\
+	{																\
+		extern volatile void * pxCurrentTCB;						\
+		extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																	\
+		__asm( "ldx pxCurrentTCB" );								\
+		__asm( "lds 0, x" );										\
+		__asm( "pula" );											\
+		__asm( "staa uxCriticalNesting" );							\
+	}
+
+	#define portSAVE_CONTEXT()										\
+	{																\
+		extern volatile void * pxCurrentTCB;						\
+		extern volatile unsigned portBASE_TYPE uxCriticalNesting;	\
+																	\
+		__asm( "ldaa uxCriticalNesting" );							\
+		__asm( "psha" );											\
+		__asm( "ldx pxCurrentTCB" );								\
+		__asm( "sts 0, x" );										\
+	}
+#endif
 
 /*
  * Utility macro to call macros above in correct order in order to perform a
- * task switch from within a standard ISR.
+ * task switch from within a standard ISR.  This macro can only be used if
+ * the ISR does not use any local (stack) variables.  If the ISR uses stack
+ * variables portYIELD() should be used in it's place.
  */
 #define portTASK_SWITCH_FROM_ISR()								\
 	portSAVE_CONTEXT();											\
