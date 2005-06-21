@@ -1,5 +1,5 @@
 /* 
-	FreeRTOS V3.1.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.1.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -46,6 +46,8 @@
  */
 static void prvSetupTimerInterrupt( void );
 
+/* Interrupt service routines have to be in non-banked memory - as does the
+scheduler startup function. */
 #pragma CODE_SEG __NEAR_SEG NON_BANKED
 
 	/* Manual context switch function.  This is the SWI ISR. */
@@ -53,6 +55,12 @@ static void prvSetupTimerInterrupt( void );
 
 	/* Tick context switch function.  This is the timer ISR. */
 	void interrupt vPortTickInterrupt( void );
+	
+	/* Simply called by xPortStartScheduler().  xPortStartScheduler() does not
+	start the scheduler directly because the header file containing the 
+	xPortStartScheduler() prototype is part of the common kernel code, and 
+	therefore cannot use the CODE_SEG pragma. */
+	static portBASE_TYPE xBankedStartScheduler( void );
 
 #pragma CODE_SEG DEFAULT
 
@@ -123,6 +131,12 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x00;
 	pxTopOfStack--;
 	
+	#ifdef BANKED_MODEL
+		/* The page of the task. */
+		*pxTopOfStack = ( portSTACK_TYPE ) ( ( int ) pxCode );
+		pxTopOfStack--;
+	#endif
+	
 	/* Finally the critical nesting depth is initialised with 0 (not within
 	a critical section). */
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x00;
@@ -131,7 +145,34 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 }
 /*-----------------------------------------------------------*/
 
+void vPortEndScheduler( void )
+{
+	/* It is unlikely that the HCS12 port will get stopped. */
+}
+/*-----------------------------------------------------------*/
+
+static void prvSetupTimerInterrupt( void )
+{
+	TickTimer_SetFreqHz( configTICK_RATE_HZ );
+	TickTimer_Enable();
+}
+/*-----------------------------------------------------------*/
+
 portBASE_TYPE xPortStartScheduler( void )
+{
+	/* xPortStartScheduler() does not start the scheduler directly because 
+	the header file containing the xPortStartScheduler() prototype is part 
+	of the common kernel code, and therefore cannot use the CODE_SEG pragma. 
+	Instead it simply calls the locally defined xBankedStartScheduler() - 
+	which does use the CODE_SEG pragma. */
+
+	return xBankedStartScheduler();
+}
+/*-----------------------------------------------------------*/
+
+#pragma CODE_SEG __NEAR_SEG NON_BANKED
+
+static portBASE_TYPE xBankedStartScheduler( void )
 {
 	/* Configure the timer that will generate the RTOS tick.  Interrupts are
 	disabled when this function is called. */
@@ -148,71 +189,55 @@ portBASE_TYPE xPortStartScheduler( void )
 }
 /*-----------------------------------------------------------*/
 
-void vPortEndScheduler( void )
+/*
+ * Context switch functions.  These are both interrupt service routines.
+ */
+
+/*
+ * Manual context switch forced by calling portYIELD().  This is the SWI
+ * handler.
+ */
+void interrupt vPortYield( void )
 {
-	/* It is unlikely that the HCS12 port will get stopped. */
+	portSAVE_CONTEXT();
+	vTaskSwitchContext();
+	portRESTORE_CONTEXT();
 }
 /*-----------------------------------------------------------*/
 
 /*
- * Context switch functions.  These are both interrupt service routines.
+ * RTOS tick interrupt service routine.  If the cooperative scheduler is 
+ * being used then this simply increments the tick count.  If the 
+ * preemptive scheduler is being used a context switch can occur.
  */
-#pragma CODE_SEG __NEAR_SEG NON_BANKED
-
-	/*
-	 * Manual context switch forced by calling portYIELD().  This is the SWI
-	 * handler.
-	 */
-	void interrupt vPortYield( void )
+void interrupt vPortTickInterrupt( void )
+{
+	#if configUSE_PREEMPTION == 1
 	{
+		/* A context switch might happen so save the context. */
 		portSAVE_CONTEXT();
+
+		/* Increment the tick ... */
+		vTaskIncrementTick();
+
+		/* ... then see if the new tick value has necessitated a
+		context switch. */
 		vTaskSwitchContext();
-		portRESTORE_CONTEXT();
-	}
-	/*-----------------------------------------------------------*/
 
-	/*
-	 * RTOS tick interrupt service routine.  If the cooperative scheduler is 
-	 * being used then this simply increments the tick count.  If the 
-	 * preemptive scheduler is being used a context switch can occur.
-	 */
-	void interrupt vPortTickInterrupt( void )
+		TFLG1 = 1;								   
+
+		/* Restore the context of a task - which may be a different task
+		to that interrupted. */
+		portRESTORE_CONTEXT();	
+	}
+	#else
 	{
-		#if configUSE_PREEMPTION == 1
-		{
-			/* A context switch might happen so save the context. */
-			portSAVE_CONTEXT();
-
-			/* Increment the tick ... */
-			vTaskIncrementTick();
-
-			/* ... then see if the new tick value has necessitated a
-			context switch. */
-			vTaskSwitchContext();
-
-			TFLG1 = 1;								   
-
-			/* Restore the context of a task - which may be a different task
-			to that interrupted. */
-			portRESTORE_CONTEXT();	
-		}
-		#else
-		{
-			vTaskIncrementTick();
-			TFLG1 = 1;
-		}
-		#endif
+		vTaskIncrementTick();
+		TFLG1 = 1;
 	}
+	#endif
+}
 
 #pragma CODE_SEG DEFAULT
-/*-----------------------------------------------------------*/
-
-static void prvSetupTimerInterrupt( void )
-{
-	TickTimer_SetFreqHz( configTICK_RATE_HZ );
-	TickTimer_Enable();
-}
-/*-----------------------------------------------------------*/
-
 
 
