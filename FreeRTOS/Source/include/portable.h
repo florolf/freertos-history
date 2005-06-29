@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.1.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -75,6 +75,10 @@
 
 #ifdef GCC_MSP430
 	#include "../../Source/portable/GCC/MSP430F449/portmacro.h"
+#endif
+
+#ifdef ROWLEY_MSP430
+	#include "../../Source/portable/Rowley/MSP430F449/portmacro.h"
 #endif
 
 #ifdef KEIL_ARM7

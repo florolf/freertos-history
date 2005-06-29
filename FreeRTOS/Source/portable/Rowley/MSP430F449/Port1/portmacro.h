@@ -30,7 +30,6 @@
 	***************************************************************************
 */
 
-
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
@@ -49,9 +48,9 @@
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		short
-#define portSTACK_TYPE	unsigned portCHAR
-#define portBASE_TYPE	char
+#define portSHORT		int
+#define portSTACK_TYPE	unsigned portSHORT
+#define portBASE_TYPE	portSHORT
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -60,69 +59,74 @@
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
+
+/*-----------------------------------------------------------*/	
+
+/* Interrupt control macros. */
+#define portDISABLE_INTERRUPTS()	_DINT();
+#define portENABLE_INTERRUPTS()		_EINT();
+/*-----------------------------------------------------------*/
+
+/* Critical section control macros. */
+#define portNO_CRITICAL_SECTION_NESTING		( ( unsigned portSHORT ) 0 )
+
+#define portENTER_CRITICAL()													\
+{																				\
+extern volatile unsigned portSHORT usCriticalNesting;							\
+																				\
+	portDISABLE_INTERRUPTS();													\
+																				\
+	/* Now interrupts are disabled usCriticalNesting can be accessed */			\
+	/* directly.  Increment ulCriticalNesting to keep a count of how many */	\
+	/* times portENTER_CRITICAL() has been called. */							\
+	usCriticalNesting++;														\
+}
+
+#define portEXIT_CRITICAL()														\
+{																				\
+extern volatile unsigned portSHORT usCriticalNesting;							\
+																				\
+	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
+	{																			\
+		/* Decrement the nesting count as we are leaving a critical section. */	\
+		usCriticalNesting--;													\
+																				\
+		/* If the nesting level has reached zero then interrupts should be */	\
+		/* re-enabled. */														\
+		if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )				\
+		{																		\
+			portENABLE_INTERRUPTS();											\
+		}																		\
+	}																			\
+}
+/*-----------------------------------------------------------*/
+
+/* Task utilities. */
+
+/*
+ * Manual context switch called by portYIELD or taskYIELD.  
+ */
+extern void vPortYield( void ); 
+#define portYIELD() vPortYield()
 /*-----------------------------------------------------------*/
 
 /* Hardware specifics. */
 #define portBYTE_ALIGNMENT			2
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portYIELD()					asm volatile( "TRAPA #0" );
-/*-----------------------------------------------------------*/
-
-/* Critical section handling. */
-#define portENABLE_INTERRUPTS()		asm volatile( "ANDC	#0x7F, CCR" );
-#define portDISABLE_INTERRUPTS()	asm volatile( "ORC  #0x80, CCR" );
-
-/* Push the CCR then disable interrupts. */
-#define portENTER_CRITICAL()  		asm volatile( "STC	CCR, @-ER7" ); \
-                               		portDISABLE_INTERRUPTS();
-
-/* Pop the CCR to set the interrupt masking back to its previous state. */
-#define  portEXIT_CRITICAL()    	asm volatile( "LDC  @ER7+, CCR" );
-/*-----------------------------------------------------------*/
-
-/* Task utilities. */
-
-/* Context switch macros.  These macros are very simple as the context 
-is saved simply by selecting the saveall attribute of the context switch 
-interrupt service routines.  These macros save and restore the stack
-pointer to the TCB. */
-
-#define portSAVE_STACK_POINTER()								\
-extern void* pxCurrentTCB;										\
-																\
-	asm volatile(												\
-					"MOV.L	@_pxCurrentTCB, ER5			\n\t" 	\
-					"MOV.L	ER7, @ER5					\n\t"	\
-				);
-
-
-#define	portRESTORE_STACK_POINTER()								\
-extern void* pxCurrentTCB;										\
-																\
-	asm volatile(												\
-					"MOV.L	@_pxCurrentTCB, ER5			\n\t"	\
-					"MOV.L	@ER5, ER7					\n\t"	\
-				);
-
-/*-----------------------------------------------------------*/
-
-/* Macros to allow a context switch from within an application ISR. */
-
-#define portENTER_SWITCHING_ISR() portSAVE_STACK_POINTER(); {
-
-#define portEXIT_SWITCHING_ISR( x )							\
-	if( x )													\
-	{														\
-		extern void vTaskSwitchContext( void );				\
-		vTaskSwitchContext();								\
-	}														\
-	} portRESTORE_STACK_POINTER();
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters ) __toplevel
+
+/* Compiler specifics. */
+#define inline
+
+/* Just used by the demo application to indicate which form of interrupt 
+service routine should be used.  See the online port documentation for more
+information. */
+#define MSP_ROWLEY_RB_PORT
 
 #endif /* PORTMACRO_H */
 

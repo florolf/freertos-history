@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.1.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -122,6 +122,12 @@ Changes between V3.0.0 and V2.6.1
 	  ready to run.
 	+ See the FreeRTOS.org documentation for more information on V2.x.x to 
 	  V3.x.x modifications.
+
+Changes from V3.1.1
+
+	+ Modified vTaskPrioritySet() and vTaskResume() to allow these functions to
+	  be called while the scheduler is suspended.
+	+ Corrected the task ordering within event lists.
 
 */
 
@@ -765,10 +771,19 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 				in the queue appropriate to its new priority. */
 				if( listIS_CONTAINED_WITHIN( &( pxReadyTasksLists[ uxCurrentPriority ] ), &( pxTCB->xGenericListItem ) ) )
 				{
-					/* The task is currently in its ready list - remove before adding
-					it to it's new ready list. */
-					vListRemove( &( pxTCB->xGenericListItem ) );
-					prvAddTaskToReadyQueue( pxTCB );
+					if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
+					{
+						/* The task is currently in its ready list - remove before adding
+						it to it's new ready list. */
+						vListRemove( &( pxTCB->xGenericListItem ) );
+						prvAddTaskToReadyQueue( pxTCB );
+					}
+					else
+					{
+						/* We cannot access the delayed or ready lists, so will hold this
+						task pending until the scheduler is resumed. */
+						vListInsertEnd( ( xList * ) &( xPendingReadyList ), &( pxTCB->xEventListItem ) );
+					}
 				}			
 			}
 		}
@@ -833,9 +848,19 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 		{
 			taskENTER_CRITICAL();
 			{
-				xYieldRequired = ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority );
-				vListRemove( &( pxTCB->xGenericListItem ) );
-				prvAddTaskToReadyQueue( pxTCB );
+				if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
+				{
+					xYieldRequired = ( pxTCB->uxPriority >= pxCurrentTCB->uxPriority );
+					vListRemove(  &( pxTCB->xGenericListItem ) );
+					prvAddTaskToReadyQueue( pxTCB );
+				}
+				else
+				{
+					/* We cannot access the delayed or ready lists, so will hold this
+					task pending until the scheduler is resumed. */
+					xYieldRequired = pdFALSE;
+					vListInsertEnd( ( xList * ) &( xPendingReadyList ), &( pxTCB->xEventListItem ) );
+				}
 			}
 			taskEXIT_CRITICAL();
 
@@ -868,7 +893,7 @@ portBASE_TYPE xReturn;
 	if( pxCurrentTCB != NULL )
 	{
 		/* Add the idle task at the lowest priority. */
-		xReturn = xTaskCreate( prvIdleTask, ( const portCHAR * const ) "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, tskIDLE_PRIORITY, ( xTaskHandle * ) NULL );
+		xReturn = xTaskCreate( prvIdleTask, ( const signed portCHAR * const ) "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, tskIDLE_PRIORITY, ( xTaskHandle * ) NULL );
 
 		if( xReturn == pdPASS )
 		{
@@ -1418,7 +1443,7 @@ static void prvInitialiseTCBVariables( tskTCB *pxTCB, unsigned portSHORT usStack
 	listSET_LIST_ITEM_OWNER( &( pxTCB->xGenericListItem ), pxTCB );
 
 	/* Event lists are always in priority order. */
-	listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), ( portTickType ) uxPriority );
+	listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), configMAX_PRIORITIES - ( portTickType ) uxPriority );
 	listSET_LIST_ITEM_OWNER( &( pxTCB->xEventListItem ), pxTCB );
 }
 /*-----------------------------------------------------------*/
