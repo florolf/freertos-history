@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -41,6 +41,8 @@
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+
+#include "AT91SAM7X256.h"
 
 /* Constants required to handle interrupts. */
 #define portTIMER_MATCH_ISR_BIT		( ( unsigned portCHAR ) 0x01 )
@@ -129,8 +131,6 @@ void vPortYieldProcessor( void )
 	void vPreemptiveTick( void ) __attribute__((naked));
 	void vPreemptiveTick( void )
 	{
-		unsigned portLONG ulDummy;
-
 		/* Save the context of the current task. */
 		portSAVE_CONTEXT();			
 
@@ -140,11 +140,8 @@ void vPortYieldProcessor( void )
 		/* Find the highest priority task that is ready to run. */
 		vTaskSwitchContext();
 		
-		/* Clear the PIT interrupt. */
-		ulDummy = AT91C_BASE_PITC->PITC_PIVR;
-		
 		/* End the interrupt in the AIC. */
-		AT91C_BASE_AIC->AIC_EOICR = ulDummy;
+		AT91C_BASE_AIC->AIC_EOICR = AT91C_BASE_PITC->PITC_PIVR;;
 		
 		portRESTORE_CONTEXT();
 	}

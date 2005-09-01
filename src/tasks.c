@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -120,7 +120,7 @@ Changes between V3.0.0 and V2.6.1
 	+ The idle task can now include an optional hook function - and no longer
 	  completes its time slice if other tasks with equal priority to it are
 	  ready to run.
-	+ See the FreeRTOS.org documentation for more information on V2.x.x to 
+	+ See the FreeRTOS.org documentation for more information on V2.x.x to
 	  V3.x.x modifications.
 
 Changes from V3.1.1
@@ -129,6 +129,9 @@ Changes from V3.1.1
 	  be called while the scheduler is suspended.
 	+ Corrected the task ordering within event lists.
 
+Changes from V3.2.0
+
+	+ Added function xTaskGetCurrentTaskHandle().
 */
 
 #include <stdio.h>
@@ -143,20 +146,21 @@ Changes from V3.1.1
  */
 #define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
 
-/* 
- * Define configIDLE_SHOULD_YIELD for backwards compatability with old
- * version.
- */
-#ifndef configIDLE_SHOULD_YIELD
-	#define configIDLE_SHOULD_YIELD		1
-#endif
 
 /*
- * Default configMAX_TASK_NAME_LEN for backwards compatibility with old
+ * Default a definitions for backwards compatibility with old
  * portmacro.h files.
  */
 #ifndef configMAX_TASK_NAME_LEN
 	#define configMAX_TASK_NAME_LEN 16
+#endif
+
+#ifndef INCLUDE_xTaskGetCurrentTaskHandle
+	#define INCLUDE_xTaskGetCurrentTaskHandle 0
+#endif
+
+#ifndef configIDLE_SHOULD_YIELD
+	#define configIDLE_SHOULD_YIELD		1
 #endif
 
 #if configMAX_TASK_NAME_LEN < 1
@@ -1379,12 +1383,12 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		{
 			/* When using preemption tasks of equal priority will be
 			timesliced.  If a task that is sharing the idle priority is ready
-			to run then the idle task should yield before the end of the 
+			to run then the idle task should yield before the end of the
 			timeslice.
 			
-			A critical region is not required here as we are just reading from 
-			the list, and an occasional incorrect value will not matter.  If 
-			the ready list at the idle priority contains more than one task 
+			A critical region is not required here as we are just reading from
+			the list, and an occasional incorrect value will not matter.  If
+			the ready list at the idle priority contains more than one task
 			then a task other than the idle task is ready to execute. */
 			if( listCURRENT_LIST_LENGTH( &( pxReadyTasksLists[ tskIDLE_PRIORITY ] ) ) > ( unsigned portBASE_TYPE ) 1 )
 			{
@@ -1395,7 +1399,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 
 		#if ( configUSE_IDLE_HOOK == 1 )
 		{
-			extern void vApplicationIdleHook( void ); 
+			extern void vApplicationIdleHook( void );
 
 			/* Call the user defined function from within the idle task.  This
 			allows the application designer to add background functionality
@@ -1603,8 +1607,24 @@ tskTCB *pxNewTCB;
 #endif
 
 
+/*-----------------------------------------------------------*/
 
+#if ( INCLUDE_xTaskGetCurrentTaskHandle == 1 )
 
+	xTaskHandle xTaskGetCurrentTaskHandle( void )
+	{
+	xTaskHandle xReturn;
+
+		portENTER_CRITICAL();
+		{
+			xReturn = ( xTaskHandle ) pxCurrentTCB;
+		}
+		portEXIT_CRITICAL();
+
+		return xReturn;
+	}
+
+#endif
 
 
 

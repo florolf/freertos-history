@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -19,13 +19,13 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http://www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
@@ -54,23 +54,27 @@
 /* Constants required to handle critical sections. */
 #define portNO_CRITICAL_NESTING 		( ( unsigned portLONG ) 0 )
 
+
+#define portINT_LEVEL_SENSITIVE  0
+#define portPIT_ENABLE      	( ( unsigned portSHORT ) 0x1 << 24 )
+#define portPIT_INT_ENABLE     	( ( unsigned portSHORT ) 0x1 << 25 )
 /*-----------------------------------------------------------*/
 
 /* Setup the PIT to generate the tick interrupts. */
 static void prvSetupTimerInterrupt( void );
 
-/* ulCriticalNesting will get set to zero when the first task starts.  It 
-cannot be initialised to 0 as this will cause interrupts to be enabled 
+/* ulCriticalNesting will get set to zero when the first task starts.  It
+cannot be initialised to 0 as this will cause interrupts to be enabled
 during the kernel initialisation process. */
 unsigned portLONG ulCriticalNesting = ( unsigned portLONG ) 9999;
 
 /*-----------------------------------------------------------*/
 
-/* 
- * Initialise the stack of a task to look exactly as if a call to 
+/*
+ * Initialise the stack of a task to look exactly as if a call to
  * portSAVE_CONTEXT had been called.
  *
- * See header file for description. 
+ * See header file for description.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
@@ -78,7 +82,7 @@ portSTACK_TYPE *pxOriginalTOS;
 
 	pxOriginalTOS = pxTopOfStack;
 
-	/* Setup the initial stack of the task.  The stack is set exactly as 
+	/* Setup the initial stack of the task.  The stack is set exactly as
 	expected by the portRESTORE_CONTEXT() macro. */
 
 	/* First on the stack is the return address - which in this case is the
@@ -159,7 +163,7 @@ void vPortEndScheduler( void )
 
 #if configUSE_PREEMPTION == 0
 
-	/* The cooperative scheduler requires a normal IRQ service routine to 
+	/* The cooperative scheduler requires a normal IRQ service routine to
 	simply increment the system tick. */
 	static __arm __irq void vPortNonPreemptiveTick( void );
 	static __arm __irq void vPortNonPreemptiveTick( void )
@@ -195,19 +199,19 @@ AT91PS_PITC pxPIT = AT91C_BASE_PITC;
 	on whether the preemptive or cooperative scheduler is being used. */
 	#if configUSE_PREEMPTION == 0
 
-		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortNonPreemptiveTick );
+		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, portINT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortNonPreemptiveTick );
 
 	#else
 		
 		extern void ( vPortPreemptiveTick )( void );
-		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortPreemptiveTick );
+		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, portINT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortPreemptiveTick );
 
 	#endif
 
 	/* Configure the PIT period. */
-	pxPIT->PITC_PIMR = AT91C_SYSC_PITEN | AT91C_SYSC_PITIEN | portPIT_COUNTER_VALUE;
+	pxPIT->PITC_PIMR = portPIT_ENABLE | portPIT_INT_ENABLE | portPIT_COUNTER_VALUE;
 
-	/* Enable the interrupt.  Global interrupts are disables at this point so 
+	/* Enable the interrupt.  Global interrupts are disables at this point so
 	this is safe. */
 	AT91F_AIC_EnableIt( AT91C_BASE_AIC, AT91C_ID_SYS );
 }
@@ -218,7 +222,7 @@ void vPortEnterCritical( void )
 	/* Disable interrupts first! */
 	__disable_interrupt();
 
-	/* Now interrupts are disabled ulCriticalNesting can be accessed 
+	/* Now interrupts are disabled ulCriticalNesting can be accessed
 	directly.  Increment ulCriticalNesting to keep a count of how many times
 	portENTER_CRITICAL() has been called. */
 	ulCriticalNesting++;
