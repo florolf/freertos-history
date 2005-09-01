@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,7 +40,7 @@
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V3.1.0"
+#define tskKERNEL_VERSION_NUMBER "V3.2.1"
 
 /**
  * task. h
@@ -909,6 +909,12 @@ void vTaskCleanUpResources( void );
  * that is ready to run.
  */
 inline void vTaskSwitchContext( void );
+
+/*
+ * Return the handle of the calling task.
+ */
+xTaskHandle xTaskGetCurrentTaskHandle( void );
+
 
 #endif /* TASK_H */
 

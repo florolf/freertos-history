@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -51,6 +51,7 @@
 #define portLONG		long
 #define portSHORT		short
 #define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	portLONG
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -67,7 +68,8 @@
 #define portBYTE_ALIGNMENT			4
 /*-----------------------------------------------------------*/	
 
-/* Task utilities. */
+
+/* Scheduler utilities. */
 
 /*
  * portRESTORE_CONTEXT, portRESTORE_CONTEXT, portENTER_SWITCHING_ISR
@@ -183,13 +185,42 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 #define portYIELD()					asm volatile ( "SWI" );	
 /*-----------------------------------------------------------*/
 
-/* Critical section handling. */
-extern void vPortDisableInterruptsFromThumb( void ) __attribute__ ((naked));
-extern void vPortEnableInterruptsFromThumb( void ) __attribute__ ((naked));
 
-#define portDISABLE_INTERRUPTS()	vPortDisableInterruptsFromThumb()
-#define portENABLE_INTERRUPTS()		vPortEnableInterruptsFromThumb()
+/* Critical section management. */
+
+/*
+ * The interrupt management utilities can only be called from ARM mode.  When
+ * THUMB_INTERWORK is defined the utilities are defined as functions in 
+ * portISR.c to ensure a switch to ARM mode.  When THUMB_INTERWORK is not 
+ * defined then the utilities are defined as macros here - as per other ports.
+ */
+
+#ifdef THUMB_INTERWORK
+
+	extern void vPortDisableInterruptsFromThumb( void ) __attribute__ ((naked));
+	extern void vPortEnableInterruptsFromThumb( void ) __attribute__ ((naked));
+
+	#define portDISABLE_INTERRUPTS()	vPortDisableInterruptsFromThumb()
+	#define portENABLE_INTERRUPTS()		vPortEnableInterruptsFromThumb()
 	
+#else
+
+	#define portDISABLE_INTERRUPTS()																\
+		asm volatile ( "STMDB	SP!, {R0}" );		/* Push R0.									*/	\
+		asm volatile ( "MRS		R0, CPSR" );		/* Get CPSR.								*/	\
+		asm volatile ( "ORR		R0, R0, #0xC0" );	/* Disable IRQ, FIQ.						*/	\
+		asm volatile ( "MSR		CPSR, R0" );		/* Write back modified value.				*/	\
+		asm volatile ( "LDMIA	SP!, {R0}" )		/* Pop R0.									*/
+			
+	#define portENABLE_INTERRUPTS()																	\
+		asm volatile ( "STMDB	SP!, {R0}" );		/* Push R0.									*/	\
+		asm volatile ( "MRS		R0, CPSR" );		/* Get CPSR.								*/	\
+		asm volatile ( "BIC		R0, R0, #0xC0" );	/* Enable IRQ, FIQ.							*/	\
+		asm volatile ( "MSR		CPSR, R0" );		/* Write back modified value.				*/	\
+		asm volatile ( "LDMIA	SP!, {R0}" )		/* Pop R0. */
+
+#endif /* THUMB_INTERWORK */
+
 extern void vPortEnterCritical( void );
 extern void vPortExitCritical( void );
 
@@ -198,8 +229,8 @@ extern void vPortExitCritical( void );
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters ) __attribute__ ((naked))
-#define portTASK_FUNCTION( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
 #endif /* PORTMACRO_H */
 

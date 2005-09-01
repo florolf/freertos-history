@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -52,6 +52,11 @@ Changes from V2.1.1
 Changes from V2.3.1
 
 	+ TABLAT is now saved as part of the task context.
+	
+Changes from V3.2.0
+
+	+ TBLPTRU is now initialised to zero as the MPLAB compiler expects this
+	  value and does not write to the register.
 */
 
 /* Scheduler include files. */
@@ -408,7 +413,7 @@ unsigned portCHAR ucBlock;
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x66; /* TABLAT. */
 	pxTopOfStack++;
 
-	*pxTopOfStack = ( portSTACK_TYPE ) 0x77; /* TBLPTRU. */
+	*pxTopOfStack = ( portSTACK_TYPE ) 0x00; /* TBLPTRU. */
 	pxTopOfStack++;
 
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x88; /* TBLPTRUH. */

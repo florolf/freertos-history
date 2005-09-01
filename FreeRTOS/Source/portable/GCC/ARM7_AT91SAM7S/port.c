@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003, 2004 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -54,6 +54,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+/* Processor constants. */
+#include "at91sam7x256.h"
+
 /* Constants required to setup the task context. */
 #define portINITIAL_SPSR				( ( portSTACK_TYPE ) 0x1f ) /* System mode, ARM mode, interrupts enabled. */
 #define portTHUMB_MODE_BIT				( ( portSTACK_TYPE ) 0x20 )
@@ -70,6 +73,9 @@
 #define portPIT_CLOCK_DIVISOR			( ( unsigned portLONG ) 16 )
 #define portPIT_COUNTER_VALUE			( ( ( configCPU_CLOCK_HZ / portPIT_CLOCK_DIVISOR ) / 1000UL ) * portTICK_RATE_MS )
 
+#define portINT_LEVEL_SENSITIVE  0
+#define portPIT_ENABLE      	( ( unsigned portSHORT ) 0x1 << 24 )
+#define portPIT_INT_ENABLE     	( ( unsigned portSHORT ) 0x1 << 25 )
 /*-----------------------------------------------------------*/
 
 /* Setup the timer to generate the tick interrupts. */
@@ -193,21 +199,22 @@ AT91PS_PITC pxPIT = AT91C_BASE_PITC;
 	on whether the preemptive or cooperative scheduler is being used. */
 	#if configUSE_PREEMPTION == 0
 
-		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPortNonPreemptiveTick );
+		extern void ( vNonPreemptiveTick ) ( void );
+		AT91F_AIC_ConfigureIt( AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, portINT_LEVEL_SENSITIVE, ( void (*)(void) ) vNonPreemptiveTick );
 
 	#else
 		
 		extern void ( vPreemptiveTick )( void );
-		AT91F_AIC_ConfigureIt( AT91C_BASE_AIC, AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE, ( void (*)(void) ) vPreemptiveTick );
+		AT91F_AIC_ConfigureIt( AT91C_ID_SYS, AT91C_AIC_PRIOR_HIGHEST, portINT_LEVEL_SENSITIVE, ( void (*)(void) ) vPreemptiveTick );
 
 	#endif
 
 	/* Configure the PIT period. */
-	pxPIT->PITC_PIMR = AT91C_SYSC_PITEN | AT91C_SYSC_PITIEN | portPIT_COUNTER_VALUE;
+	pxPIT->PITC_PIMR = portPIT_ENABLE | portPIT_INT_ENABLE | portPIT_COUNTER_VALUE;
 
 	/* Enable the interrupt.  Global interrupts are disables at this point so 
 	this is safe. */
-	AT91F_AIC_EnableIt( AT91C_BASE_AIC, AT91C_ID_SYS );
+    AT91C_BASE_AIC->AIC_IECR = 0x1 << AT91C_ID_SYS;
 }
 /*-----------------------------------------------------------*/
 

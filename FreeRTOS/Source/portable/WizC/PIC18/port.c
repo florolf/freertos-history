@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.0 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -31,6 +31,10 @@
 */
 
 /* 
+Changes from V3.2.0
+	+ TBLPTRU is now initialised to zero during the initial stack creation of a new task. This solves
+	an error on devices with more than 64kB ROM.
+
 Changes from V3.0.0
 	+ ucCriticalNesting is now initialised to 0x7F to prevent interrupts from being
           handled before the scheduler is started.
@@ -150,7 +154,7 @@ unsigned portCHAR ucScratch;
 	*pxTopOfStack-- = ( portSTACK_TYPE ) 0x99; /* FSR1L. */
 	*pxTopOfStack-- = ( portSTACK_TYPE ) 0xAA; /* TABLAT. */
 #if _ROMSIZE > 0x8000
-	*pxTopOfStack-- = ( portSTACK_TYPE ) 0xBB; /* TBLPTRU. */
+	*pxTopOfStack-- = ( portSTACK_TYPE ) 0x00; /* TBLPTRU. */
 #endif
 	*pxTopOfStack-- = ( portSTACK_TYPE ) 0xCC; /* TBLPTRH. */
 	*pxTopOfStack-- = ( portSTACK_TYPE ) 0xDD; /* TBLPTRL. */
