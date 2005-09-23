@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -38,10 +38,10 @@ typedef void * xQueueHandle;
 /**
  * queue. h
  * <pre>
- * xQueueHandle xQueueCreate( 
- *                            unsigned portBASE_TYPE uxQueueLength, 
- *                            unsigned portBASE_TYPE uxItemSize 
- *                          );
+ xQueueHandle xQueueCreate( 
+                              unsigned portBASE_TYPE uxQueueLength, 
+                              unsigned portBASE_TYPE uxItemSize 
+                          );
  * </pre>
  *
  * Creates a new queue instance.  This allocates the storage required by the
@@ -96,11 +96,11 @@ xQueueHandle xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBA
 /**
  * queue. h
  * <pre>
- * portBASE_TYPE xQueueSend( 
- *								xQueueHandle xQueue, 
- *								const void * pvItemToQueue, 
- *								portTickType xTicksToWait 
- *							);
+ portBASE_TYPE xQueueSend( 
+                             xQueueHandle xQueue, 
+                             const void * pvItemToQueue, 
+                             portTickType xTicksToWait 
+                         );
  * </pre>
  *
  * Post an item on a queue.  The item is queued by copy, not by reference.
@@ -175,11 +175,11 @@ signed portBASE_TYPE xQueueSend( xQueueHandle xQueue, const void * pvItemToQueue
 /**
  * queue. h
  * <pre>
- * portBASE_TYPE xQueueReceive( 
- *                              xQueueHandle xQueue, 
- *                              void *pcBuffer, 
- *                              portTickType xTicksToWait 
- *                            );</pre>
+ portBASE_TYPE xQueueReceive( 
+                                xQueueHandle xQueue, 
+                                void *pcBuffer, 
+                                portTickType xTicksToWait 
+                            );</pre>
  *
  * Receive an item from a queue.  The item is received by copy so a buffer of 
  * adequate size must be provided.  The number of bytes copied into the buffer
@@ -271,7 +271,6 @@ signed portBASE_TYPE xQueueReceive( xQueueHandle xQueue, void *pcBuffer, portTic
  *
  * \page uxQueueMessagesWaiting uxQueueMessagesWaiting
  * \ingroup QueueManagement
- * <HR>
  */
 unsigned portBASE_TYPE uxQueueMessagesWaiting( xQueueHandle xQueue );
 
@@ -286,18 +285,17 @@ unsigned portBASE_TYPE uxQueueMessagesWaiting( xQueueHandle xQueue );
  *
  * \page vQueueDelete vQueueDelete
  * \ingroup QueueManagement
- * <HR>
  */
 void vQueueDelete( xQueueHandle xQueue );
 
 /**
  * queue. h
  * <pre>
- * portBASE_TYPE xQueueSendFromISR( 
- *                             xQueueHandle pxQueue, 
- *                             const void *pvItemToQueue, 
- *                             portBASE_TYPE xTaskPreviouslyWoken 
- *                           );
+ portBASE_TYPE xQueueSendFromISR( 
+                                    xQueueHandle pxQueue, 
+                                    const void *pvItemToQueue, 
+                                    portBASE_TYPE xTaskPreviouslyWoken 
+                                );
  </pre>
  *
  * Post an item on a queue.  It is safe to use this function from within an
@@ -368,11 +366,11 @@ signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItem
 /**
  * queue. h
  * <pre>
- * portBASE_TYPE xQueueReceiveFromISR( 
- *                                       xQueueHandle pxQueue, 
- *                                       void *pcBuffer, 
- *                                       portBASE_TYPE *pxTaskWoken 
- *                                  ); 
+ portBASE_TYPE xQueueReceiveFromISR( 
+                                       xQueueHandle pxQueue, 
+                                       void *pcBuffer, 
+                                       portBASE_TYPE *pxTaskWoken 
+                                   ); 
  * </pre>
  *
  * Receive an item from a queue.  It is safe to use this function from within an

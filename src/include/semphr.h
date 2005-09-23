@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -206,24 +206,25 @@ typedef xQueueHandle xSemaphoreHandle;
 
 /**
  * semphr. h
- * <pre>xSemaphoreGiveFromISR( 
- *                             xSemaphoreHandle xSemaphore, 
- *                             portSHORT sTaskPreviouslyWoken 
- *                           )</pre>
+ * <pre>
+ xSemaphoreGiveFromISR( 
+                          xSemaphoreHandle xSemaphore, 
+                          portSHORT sTaskPreviouslyWoken 
+                      )</pre>
  *
  * <i>Macro</i> to  release a semaphore.  The semaphore must of been created using 
- * vSemaphoreCreateBinary(), and obtained using xSemaphoreTake().
+ * vSemaphoreCreateBinary (), and obtained using xSemaphoreTake ().
  *
  * This macro can be used from an ISR.
  *
  * @param xSemaphore A handle to the semaphore being released.  This is the
- * handle returned by vSemaphoreCreateBinary();
+ * handle returned by vSemaphoreCreateBinary ();
  *
  * @param sTaskPreviouslyWoken This is included so an ISR can make multiple calls
- * to xSemaphoreGiveFromISR() from a single interrupt.  The first call
+ * to xSemaphoreGiveFromISR () from a single interrupt.  The first call
  * should always pass in pdFALSE.  Subsequent calls should pass in
  * the value returned from the previous call.  See the file serial .c in the
- * PC port for a good example of using xSemaphoreGiveFromISR().
+ * PC port for a good example of using xSemaphoreGiveFromISR ().
  *
  * @return pdTRUE if a task was woken by releasing the semaphore.  This is 
  * used by the ISR to determine if a context switch may be required following
@@ -278,7 +279,7 @@ typedef xQueueHandle xSemaphoreHandle;
     }
  }
  </pre>
- * \defgroup xSemaphoreGiveISR xSemaphoreGiveFromISR
+ * \defgroup xSemaphoreGiveFromISR xSemaphoreGiveFromISR
  * \ingroup Semaphores
  */
 #define xSemaphoreGiveFromISR( xSemaphore, xTaskPreviouslyWoken )			xQueueSendFromISR( ( xQueueHandle ) xSemaphore, NULL, xTaskPreviouslyWoken )
