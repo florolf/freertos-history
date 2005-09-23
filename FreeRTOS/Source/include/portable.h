@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -19,13 +19,13 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http:www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http:www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http:www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
@@ -85,7 +85,7 @@
 	#include "..\..\Source\portable\Keil\ARM7\portmacro.h"
 #endif
 
-#ifdef SAM7_GCC 
+#ifdef SAM7_GCC
 	#include "../../Source/portable/GCC/ARM7_AT91SAM7S/portmacro.h"
 #endif
 
@@ -93,7 +93,11 @@
 	#include "..\..\Source\portable\IAR\AtmelSAM7S64\portmacro.h"
 #endif
 
-#ifdef STR71X_IAR 
+#ifdef LPC2000_IAR
+	#include "..\..\Source\portable\IAR\LPC2000\portmacro.h"
+#endif
+
+#ifdef STR71X_IAR
 	#include "..\..\Source\portable\IAR\STR71x\portmacro.h"
 #endif
 
@@ -107,7 +111,7 @@
 
 #ifdef HCS12_CODE_WARRIOR
 	#include "../../Source/portable/CodeWarrior/HCS12/portmacro.h"
-#endif	    
+#endif	
 
 #ifdef BCC_INDUSTRIAL_PC_PORT
 	/* A short file name has to be used in place of the normal
@@ -125,20 +129,20 @@
     typedef void ( __interrupt __far *pxISR )();
 #endif
 /*
- * Setup the stack of a new task so it is ready to be placed under the 
+ * Setup the stack of a new task so it is ready to be placed under the
  * scheduler control.  The registers have to be placed on the stack in
  * the order that the port expects to find them.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters );
 
 /*
- * Map to the memory management routines required for the port. 
+ * Map to the memory management routines required for the port.
  */
 void *pvPortMalloc( size_t xSize );
 void vPortFree( void *pv );
 void vPortInitialiseBlocks( void );
 
-/* 
+/*
  * Setup the hardware ready for the scheduler to take control.  This generally
  * sets up a tick interrupt and sets timers for the correct tick frequency.
  */

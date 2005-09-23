@@ -19,45 +19,55 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http://www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
 
-
 /*-----------------------------------------------------------
- * Implementation of functions defined in portable.h for the ARM7 port
- * using the Keil compiler.
- *
- * Components that can be compiled to either ARM or THUMB mode are
- * contained in this file.  The ISR routines, which can only be compiled
- * to ARM mode are contained in portISR.c.
+ * Implementation of functions defined in portable.h for the Philips ARM7 port.
  *----------------------------------------------------------*/
+
 
 /* Standard includes. */
 #include <stdlib.h>
+#include <intrinsic.h>
 
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
-
-/* Constants required to setup the initial task context. */
-#define portINITIAL_SPSR				( ( portSTACK_TYPE ) 0x1f ) /* System mode, ARM mode, interrupts enabled. */
-#define portTHUMB_MODE_BIT				( ( portSTACK_TYPE ) 0x20 )
-#define portINSTRUCTION_SIZE			( ( portSTACK_TYPE ) 4 )
-#define portNO_CRITICAL_SECTION_NESTING	( ( portSTACK_TYPE ) 0 )
 
 /* Constants required to setup the tick ISR. */
 #define portENABLE_TIMER			( ( unsigned portCHAR ) 0x01 )
 #define portPRESCALE_VALUE			0x00
 #define portINTERRUPT_ON_MATCH		( ( unsigned portLONG ) 0x01 )
 #define portRESET_COUNT_ON_MATCH	( ( unsigned portLONG ) 0x02 )
+
+/* Constants required to setup the initial stack. */
+#define portINITIAL_SPSR				( ( portSTACK_TYPE ) 0x3f ) /* System mode, THUMB mode, interrupts enabled. */
+#define portINSTRUCTION_SIZE			( ( portSTACK_TYPE ) 4 )
+
+/* Constants required to setup the PIT. */
+#define portPIT_CLOCK_DIVISOR			( ( unsigned portLONG ) 16 )
+#define portPIT_COUNTER_VALUE			( ( ( configCPU_CLOCK_HZ / portPIT_CLOCK_DIVISOR ) / 1000UL ) * portTICK_RATE_MS )
+
+/* Constants required to handle interrupts. */
+#define portTIMER_MATCH_ISR_BIT		( ( unsigned portCHAR ) 0x01 )
+#define portCLEAR_VIC_INTERRUPT		( ( unsigned portLONG ) 0 )
+
+/* Constants required to handle critical sections. */
+#define portNO_CRITICAL_NESTING 		( ( unsigned portLONG ) 0 )
+
+
+#define portINT_LEVEL_SENSITIVE  0
+#define portPIT_ENABLE      	( ( unsigned portSHORT ) 0x1 << 24 )
+#define portPIT_INT_ENABLE     	( ( unsigned portSHORT ) 0x1 << 25 )
 
 /* Constants required to setup the VIC for the tick ISR. */
 #define portTIMER_VIC_CHANNEL		( ( unsigned portLONG ) 0x0004 )
@@ -66,30 +76,30 @@
 
 /*-----------------------------------------------------------*/
 
-/* Setup the timer to generate the tick interrupts. */
+/* Setup the PIT to generate the tick interrupts. */
 static void prvSetupTimerInterrupt( void );
 
-/* 
- * The scheduler can only be started from ARM mode, so 
- * vPortISRStartFirstSTask() is defined in portISR.c. 
- */
-extern void vPortISRStartFirstTask( void );
+/* ulCriticalNesting will get set to zero when the first task starts.  It
+cannot be initialised to 0 as this will cause interrupts to be enabled
+during the kernel initialisation process. */
+unsigned portLONG ulCriticalNesting = ( unsigned portLONG ) 9999;
 
 /*-----------------------------------------------------------*/
 
-/* 
- * See header file for description. 
+/*
+ * Initialise the stack of a task to look exactly as if a call to
+ * portSAVE_CONTEXT had been called.
+ *
+ * See header file for description.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
 portSTACK_TYPE *pxOriginalTOS;
 
-	/* Setup the initial stack of the task.  The stack is set exactly as 
-	expected by the portRESTORE_CONTEXT() macro.
-
-	Remember where the top of the (simulated) stack is before we place 
-	anything on it. */
 	pxOriginalTOS = pxTopOfStack;
+
+	/* Setup the initial stack of the task.  The stack is set exactly as
+	expected by the portRESTORE_CONTEXT() macro. */
 
 	/* First on the stack is the return address - which in this case is the
 	start of the task.  The offset is added to make the return address appear
@@ -125,41 +135,35 @@ portSTACK_TYPE *pxOriginalTOS;
 	pxTopOfStack--;	
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x01010101;	/* R1 */
 	pxTopOfStack--;	
+
+	/* When the task starts is will expect to find the function parameter in
+	R0. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters; /* R0 */
 	pxTopOfStack--;
 
-	/* The last thing onto the stack is the status register, which is set for
-	system mode, with interrupts enabled. */
+	/* The status register is set for system mode, with interrupts enabled. */
 	*pxTopOfStack = ( portSTACK_TYPE ) portINITIAL_SPSR;
-
-	#ifdef KEIL_THUMB_INTERWORK
-	{		
-		/* We want the task to start in thumb mode. */
-		*pxTopOfStack |= portTHUMB_MODE_BIT;
-	}
-	#endif
-
 	pxTopOfStack--;
 
-	/* The code generated by the Keil compiler does not maintain separate
-	stack and frame pointers. The portENTER_CRITICAL macro cannot therefore
-	use the stack as per other ports.  Instead a variable is used to keep
-	track of the critical section nesting.  This variable has to be stored
-	as part of the task context and is initially set to zero. */
-	*pxTopOfStack = portNO_CRITICAL_SECTION_NESTING;
+	/* Interrupt flags cannot always be stored on the stack and will
+	instead be stored in a variable, which is then saved as part of the
+	tasks context. */
+	*pxTopOfStack = portNO_CRITICAL_NESTING;
 
-	return pxTopOfStack;
+	return pxTopOfStack;	
 }
 /*-----------------------------------------------------------*/
 
 portBASE_TYPE xPortStartScheduler( void )
 {
-	/* Start the timer that generates the tick ISR. */
+extern void vPortStartFirstTask( void );
+
+	/* Start the timer that generates the tick ISR.  Interrupts are disabled
+	here already. */
 	prvSetupTimerInterrupt();
 
-	/* Start the first task.  This is done from portISR.c as ARM mode must be
-	used. */
-	vPortISRStartFirstTask();
+	/* Start the first task. */
+	vPortStartFirstTask();	
 
 	/* Should not get here! */
 	return 0;
@@ -169,9 +173,49 @@ portBASE_TYPE xPortStartScheduler( void )
 void vPortEndScheduler( void )
 {
 	/* It is unlikely that the ARM port will require this function as there
-	is nothing to return to.  If this is required - stop the tick ISR then
-	return back to main. */
+	is nothing to return to.  */
 }
+/*-----------------------------------------------------------*/
+
+#if configUSE_PREEMPTION == 0
+
+	/* The cooperative scheduler requires a normal IRQ service routine to
+	simply increment the system tick. */
+	static __arm __irq void vPortNonPreemptiveTick( void );
+	static __arm __irq void vPortNonPreemptiveTick( void )
+	{
+		/* Increment the tick count - which may wake some tasks but as the
+		preemptive scheduler is not being used any woken task is not given
+		processor time no matter what its priority. */
+		vTaskIncrementTick();
+		
+		/* Ready for the next interrupt. */
+		T0IR = portTIMER_MATCH_ISR_BIT;
+		VICVectAddr = portCLEAR_VIC_INTERRUPT;
+	}
+
+#else
+
+	/* This function is called from an asm wrapper, so does not require the __irq
+	keyword. */
+	void vPortPreemptiveTick( void );
+	void vPortPreemptiveTick( void )
+	{
+		/* Increment the tick counter. */
+		vTaskIncrementTick();
+	
+		/* The new tick value might unblock a task.  Ensure the highest task that
+		is ready to execute is the task that will execute when the tick ISR
+		exits. */
+		vTaskSwitchContext();
+	
+		/* Ready for the next interrupt. */
+		T0IR = portTIMER_MATCH_ISR_BIT;
+		VICVectAddr = portCLEAR_VIC_INTERRUPT;
+	}
+
+#endif
+
 /*-----------------------------------------------------------*/
 
 static void prvSetupTimerInterrupt( void )
@@ -206,19 +250,15 @@ unsigned portLONG ulCompareMatch;
 	scheduler is being used. */
 	#if configUSE_PREEMPTION == 1
 	{	
-		#ifdef KEIL_THUMB_INTERWORK
-			extern void ( vPreemptiveTick )( void ) __arm __task;
-		#else
-			extern void ( vPreemptiveTick )( void ) __task;
-		#endif
+		extern void ( vPortPreemptiveTickEntry )( void );
 
-		VICVectAddr0 = ( unsigned portLONG ) vPreemptiveTick;
+		VICVectAddr0 = ( unsigned portLONG ) vPortPreemptiveTickEntry;
 	}
 	#else
 	{
-		extern void ( vNonPreemptiveTick )( void ) __irq;
+		extern void ( vNonPreemptiveTick )( void );
 
-		VICVectAddr0 = ( portLONG ) vNonPreemptiveTick;
+		VICVectAddr0 = ( portLONG ) vPortNonPreemptiveTick;
 	}
 	#endif
 
@@ -229,6 +269,38 @@ unsigned portLONG ulCompareMatch;
 	T0TCR = portENABLE_TIMER;
 }
 /*-----------------------------------------------------------*/
+
+void vPortEnterCritical( void )
+{
+	/* Disable interrupts first! */
+	__disable_interrupt();
+
+	/* Now interrupts are disabled ulCriticalNesting can be accessed
+	directly.  Increment ulCriticalNesting to keep a count of how many times
+	portENTER_CRITICAL() has been called. */
+	ulCriticalNesting++;
+}
+/*-----------------------------------------------------------*/
+
+void vPortExitCritical( void )
+{
+	if( ulCriticalNesting > portNO_CRITICAL_NESTING )
+	{
+		/* Decrement the nesting count as we are leaving a critical section. */
+		ulCriticalNesting--;
+
+		/* If the nesting level has reached zero then interrupts should be
+		re-enabled. */
+		if( ulCriticalNesting == portNO_CRITICAL_NESTING )
+		{
+			__enable_interrupt();
+		}
+	}
+}
+/*-----------------------------------------------------------*/
+
+
+
 
 
 

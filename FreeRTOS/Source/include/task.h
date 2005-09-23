@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,7 +40,7 @@
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V3.2.1"
+#define tskKERNEL_VERSION_NUMBER "V3.2.2"
 
 /**
  * task. h
@@ -51,7 +51,6 @@
  *
  * \page xTaskHandle xTaskHandle
  * \ingroup Tasks
- * <HR>
  */
 typedef void * xTaskHandle;
 
@@ -59,7 +58,6 @@ typedef void * xTaskHandle;
  * Defines the priority used by the idle task.  This must not be modified.
  *
  * \ingroup TaskUtils
- * <HR>
  */
 #define tskIDLE_PRIORITY			( ( unsigned portBASE_TYPE ) 0 )
 
@@ -70,7 +68,6 @@ typedef void * xTaskHandle;
  *
  * \page taskYIELD taskYIELD
  * \ingroup SchedulerControl
- * <HR>
  */
 #define taskYIELD()					portYIELD()
 
@@ -85,7 +82,6 @@ typedef void * xTaskHandle;
  *
  * \page taskENTER_CRITICAL taskENTER_CRITICAL
  * \ingroup SchedulerControl
- * <HR>
  */
 #define taskENTER_CRITICAL()		portENTER_CRITICAL()
 
@@ -100,7 +96,6 @@ typedef void * xTaskHandle;
  *
  * \page taskEXIT_CRITICAL taskEXIT_CRITICAL
  * \ingroup SchedulerControl
- * <HR>
  */
 #define taskEXIT_CRITICAL()			portEXIT_CRITICAL()
 
@@ -111,7 +106,6 @@ typedef void * xTaskHandle;
  *
  * \page taskDISABLE_INTERRUPTS taskDISABLE_INTERRUPTS
  * \ingroup SchedulerControl
- * <HR>
  */
 #define taskDISABLE_INTERRUPTS()	portDISABLE_INTERRUPTS()
 
@@ -122,7 +116,6 @@ typedef void * xTaskHandle;
  *
  * \page taskENABLE_INTERRUPTS taskENABLE_INTERRUPTS
  * \ingroup SchedulerControl
- * <HR>
  */
 #define taskENABLE_INTERRUPTS()		portENABLE_INTERRUPTS()
 
@@ -134,14 +127,14 @@ typedef void * xTaskHandle;
 /**
  * task. h
  *<pre>
- * portBASE_TYPE xTaskCreate(
- *                          pdTASK_CODE pvTaskCode,
- *                          const portCHAR * const pcName,
- *                          unsigned portSHORT usStackDepth,
- *                          void *pvParameters,
- *                          unsigned portBASE_TYPE uxPriority,
- *                          xTaskHandle *pvCreatedTask
- *                      );</pre>
+ portBASE_TYPE xTaskCreate(
+                              pdTASK_CODE pvTaskCode,
+                              const portCHAR * const pcName,
+                              unsigned portSHORT usStackDepth,
+                              void *pvParameters,
+                              unsigned portBASE_TYPE uxPriority,
+                              xTaskHandle *pvCreatedTask
+                          );</pre>
  *
  * Create a new task and add it to the list of tasks that are ready to run.
  *
@@ -210,12 +203,12 @@ signed portBASE_TYPE xTaskCreate( pdTASK_CODE pvTaskCode, const signed portCHAR 
  * NOTE:  The idle task is responsible for freeing the kernel allocated
  * memory from tasks that have been deleted.  It is therefore important that
  * the idle task is not starved of microcontroller processing time if your
- * application makes any calls to vTaskDelete().  Memory allocated by the
+ * application makes any calls to vTaskDelete ().  Memory allocated by the
  * task code is not automatically freed, and should be freed before the task
  * is deleted.
  *
  * See the demo application file death.c for sample code that utilises
- * vTaskDelete().
+ * vTaskDelete ().
  *
  * @param pxTask The handle of the task to be deleted.  Passing NULL will
  * cause the calling task to be deleted.
@@ -263,7 +256,7 @@ void vTaskDelete( xTaskHandle pxTask );
  // Wait 10 ticks before performing an action.
  // NOTE:
  // This is for demonstration only and would be better achieved
- // using vTaskDelayUntil().
+ // using vTaskDelayUntil ().
  void vTaskFunction( void * pvParameters )
  {
  portTickType xDelay, xNextTime;
@@ -302,16 +295,16 @@ void vTaskDelay( portTickType xTicksToDelay );
  * Delay a task until a specified time.  This function can be used by cyclical
  * tasks to ensure a constant execution frequency.
  *
- * This function differs from vTaskDelay() in one important aspect:  vTaskDelay() will
- * cause a task to block for the specified number of ticks from the time vTaskDelay() is
- * called.  It is therefore difficult to use vTaskDelay() by itself to generate a fixed
+ * This function differs from vTaskDelay () in one important aspect:  vTaskDelay () will
+ * cause a task to block for the specified number of ticks from the time vTaskDelay () is
+ * called.  It is therefore difficult to use vTaskDelay () by itself to generate a fixed
  * execution frequency as the time between a task starting to execute and that task
- * calling vTaskDelay() may not be fixed [the task may take a different path though the
+ * calling vTaskDelay () may not be fixed [the task may take a different path though the
  * code between calls, or may get interrupted or preempted a different number of times
  * each time it executes].
  *
- * Whereas vTaskDelay() specifies a wake time relative to the time at which the function
- * is called, vTaskDelayUntil() specifies the absolute (exact) time at which it wishes to
+ * Whereas vTaskDelay () specifies a wake time relative to the time at which the function
+ * is called, vTaskDelayUntil () specifies the absolute (exact) time at which it wishes to
  * unblock.
  *
  * The constant portTICK_RATE_MS can be used to calculate real time from the tick
@@ -320,7 +313,7 @@ void vTaskDelay( portTickType xTicksToDelay );
  * @param pxPreviousWakeTime Pointer to a variable that holds the time at which the
  * task was last unblocked.  The variable must be initialised with the current time
  * prior to its first use (see the example below).  Following this the variable is
- * automatically updated within vTaskDelayUntil().
+ * automatically updated within vTaskDelayUntil ().
  *
  * @param xTimeIncrement The cycle time period.  The task will be unblocked at
  * time *pxPreviousWakeTime + xTimeIncrement.  Calling vTaskDelayUntil with the
@@ -336,11 +329,11 @@ void vTaskDelay( portTickType xTicksToDelay );
  const portTickType xFrequency = 10;
 
      // Initialise the xLastWakeTime variable with the current time.
-	 xLastWakeTime = xTaskGetTickCount();
+     xLastWakeTime = xTaskGetTickCount ();
      for( ;; )
      {
          // Wait for the next cycle.
-		 vTaskDelayUntil( &xLastWakeTime, xFrequency );
+         vTaskDelayUntil( &xLastWakeTime, xFrequency );
 
          // Perform action here.
      }
@@ -452,7 +445,7 @@ void vTaskPrioritySet( xTaskHandle pxTask, unsigned portBASE_TYPE uxNewPriority 
  *
  * Calls to vTaskSuspend are not accumulative -
  * i.e. calling vTaskSuspend () twice on the same task still only requires one
- * call to vTaskResume() to ready the suspended task.
+ * call to vTaskResume () to ready the suspended task.
  *
  * @param pxTaskToSuspend Handle to the task being suspended.  Passing a NULL
  * handle will cause the calling task to be suspended.
@@ -500,9 +493,9 @@ void vTaskSuspend( xTaskHandle pxTaskToSuspend );
  *
  * Resumes a suspended task.
  *
- * A task that has been suspended by one of more calls to vTaskSuspend()
+ * A task that has been suspended by one of more calls to vTaskSuspend ()
  * will be made available for running again by a single call to
- * vTaskResume().
+ * vTaskResume ().
  *
  * @param pxTaskToResume Handle to the task being readied.
  *
@@ -550,10 +543,10 @@ void vTaskResume( xTaskHandle pxTaskToResume );
  *
  * Starts the real time kernel tick processing.  After calling the kernel
  * has control over which tasks are executed and when.  This function
- * does not return until an executing task calls vTaskEndScheduler().
+ * does not return until an executing task calls vTaskEndScheduler ().
  *
- * At least one task should be created via a call to xTaskCreate()
- * before calling vTaskStartScheduler().  The idle task is created
+ * At least one task should be created via a call to xTaskCreate ()
+ * before calling vTaskStartScheduler ().  The idle task is created
  * automatically when the first application task is created.
  *
  * See the demo application file main.c for an example of creating
@@ -567,7 +560,7 @@ void vTaskResume( xTaskHandle pxTaskToResume );
      xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL );
 
      // Start the real time kernel with preemption.
-     vTaskStartScheduler();
+     vTaskStartScheduler ();
 
      // Will not get here unless a task calls vTaskEndScheduler ()
  }
@@ -584,17 +577,17 @@ void vTaskStartScheduler( void );
  *
  * Stops the real time kernel tick.  All created tasks will be automatically
  * deleted and multitasking (either preemptive or cooperative) will
- * stop.  Execution then resumes from the point where vTaskStartScheduler()
- * was called, as if vTaskStartScheduler() had just returned.
+ * stop.  Execution then resumes from the point where vTaskStartScheduler ()
+ * was called, as if vTaskStartScheduler () had just returned.
  *
  * See the demo application file main. c in the demo/PC directory for an
- * example that uses vTaskEndScheduler().
+ * example that uses vTaskEndScheduler ().
  *
- * vTaskEndScheduler() requires an exit function to be defined within the
+ * vTaskEndScheduler () requires an exit function to be defined within the
  * portable layer (see vPortEndScheduler () in port. c for the PC port).  This
  * performs hardware specific operations such as stopping the kernel tick.
  *
- * vTaskEndScheduler() will cause all of the resources allocated by the
+ * vTaskEndScheduler () will cause all of the resources allocated by the
  * kernel to be freed - but will not free resources allocated by application
  * tasks.
  *
@@ -618,7 +611,7 @@ void vTaskStartScheduler( void );
      xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL );
 
      // Start the real time kernel with preemption.
-     vTaskStartScheduler();
+     vTaskStartScheduler ();
 
      // Will only get here when the vTaskCode () task has called
      // vTaskEndScheduler ().  When we get here we are back to single task
@@ -638,13 +631,13 @@ void vTaskEndScheduler( void );
  * Suspends all real time kernel activity while keeping interrupts (including the
  * kernel tick) enabled.
  *
- * After calling vTaskSuspendAll() the calling task will continue to execute
+ * After calling vTaskSuspendAll () the calling task will continue to execute
  * without risk of being swapped out until a call to xTaskResumeAll () has been
  * made.
  *
- * Calls to vTaskSuspendAll() are not accumulative.  A single call to
- * vTaskResume() will start the real time kernel again no matter how many
- * calls to vTaskSuspendAll() have been made.
+ * Calls to vTaskSuspendAll () are not accumulative.  A single call to
+ * vTaskResume () will start the real time kernel again no matter how many
+ * calls to vTaskSuspendAll () have been made.
  *
  * Example usage:
    <pre>
@@ -747,7 +740,6 @@ signed portBASE_TYPE xTaskResumeAll( void );
  *
  * \page xTaskGetTickCount xTaskGetTickCount
  * \ingroup TaskUtils
- * <HR>
  */
 portTickType xTaskGetTickCount( void );
 
@@ -762,7 +754,6 @@ portTickType xTaskGetTickCount( void );
  *
  * \page uxTaskGetNumberOfTasks uxTaskGetNumberOfTasks
  * \ingroup TaskUtils
- * <HR>
  */
 unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void );
 
@@ -790,7 +781,6 @@ unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void );
  *
  * \page vTaskList vTaskList
  * \ingroup TaskUtils
- * <HR>
  */
 void vTaskList( signed portCHAR *pcWriteBuffer );
 
@@ -812,7 +802,6 @@ void vTaskList( signed portCHAR *pcWriteBuffer );
  *
  * \page vTaskStartTrace vTaskStartTrace
  * \ingroup TaskUtils
- * <HR>
  */
 void vTaskStartTrace( signed portCHAR * pcBuffer, unsigned portLONG ulBufferSize );
 
@@ -826,7 +815,6 @@ void vTaskStartTrace( signed portCHAR * pcBuffer, unsigned portLONG ulBufferSize
  *
  * \page usTaskEndTrace usTaskEndTrace
  * \ingroup TaskUtils
- * <HR>
  */
 unsigned portLONG ulTaskEndTrace( void );
 

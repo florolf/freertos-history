@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.1 - Copyright (C) 2003 - 2005 Richard Barry.
+	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -56,7 +56,6 @@
  *  
  * \page ListIntroduction List Implementation
  * \ingroup FreeRTOSIntro
- * <HR>
  */
 
 
@@ -83,7 +82,7 @@ typedef struct xLIST
 {
 	unsigned portBASE_TYPE uxNumberOfItems;
 	volatile xListItem * pxHead;			/*< Pointer to the xListEnd item.  xListEnd contains a wrap back pointer to true list head. */
-	volatile xListItem * pxIndex;			/*< Used to walk through the list.  Points to the last item returned by a call to pvListGetOwnerOfNextEntry(). */
+	volatile xListItem * pxIndex;			/*< Used to walk through the list.  Points to the last item returned by a call to pvListGetOwnerOfNextEntry (). */
 	volatile xListItem xListEnd;			/*< List item that contains the maximum possible item value meaning it is always at the end of the list and is therefore used as a marker. */
 } xList;
 
@@ -93,7 +92,6 @@ typedef struct xLIST
  *
  * \page listSET_LIST_ITEM_OWNER listSET_LIST_ITEM_OWNER
  * \ingroup LinkedList
- * <HR>
  */
 #define listSET_LIST_ITEM_OWNER( pxListItem, pxOwner )		{ ( pxListItem )->pvOwner = ( void * ) pxOwner; }
 
@@ -103,7 +101,6 @@ typedef struct xLIST
  *
  * \page listSET_LIST_ITEM_VALUE listSET_LIST_ITEM_VALUE
  * \ingroup LinkedList
- * <HR>
  */
 #define listSET_LIST_ITEM_VALUE( pxListItem, xValue )		{ ( pxListItem )->xItemValue = xValue; }
 
@@ -114,7 +111,6 @@ typedef struct xLIST
  *
  * \page listGET_LIST_ITEM_VALUE listGET_LIST_ITEM_VALUE
  * \ingroup LinkedList
- * <HR>
  */
 #define listGET_LIST_ITEM_VALUE( pxListItem )				( ( pxListItem )->xItemValue )
 
@@ -124,7 +120,6 @@ typedef struct xLIST
  *
  * \page listLIST_IS_EMPTY listLIST_IS_EMPTY
  * \ingroup LinkedList
- * <HR>
  */
 #define listLIST_IS_EMPTY( pxList )				( ( pxList )->uxNumberOfItems == ( unsigned portBASE_TYPE ) 0 )
 
@@ -151,7 +146,6 @@ typedef struct xLIST
  *
  * \page listGET_OWNER_OF_NEXT_ENTRY listGET_OWNER_OF_NEXT_ENTRY
  * \ingroup LinkedList
- * <HR>
  */
 #define listGET_OWNER_OF_NEXT_ENTRY( pxTCB, pxList )									\
 {																						\
@@ -181,7 +175,6 @@ typedef struct xLIST
  *
  * \page listGET_OWNER_OF_HEAD_ENTRY listGET_OWNER_OF_HEAD_ENTRY
  * \ingroup LinkedList
- * <HR>
  */
 #define listGET_OWNER_OF_HEAD_ENTRY( pxList )  ( ( pxList->uxNumberOfItems != ( unsigned portBASE_TYPE ) 0 ) ? ( pxList->pxHead->pxNext->pvOwner ) : ( NULL ) )
 
@@ -206,7 +199,6 @@ typedef struct xLIST
  *
  * \page vListInitialise vListInitialise
  * \ingroup LinkedList
- * <HR>
  */
 void vListInitialise( xList *pxList );
 
@@ -218,7 +210,6 @@ void vListInitialise( xList *pxList );
  *
  * \page vListInitialiseItem vListInitialiseItem
  * \ingroup LinkedList
- * <HR>
  */
 void vListInitialiseItem( xListItem *pxItem );
 
@@ -232,7 +223,6 @@ void vListInitialiseItem( xListItem *pxItem );
  *
  * \page vListInsert vListInsert
  * \ingroup LinkedList
- * <HR>
  */
 void vListInsert( xList *pxList, xListItem *pxNewListItem );
 
@@ -254,7 +244,6 @@ void vListInsert( xList *pxList, xListItem *pxNewListItem );
  *
  * \page vListInsertEnd vListInsertEnd
  * \ingroup LinkedList
- * <HR>
  */
 void vListInsertEnd( xList *pxList, xListItem *pxNewListItem );
 
@@ -267,7 +256,6 @@ void vListInsertEnd( xList *pxList, xListItem *pxNewListItem );
  *
  * \page vListRemove vListRemove
  * \ingroup LinkedList
- * <HR>
  */
 void vListRemove( xListItem *pxItemToRemove );
 
