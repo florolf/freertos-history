@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -39,6 +39,14 @@
  * contained in this file.  The ISR routines, which can only be compiled
  * to ARM mode are contained in portISR.c.
  *----------------------------------------------------------*/
+
+/*
+	Changes from V3.2.2
+
+	+ Bug fix - The prescale value for the timer setup is not written to T0PR 
+	  instead of T0PC.  This bug would have had no effect unless a prescale 
+	  value was actually used.
+*/
 
 /* Standard includes. */
 #include <stdlib.h>
@@ -180,7 +188,7 @@ unsigned portLONG ulCompareMatch;
 
 	/* A 1ms tick does not require the use of the timer prescale.  This is
 	defaulted to zero but can be used if necessary. */
-	T0PC = portPRESCALE_VALUE;
+	T0PR = portPRESCALE_VALUE;
 
 	/* Calculate the match value required for our wanted tick rate. */
 	ulCompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
