@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -44,6 +44,12 @@
 		
 	+ ulCriticalNesting is now saved as part of the task context, as is 
 	  therefore added to the initial task stack during pxPortInitialiseStack.
+
+	Changes from V3.2.2
+
+	+ Bug fix - The prescale value for the timer setup is not written to T0_PR 
+	  instead of T0_PC.  This bug would have had no effect unless a prescale 
+	  value was actually used.
 */
 
 
@@ -192,7 +198,7 @@ unsigned portLONG ulCompareMatch;
 
 	/* A 1ms tick does not require the use of the timer prescale.  This is
 	defaulted to zero but can be used if necessary. */
-	T0_PC = portPRESCALE_VALUE;
+	T0_PR = portPRESCALE_VALUE;
 
 	/* Calculate the match value required for our wanted tick rate. */
 	ulCompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;

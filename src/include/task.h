@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.2 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -40,7 +40,7 @@
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V3.2.2"
+#define tskKERNEL_VERSION_NUMBER "V3.2.3"
 
 /**
  * task. h

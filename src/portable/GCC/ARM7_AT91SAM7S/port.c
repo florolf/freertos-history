@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.2 - copyright (C) 2003, 2004 Richard Barry.
+	FreeRTOS V3.2.3 - copyright (C) 2003, 2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -55,7 +55,7 @@
 #include "task.h"
 
 /* Processor constants. */
-#include "at91sam7x256.h"
+#include "AT91SAM7X256.h"
 
 /* Constants required to setup the task context. */
 #define portINITIAL_SPSR				( ( portSTACK_TYPE ) 0x1f ) /* System mode, ARM mode, interrupts enabled. */
