@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -19,13 +19,13 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license 
-	and contact details.  Please ensure to read the configuration and relevant 
+	See http://www.FreeRTOS.org for documentation, latest information, license
+	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
 	***************************************************************************
 */
@@ -92,14 +92,14 @@ typedef struct QueueDefinition
 /*
  * Inside this file xQueueHandle is a pointer to a xQUEUE structure.
  * To keep the definition private the API header file defines it as a
- * pointer to void. 
+ * pointer to void.
  */
 typedef xQUEUE * xQueueHandle;
 
 /*
  * Prototypes for public functions are included here so we don't have to
  * include the API header file (as it defines xQueueHandle differently).  These
- * functions are documented in the API header file. 
+ * functions are documented in the API header file.
  */
 xQueueHandle xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBASE_TYPE uxItemSize );
 signed portBASE_TYPE xQueueSend( xQueueHandle xQueue, const void * pvItemToQueue, portTickType xTicksToWait );
@@ -109,11 +109,11 @@ signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItem
 signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait );
 signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portBASE_TYPE *pxTaskWoken );
 
-/* 
- * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not 
- * prevent an ISR from adding or removing items to the queue, but does prevent 
- * an ISR from removing tasks from the queue event lists.  If an ISR finds a 
- * queue is locked it will instead increment the appropriate queue lock count 
+/*
+ * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not
+ * prevent an ISR from adding or removing items to the queue, but does prevent
+ * an ISR from removing tasks from the queue event lists.  If an ISR finds a
+ * queue is locked it will instead increment the appropriate queue lock count
  * to indicate that a task may require unblocking.  When the queue in unlocked
  * these lock counts are inspected, and the appropriate action taken.
  */
@@ -151,8 +151,8 @@ static signed portBASE_TYPE prvIsQueueFull( const xQueueHandle pxQueue );
 /*-----------------------------------------------------------*/
 
 /*
- * Macro to mark a queue as locked.  Locking a queue prevents an ISR from 
- * accessing the queue event lists. 
+ * Macro to mark a queue as locked.  Locking a queue prevents an ISR from
+ * accessing the queue event lists.
  */
 #define prvLockQueue( pxQueue )			\
 {										\
@@ -179,14 +179,14 @@ size_t xQueueSizeInBytes;
 		pxNewQueue = ( xQUEUE * ) pvPortMalloc( sizeof( xQUEUE ) );
 		if( pxNewQueue != NULL )
 		{
-			/* Create the list of pointers to queue items.  The queue is one byte 
+			/* Create the list of pointers to queue items.  The queue is one byte
 			longer than asked for to make wrap checking easier/faster. */
 			xQueueSizeInBytes = ( size_t ) ( uxQueueLength * uxItemSize ) + ( size_t ) 1;
 
 			pxNewQueue->pcHead = ( signed portCHAR * ) pvPortMalloc( xQueueSizeInBytes );
 			if( pxNewQueue->pcHead != NULL )
 			{
-				/* Initialise the queue members as described above where the 
+				/* Initialise the queue members as described above where the
 				queue type is defined. */
 				pxNewQueue->pcTail = pxNewQueue->pcHead + ( uxQueueLength * uxItemSize );
 				pxNewQueue->uxMessagesWaiting = 0;
@@ -199,7 +199,7 @@ size_t xQueueSizeInBytes;
 
 				/* Likewise ensure the event queues start with the correct state. */
 				vListInitialise( &( pxNewQueue->xTasksWaitingToSend ) );
-				vListInitialise( &( pxNewQueue->xTasksWaitingToReceive ) ); 
+				vListInitialise( &( pxNewQueue->xTasksWaitingToReceive ) );
 
 				return  pxNewQueue;
 			}
@@ -224,21 +224,21 @@ signed portBASE_TYPE xReturn;
 	vTaskSuspendAll();
 
 	/* It is important that this is the only thread/ISR that modifies the
-	ready or delayed lists until xTaskResumeAll() is called.  Places where 
+	ready or delayed lists until xTaskResumeAll() is called.  Places where
 	the ready/delayed lists are modified include:
 
-		+ vTaskDelay() -  Nothing can call vTaskDelay as the scheduler is 
+		+ vTaskDelay() -  Nothing can call vTaskDelay as the scheduler is
 		  suspended, vTaskDelay() cannot be called from an ISR.
 		+ vTaskPrioritySet() - Has a critical section around the access.
-		+ vTaskSwitchContext() - This will not get executed while the scheduler 
+		+ vTaskSwitchContext() - This will not get executed while the scheduler
 		  is suspended.
-		+ prvCheckDelayedTasks() - This will not get executed while the 
+		+ prvCheckDelayedTasks() - This will not get executed while the
 		  scheduler is suspended.
 		+ xTaskCreate() - Has a critical section around the access.
 		+ vTaskResume() - Has a critical section around the access.
 		+ xTaskResumeAll() - Has a critical section around the access.
-		+ xTaskRemoveFromEventList - Checks to see if the scheduler is 
-		  suspended.  If so then the TCB being removed from the event is 
+		+ xTaskRemoveFromEventList - Checks to see if the scheduler is
+		  suspended.  If so then the TCB being removed from the event is
 		  removed from the event and added to the xPendingReadyList.
 	*/
 
@@ -250,12 +250,12 @@ signed portBASE_TYPE xReturn;
 	include:
 
 		+ xQueueSendFromISR().  This checks the lock on the queue to see if
-		  it has access.  If the queue is locked then the Tx lock count is 
+		  it has access.  If the queue is locked then the Tx lock count is
 		  incremented to signify that a task waiting for data can be made ready
 		  once the queue lock is removed.  If the queue is not locked then
 		  a task can be moved from the event list, but will not be removed
-		  from the delayed list or placed in the ready list until the scheduler 
-		  is unlocked.  
+		  from the delayed list or placed in the ready list until the scheduler
+		  is unlocked.
 
 		+ xQueueReceiveFromISR().  As per xQueueSendFromISR().
 	*/
@@ -269,37 +269,37 @@ signed portBASE_TYPE xReturn;
 		{
 			/* We are going to place ourselves on the xTasksWaitingToSend event
 			list, and will get woken should the delay expire, or space become
-			available on the queue. 
+			available on the queue.
 			
 			As detailed above we do not require mutual exclusion on the event
 			list as nothing else can modify it or the ready lists while we
-			have the scheduler suspended and queue locked. 
+			have the scheduler suspended and queue locked.
 			
 			It is possible that an ISR has removed data from the queue since we
 			checked if any was available.  If this is the case then the data
-			will have been copied from the queue, and the queue variables 
+			will have been copied from the queue, and the queue variables
 			updated, but the event list will not yet have been checked to see if
 			anything is waiting as the queue is locked. */
 			vTaskPlaceOnEventList( &( pxQueue->xTasksWaitingToSend ), xTicksToWait );
 
 			/* Force a context switch now as we are blocked.  We can do
-			this from within a critical section as the task we are 
+			this from within a critical section as the task we are
 			switching to has its own context.  When we return here (i.e. we
-			unblock) we will leave the critical section as normal. 
+			unblock) we will leave the critical section as normal.
 			
-			It is possible that an ISR has caused an event on an unrelated and 
-			unlocked queue.  If this was the case then the event list for that 
+			It is possible that an ISR has caused an event on an unrelated and
+			unlocked queue.  If this was the case then the event list for that
 			queue will have been updated but the ready lists left unchanged -
-			instead the readied task will have been added to the pending ready 
+			instead the readied task will have been added to the pending ready
 			list. */
 			taskENTER_CRITICAL();
 			{
-				/* We can safely unlock the queue and scheduler here as 
-				interrupts are disabled.  We must not yield with anything 
+				/* We can safely unlock the queue and scheduler here as
+				interrupts are disabled.  We must not yield with anything
 				locked, but we can yield from within a critical section.
 				
 				Tasks that have been placed on the pending ready list cannot
-				be tasks that are waiting for events on this queue.  See 
+				be tasks that are waiting for events on this queue.  See
 				in comment xTaskRemoveFromEventList(). */
 				prvUnlockQueue( pxQueue );
 
@@ -319,7 +319,7 @@ signed portBASE_TYPE xReturn;
 		}
 	}
 		
-	/* When we are here it is possible that we unblocked as space became 
+	/* When we are here it is possible that we unblocked as space became
 	available on the queue.  It is also possible that an ISR posted to the
 	queue since we left the critical section, so it may be that again there
 	is no space.  This would only happen if a task and ISR post onto the
@@ -344,12 +344,12 @@ signed portBASE_TYPE xReturn;
 	taskEXIT_CRITICAL();
 
 	/* We no longer require exclusive access to the queue.  prvUnlockQueue
-	will remove any tasks suspended on a receive if either this function 
+	will remove any tasks suspended on a receive if either this function
 	or an ISR has posted onto the queue. */
 	if( prvUnlockQueue( pxQueue ) )
 	{
 		/* Resume the scheduler - making ready any tasks that were woken
-		by an event while the scheduler was locked.  Resuming the 
+		by an event while the scheduler was locked.  Resuming the
 		scheduler may cause a yield, in which case there is no point
 		yielding again here. */
 		if( !xTaskResumeAll() )
@@ -391,7 +391,7 @@ signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItem
 				{
 					if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
 					{
-						/* The task waiting has a higher priority so record that a 
+						/* The task waiting has a higher priority so record that a
 						context	switch is required. */
 						return pdTRUE;
 					}
@@ -400,7 +400,7 @@ signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItem
 		}
 		else
 		{
-			/* Increment the lock count so the task that unlocks the queue 
+			/* Increment the lock count so the task that unlocks the queue
 			knows that data was posted while it was locked. */
 			++( pxQueue->xTxLock );
 		}
@@ -525,7 +525,7 @@ signed portBASE_TYPE xReturn;
 		}
 		else
 		{
-			/* Increment the lock count so the task that unlocks the queue 
+			/* Increment the lock count so the task that unlocks the queue
 			knows that data was removed while it was locked. */
 			++( pxQueue->xRxLock );
 		}
@@ -566,7 +566,7 @@ signed portBASE_TYPE xYieldRequired = pdFALSE;
 
 	/* THIS FUNCTION MUST BE CALLED WITH THE SCHEDULER SUSPENDED. */
 
-	/* The lock counts contains the number of extra data items placed or 
+	/* The lock counts contains the number of extra data items placed or
 	removed from the queue while the queue was locked.  When a queue is
 	locked items can be added or removed, but the event lists cannot be
 	updated. */
@@ -587,7 +587,7 @@ signed portBASE_TYPE xYieldRequired = pdFALSE;
 				the pending ready list as the scheduler is still suspended. */
 				if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
 				{
-					/* The task waiting has a higher priority so record that a 
+					/* The task waiting has a higher priority so record that a
 					context	switch is required. */
 					xYieldRequired = pdTRUE;
 				}

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -30,6 +30,11 @@
 	***************************************************************************
 */
 
+/*
+	Changes from V3.2.3
+	
+	+ Modified portENTER_SWITCHING_ISR() to allow use with GCC V4.0.1.
+*/
 
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
@@ -166,7 +171,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	/* pointer will be set to the top of the task stack, and the stack*/\
 	/* pointer left where it is.  The IRQ stack will get used for any */\
 	/* functions calls made by this ISR. */								\
-	asm volatile ( "MOV		R11, LR" );									\
+	asm volatile ( "SUB		R11, LR, #4" );							\
 	{
 
 #define portEXIT_SWITCHING_ISR( SwitchRequired )						\

@@ -45,12 +45,12 @@
 
 /* Type definitions. */
 #define portCHAR		char
-#define portFLOAT		long
-#define portDOUBLE		long
+#define portFLOAT		float
+#define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portSHORT
-#define portBASE_TYPE	portSHORT
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	portLONG
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -59,38 +59,56 @@
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
+/*-----------------------------------------------------------*/	
+
+/* Interrupt control macros. */
+void microblaze_disable_interrupts( void );
+void microblaze_enable_interrupts( void );
+#define portDISABLE_INTERRUPTS()	microblaze_disable_interrupts()
+#define portENABLE_INTERRUPTS()		microblaze_enable_interrupts()
 /*-----------------------------------------------------------*/
 
-/* Critical section management. */
-#define portENTER_CRITICAL()			__asm{ pushf }  \
-										__asm{ cli 	 }	\
+/* Critical section macros. */
+void vPortEnterCritical( void );
+void vPortExitCritical( void );
+#define portENTER_CRITICAL()		{														\
+										extern unsigned portBASE_TYPE uxCriticalNesting;	\
+										microblaze_disable_interrupts();					\
+										uxCriticalNesting++;								\
+									}
+									
+#define portEXIT_CRITICAL()			{														\
+										extern unsigned portBASE_TYPE uxCriticalNesting;	\
+										/* Interrupts are disabled, so we can */			\
+										/* access the variable directly. */					\
+										uxCriticalNesting--;								\
+										if( uxCriticalNesting == 0 )			\
+										{													\
+											/* The nesting has unwound and we 				\
+											can enable interrupts again. */					\
+											portENABLE_INTERRUPTS();						\
+										}													\
+									}
 
-#define portEXIT_CRITICAL()				__asm{ popf }
+/*-----------------------------------------------------------*/
 
-#define portDISABLE_INTERRUPTS()		__asm{ cli }
+/* Task utilities. */
+void vPortYield( void );
+#define portYIELD() vPortYield()
 
-#define portENABLE_INTERRUPTS()			__asm{ sti }
+void vTaskSwitchContext();
+#define portYIELD_FROM_ISR() vTaskSwitchContext()
 /*-----------------------------------------------------------*/
 
 /* Hardware specifics. */
-#define portSTACK_GROWTH		( -1 )
-#define portSWITCH_INT_NUMBER 	0x80
-#define portYIELD()				__asm{ int portSWITCH_INT_NUMBER } 
-#define portDOS_TICK_RATE		( 18.20648 )
-#define portTICK_RATE_MS		( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portTICKS_PER_DOS_TICK	( ( unsigned portSHORT ) ( ( ( portDOUBLE ) configTICK_RATE_HZ / portDOS_TICK_RATE ) + 0.5 ) )
-#define portINITIAL_SW			( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
-/*-----------------------------------------------------------*/
-
-/* Compiler specifics. */
-#define portINPUT_BYTE( xAddr )				inp( xAddr )
-#define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
-#define inline
+#define portBYTE_ALIGNMENT			4
+#define portSTACK_GROWTH			( -1 )
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters )
-#define portTASK_FUNCTION( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
 #endif /* PORTMACRO_H */
 

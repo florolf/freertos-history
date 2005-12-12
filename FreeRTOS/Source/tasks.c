@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -72,7 +72,7 @@ Changes from V2.0.0
 Changes from V2.1.0
 
 	+ Bug fix - pxCurrentTCB is now initialised before the call to
-	  prvInitialiseTaskLists().  Previously pxCurrentTCB could be accessed
+	  prvInitializeTaskLists().  Previously pxCurrentTCB could be accessed
 	  while null.
 
 Changed from V2.1.1
@@ -191,7 +191,7 @@ volatile tskTCB * volatile pxCurrentTCB = NULL;
 
 /* Lists for ready and blocked tasks. --------------------*/
 
-static volatile xList pxReadyTasksLists[ configMAX_PRIORITIES ];	/*< Prioratised ready tasks. */
+static volatile xList pxReadyTasksLists[ configMAX_PRIORITIES ];	/*< Prioritised ready tasks. */
 static volatile xList xDelayedTaskList1;						/*< Delayed tasks. */
 static volatile xList xDelayedTaskList2;						/*< Delayed tasks (two lists are used - one for delays that have overflowed the current tick count. */
 static volatile xList *pxDelayedTaskList;						/*< Points to the delayed task list currently being used. */
@@ -213,8 +213,8 @@ static volatile xList xPendingReadyList;						/*< Tasks that have been readied w
 
 /* File private variables. --------------------------------*/
 static unsigned portBASE_TYPE uxCurrentNumberOfTasks		= ( unsigned portBASE_TYPE ) 0;
-static volatile portTickType xTickCount						= ( portTickType ) 0;
-static unsigned portBASE_TYPE uxTopUsedPriority				= tskIDLE_PRIORITY;
+static volatile portTickType xTickCount					= ( portTickType ) 0;
+static unsigned portBASE_TYPE uxTopUsedPriority			= tskIDLE_PRIORITY;
 static volatile unsigned portBASE_TYPE uxTopReadyPriority	= tskIDLE_PRIORITY;
 static signed portBASE_TYPE xSchedulerRunning				= pdFALSE;
 static volatile unsigned portBASE_TYPE uxSchedulerSuspended	= ( unsigned portBASE_TYPE ) pdFALSE;
@@ -461,7 +461,7 @@ static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberat
 		}
 		#endif
 
-		/* Initialise the TCB stack to look as if the task was already running,
+		/* Initialize the TCB stack to look as if the task was already running,
 		but had been interrupted by the scheduler.  The return address is set
 		to the start of the task function. Once the stack has been initialised
 		the	top of stack variable is updated. */
@@ -1068,7 +1068,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
 			report the task name, state and stack high water mark. */
 
 			pcWriteBuffer[ 0 ] = ( signed portCHAR ) 0x00;
-			strcat( pcWriteBuffer, ( const signed portCHAR * ) "\r\n" );
+			strcat( ( portCHAR * ) pcWriteBuffer, ( const portCHAR * ) "\r\n" );
 
 			uxQueue = uxTopUsedPriority + 1;
 
@@ -1556,7 +1556,7 @@ tskTCB *pxNewTCB;
 	static void prvListTaskWithinSingleList( signed portCHAR *pcWriteBuffer, xList *pxList, signed portCHAR cStatus )
 	{
 	volatile tskTCB *pxNextTCB, *pxFirstTCB;
-	static signed portCHAR pcStatusString[ 50 ];
+	static portCHAR pcStatusString[ 50 ];
 	unsigned portSHORT usStackRemaining;
 
 		/* Write the details of all the TCB's in pxList into the buffer. */
@@ -1565,8 +1565,8 @@ tskTCB *pxNewTCB;
 		{
 			listGET_OWNER_OF_NEXT_ENTRY( pxNextTCB, pxList );
 			usStackRemaining = usTaskCheckFreeStackSpace( ( unsigned portCHAR * ) pxNextTCB->pxStack );
-			sprintf( pcStatusString, "%s\t\t%c\t%u\t%u\t%u\r\n", pxNextTCB->pcTaskName, cStatus, ( unsigned int ) pxNextTCB->uxPriority, usStackRemaining, ( unsigned int ) pxNextTCB->uxTCBNumber );
-			strcat( pcWriteBuffer, pcStatusString );
+			sprintf( pcStatusString, ( portCHAR * ) "%s\t\t%c\t%u\t%u\t%u\r\n", pxNextTCB->pcTaskName, cStatus, ( unsigned int ) pxNextTCB->uxPriority, usStackRemaining, ( unsigned int ) pxNextTCB->uxTCBNumber );
+			strcat( ( portCHAR * ) pcWriteBuffer, ( portCHAR * ) pcStatusString );
 
 		} while( pxNextTCB != pxFirstTCB );
 	}
