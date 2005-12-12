@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.3 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -112,6 +112,10 @@
 #ifdef HCS12_CODE_WARRIOR
 	#include "../../Source/portable/CodeWarrior/HCS12/portmacro.h"
 #endif	
+
+#ifdef MICROBLAZE_GCC
+	#include "../../Source/portable/GCC/MicroBlaze/portmacro.h"
+#endif
 
 #ifdef BCC_INDUSTRIAL_PC_PORT
 	/* A short file name has to be used in place of the normal
