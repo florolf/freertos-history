@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -236,8 +236,8 @@ extern void VPortYieldASM( void );
 	portENTER_CRITICAL();
 		/* Jump directly to the yield function to ensure there is no
 		compiler generated prologue code. */
-		asm volatile ( "bralid r14, VPortYieldASM" );
-		asm volatile ( "or r0, r0, r0" );
+		asm volatile (	"bralid r14, VPortYieldASM		\n\t" \
+						"or r0, r0, r0					\n\t" );
 	portEXIT_CRITICAL();
 }
 /*-----------------------------------------------------------*/

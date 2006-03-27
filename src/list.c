@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -59,6 +59,18 @@ Changes from V2.6.1
 Changes from V3.0.0
 
 	+ API changes as described on the FreeRTOS.org WEB site.
+
+Changes from V3.2.4
+
+	+ Removed the pxHead member of the xList structure.  This always pointed
+	  to the same place so has been removed to free a few bytes of RAM.
+
+	+ Introduced the xMiniListItem structure that does not include the 
+	  xListItem members that are not required by the xListEnd member of a list.
+	  Again this was done to reduce RAM usage.
+
+	+ Changed the volatile definitions of some structure members to clean up
+	  the code where the list structures are used.
 */
 
 #include <stdlib.h>
@@ -74,8 +86,7 @@ void vListInitialise( xList *pxList )
 	/* The list structure contains a list item which is used to mark the
 	end of the list.  To initialise the list the list end is inserted
 	as the only list entry. */
-	pxList->pxHead = &( pxList->xListEnd );
-	pxList->pxIndex = pxList->pxHead;
+	pxList->pxIndex = ( xListItem * ) &( pxList->xListEnd );
 
 	/* The list end value is the highest possible value in the list to
 	ensure it remains at the end of the list. */
@@ -83,14 +94,8 @@ void vListInitialise( xList *pxList )
 
 	/* The list end next and previous pointers point to itself so we know
 	when the list is empty. */
-	pxList->xListEnd.pxNext = &( pxList->xListEnd );
-	pxList->xListEnd.pxPrevious = &( pxList->xListEnd );
-
-	/* The list head will never get used and has no owner. */
-	pxList->xListEnd.pvOwner = NULL;
-
-	/* Make sure the marker items are not mistaken for being on a list. */
-	vListInitialiseItem( ( xListItem * ) &( pxList->xListEnd ) );
+	pxList->xListEnd.pxNext = ( xListItem * ) &( pxList->xListEnd );
+	pxList->xListEnd.pxPrevious = ( xListItem * ) &( pxList->xListEnd );
 
 	pxList->uxNumberOfItems = 0;
 }
@@ -129,7 +134,7 @@ volatile xListItem * pxIndex;
 void vListInsert( xList *pxList, xListItem *pxNewListItem )
 {
 volatile xListItem *pxIterator;
-register portTickType xValueOfInsertion;
+portTickType xValueOfInsertion;
 
 	/* Insert the new list item into the list, sorted in ulListItem order. */
 	xValueOfInsertion = pxNewListItem->xItemValue;
@@ -137,13 +142,13 @@ register portTickType xValueOfInsertion;
 	/* If the list already contains a list item with the same item value then
 	the new list item should be placed after it.  This ensures that TCB's which
 	are stored in ready lists (all of which have the same ulListItem value)
-	get an equal share of the CPU.  However, if the xItemValue is the same as
+	get an equal share of the CPU.  However, if the xItemValue is the same as 
 	the back marker the iteration loop below will not end.  This means we need
-	to guard against this by checking the value first and modifying the
+	to guard against this by checking the value first and modifying the 
 	algorithm slightly if necessary. */
 	if( xValueOfInsertion == portMAX_DELAY )
 	{
-		for( pxIterator = pxList->pxHead; pxIterator->pxNext->xItemValue < xValueOfInsertion; pxIterator = pxIterator->pxNext )
+		for( pxIterator = ( xListItem * ) &( pxList->xListEnd ); pxIterator->pxNext->xItemValue < xValueOfInsertion; pxIterator = pxIterator->pxNext )
 		{
 			/* There is nothing to do here, we are just iterating to the
 			wanted insertion position. */
@@ -151,7 +156,7 @@ register portTickType xValueOfInsertion;
 	}
 	else
 	{
-		for( pxIterator = pxList->pxHead; pxIterator->pxNext->xItemValue <= xValueOfInsertion; pxIterator = pxIterator->pxNext )
+		for( pxIterator = ( xListItem * ) &( pxList->xListEnd ); pxIterator->pxNext->xItemValue <= xValueOfInsertion; pxIterator = pxIterator->pxNext )
 		{
 			/* There is nothing to do here, we are just iterating to the
 			wanted insertion position. */

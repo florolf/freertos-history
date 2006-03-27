@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -132,6 +132,8 @@ extern void vPortYield( void );
 
 /* Compiler specifics. */
 #define inline
+#define portNOP()
+
 
 /* Just used by the demo application to indicate which form of interrupt 
 service routine should be used.  See the online port documentation for more

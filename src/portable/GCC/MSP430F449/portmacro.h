@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -103,6 +103,7 @@ extern volatile unsigned portSHORT usCriticalNesting;							\
 /* Task utilities. */
 extern void vPortYield( void ) __attribute__ ( ( naked ) );
 #define portYIELD()					vPortYield()
+#define portNOP()			asm volatile ( "NOP" )
 /*-----------------------------------------------------------*/
 
 /* Hardwware specifics. */

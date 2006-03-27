@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -66,7 +66,8 @@
 #define portBYTE_ALIGNMENT			2
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portYIELD()					asm volatile( "TRAPA #0" );
+#define portYIELD()					asm volatile( "TRAPA #0" )
+#define portNOP()					asm volatile( "NOP" )
 /*-----------------------------------------------------------*/
 
 /* Critical section handling. */
@@ -94,7 +95,8 @@ extern void* pxCurrentTCB;										\
 	asm volatile(												\
 					"MOV.L	@_pxCurrentTCB, ER5			\n\t" 	\
 					"MOV.L	ER7, @ER5					\n\t"	\
-				);
+				);												\
+	( void ) pxCurrentTCB;
 
 
 #define	portRESTORE_STACK_POINTER()								\
@@ -103,7 +105,8 @@ extern void* pxCurrentTCB;										\
 	asm volatile(												\
 					"MOV.L	@_pxCurrentTCB, ER5			\n\t"	\
 					"MOV.L	@ER5, ER7					\n\t"	\
-				);
+				);												\
+	( void ) pxCurrentTCB;
 
 /*-----------------------------------------------------------*/
 

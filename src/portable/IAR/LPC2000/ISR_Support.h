@@ -12,6 +12,7 @@ portSAVE_CONTEXT MACRO
 
 	; Set R0 to point to the task stack pointer. 					
 	STMDB	SP, {SP}^
+	NOP
 	SUB		SP, SP, #4
 	LDMIA	SP!, {R0}
 
@@ -26,6 +27,7 @@ portSAVE_CONTEXT MACRO
 
 	; Push all the system mode registers onto the task stack. 		
 	STMDB	LR, {R0-LR}^
+	NOP
 	SUB		LR, LR, #60
 
 	; Push the SPSR onto the task stack. 							

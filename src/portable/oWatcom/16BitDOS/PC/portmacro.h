@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -89,6 +89,7 @@ void portENABLE_INTERRUPTS( void );
 #define portINPUT_BYTE( xAddr )				inp( xAddr )
 #define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
 #define inline
+#define portNOP() __asm{ nop }
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

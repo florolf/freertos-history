@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -50,13 +50,17 @@ Changes from V3.0.0
 
 	+ API changes as described on the FreeRTOS.org WEB site.
 
+Changes from V3.2.3
+
+	+ Added the queue functions that can be used from co-routines.
+
 */
 
 #include <stdlib.h>
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
-#include "list.h"
+#include "croutine.h"
 
 /*-----------------------------------------------------------
  * PUBLIC LIST API documented in list.h
@@ -106,8 +110,15 @@ signed portBASE_TYPE xQueueSend( xQueueHandle xQueue, const void * pvItemToQueue
 unsigned portBASE_TYPE uxQueueMessagesWaiting( xQueueHandle pxQueue );
 void vQueueDelete( xQueueHandle xQueue );
 signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xTaskPreviouslyWoken );
-signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait );
-signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portBASE_TYPE *pxTaskWoken );
+signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait );
+signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pvBuffer, signed portBASE_TYPE *pxTaskWoken );
+
+#if configUSE_CO_ROUTINES == 1
+	signed portBASE_TYPE xQueueCRSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xCoRoutinePreviouslyWoken );
+	signed portBASE_TYPE xQueueCRReceiveFromISR( xQueueHandle pxQueue, void *pvBuffer, signed portBASE_TYPE *pxTaskWoken );
+	signed portBASE_TYPE xQueueCRSend( xQueueHandle pxQueue, const void *pvItemToQueue, portTickType xTicksToWait );
+	signed portBASE_TYPE xQueueCRReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait );
+#endif
 
 /*
  * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not
@@ -410,7 +421,7 @@ signed portBASE_TYPE xQueueSendFromISR( xQueueHandle pxQueue, const void *pvItem
 }
 /*-----------------------------------------------------------*/
 
-signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pcBuffer, portTickType xTicksToWait )
+signed portBASE_TYPE xQueueReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait )
 {
 signed portBASE_TYPE xReturn;
 
@@ -456,7 +467,7 @@ signed portBASE_TYPE xReturn;
 				pxQueue->pcReadFrom = pxQueue->pcHead;
 			}
 			--( pxQueue->uxMessagesWaiting );
-			memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
+			memcpy( ( void * ) pvBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
 
 			/* Increment the lock count so prvUnlockQueue knows to check for
 			tasks waiting for space to become available on the queue. */
@@ -487,7 +498,7 @@ signed portBASE_TYPE xReturn;
 }
 /*-----------------------------------------------------------*/
 
-signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pcBuffer, signed portBASE_TYPE *pxTaskWoken )
+signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void *pvBuffer, signed portBASE_TYPE *pxTaskWoken )
 {
 signed portBASE_TYPE xReturn;
 
@@ -501,7 +512,7 @@ signed portBASE_TYPE xReturn;
 			pxQueue->pcReadFrom = pxQueue->pcHead;
 		}
 		--( pxQueue->uxMessagesWaiting );
-		memcpy( ( void * ) pcBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
+		memcpy( ( void * ) pvBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
 
 		/* If the queue is locked we will not modify the event list.  Instead
 		we update the lock count so the task that unlocks the queue will know
@@ -642,4 +653,217 @@ signed portBASE_TYPE xReturn;
 
 	return xReturn;
 }
+/*-----------------------------------------------------------*/
+
+#if configUSE_CO_ROUTINES == 1
+signed portBASE_TYPE xQueueCRSend( xQueueHandle pxQueue, const void *pvItemToQueue, portTickType xTicksToWait )
+{
+signed portBASE_TYPE xReturn;
+		
+	/* If the queue is already full we may have to block.  A critical section
+	is required to prevent an interrupt removing something from the queue 
+	between the check to see if the queue is full and blocking on the queue. */
+	portDISABLE_INTERRUPTS();
+	{
+		if( prvIsQueueFull( pxQueue ) )
+		{
+			/* The queue is full - do we want to block or just leave without
+			posting? */
+			if( xTicksToWait > ( portTickType ) 0 )
+			{
+				/* As this is called from a coroutine we cannot block directly, but
+				return indicating that we need to block. */
+				vCoRoutineAddToDelayedList( xTicksToWait, &( pxQueue->xTasksWaitingToSend ) );				
+				portENABLE_INTERRUPTS();
+				return errQUEUE_BLOCKED;
+			}
+			else
+			{
+				portENABLE_INTERRUPTS();
+				return errQUEUE_FULL;
+			}
+		}
+	}
+	portENABLE_INTERRUPTS();
+		
+	portNOP();
+
+	portDISABLE_INTERRUPTS();
+	{
+		if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
+		{
+			/* There is room in the queue, copy the data into the queue. */			
+			prvCopyQueueData( pxQueue, pvItemToQueue );		
+			xReturn = pdPASS;
+
+			/* Were any co-routines waiting for data to become available? */
+			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
+			{
+				/* In this instance the co-routine could be placed directly 
+				into the ready list as we are within a critical section.  
+				Instead the same pending ready list mechansim is used as if
+				the event were caused from within an interrupt. */
+				if( xCoRoutineRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+				{
+					/* The co-routine waiting has a higher priority so record 
+					that a yield might be appropriate. */
+					xReturn = errQUEUE_YIELD;
+				}
+			}
+		}
+		else
+		{
+			xReturn = errQUEUE_FULL;
+		}
+	}
+	portENABLE_INTERRUPTS();
+
+	return xReturn;
+}
+#endif
+/*-----------------------------------------------------------*/
+
+#if configUSE_CO_ROUTINES == 1
+signed portBASE_TYPE xQueueCRReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait )
+{
+signed portBASE_TYPE xReturn;
+
+	/* If the queue is already empty we may have to block.  A critical section
+	is required to prevent an interrupt adding something to the queue 
+	between the check to see if the queue is empty and blocking on the queue. */
+	portDISABLE_INTERRUPTS();
+	{
+		if( prvIsQueueEmpty( pxQueue ) )
+		{
+			/* There are no messages in the queue, do we want to block or just
+			leave with nothing? */			
+			if( xTicksToWait > ( portTickType ) 0 )
+			{
+				/* As this is a co-routine we cannot block directly, but return
+				indicating that we need to block. */
+				vCoRoutineAddToDelayedList( xTicksToWait, &( pxQueue->xTasksWaitingToReceive ) );
+				portENABLE_INTERRUPTS();
+				return errQUEUE_BLOCKED;
+			}
+			else
+			{
+				portENABLE_INTERRUPTS();
+				return errQUEUE_FULL;
+			}
+		}
+	}
+	portENABLE_INTERRUPTS();
+
+	portNOP();
+
+	portDISABLE_INTERRUPTS();
+	{
+		if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
+		{
+			/* Data is available from the queue. */
+			pxQueue->pcReadFrom += pxQueue->uxItemSize;
+			if( pxQueue->pcReadFrom >= pxQueue->pcTail )
+			{
+				pxQueue->pcReadFrom = pxQueue->pcHead;
+			}
+			--( pxQueue->uxMessagesWaiting );
+			memcpy( ( void * ) pvBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
+
+			xReturn = pdPASS;
+
+			/* Were any co-routines waiting for space to become available? */
+			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
+			{
+				/* In this instance the co-routine could be placed directly 
+				into the ready list as we are within a critical section.  
+				Instead the same pending ready list mechansim is used as if
+				the event were caused from within an interrupt. */
+				if( xCoRoutineRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
+				{
+					xReturn = errQUEUE_YIELD;
+				}
+			}	
+		}
+		else
+		{
+			xReturn = pdFAIL;
+		}
+	}
+	portENABLE_INTERRUPTS();
+
+	return xReturn;
+}
+#endif
+/*-----------------------------------------------------------*/
+
+
+
+#if configUSE_CO_ROUTINES == 1
+signed portBASE_TYPE xQueueCRSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xCoRoutinePreviouslyWoken )
+{
+	/* Cannot block within an ISR so if there is no space on the queue then
+	exit without doing anything. */
+	if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
+	{
+		prvCopyQueueData( pxQueue, pvItemToQueue );
+
+		/* We only want to wake one co-routine per ISR, so check that a 
+		co-routine has not already been woken. */
+		if( !xCoRoutinePreviouslyWoken )		
+		{
+			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
+			{
+				if( xCoRoutineRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+				{
+					return pdTRUE;
+				}
+			}
+		}
+	}
+
+	return xCoRoutinePreviouslyWoken;
+}
+#endif
+/*-----------------------------------------------------------*/
+
+#if configUSE_CO_ROUTINES == 1
+signed portBASE_TYPE xQueueCRReceiveFromISR( xQueueHandle pxQueue, void *pvBuffer, signed portBASE_TYPE *pxCoRoutineWoken )
+{
+signed portBASE_TYPE xReturn;
+
+	/* We cannot block from an ISR, so check there is data available. If
+	not then just leave without doing anything. */
+	if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
+	{
+		/* Copy the data from the queue. */
+		pxQueue->pcReadFrom += pxQueue->uxItemSize;
+		if( pxQueue->pcReadFrom >= pxQueue->pcTail )
+		{
+			pxQueue->pcReadFrom = pxQueue->pcHead;
+		}
+		--( pxQueue->uxMessagesWaiting );
+		memcpy( ( void * ) pvBuffer, ( void * ) pxQueue->pcReadFrom, ( unsigned ) pxQueue->uxItemSize );
+
+		if( !( *pxCoRoutineWoken ) )
+		{
+			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
+			{
+				if( xCoRoutineRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
+				{
+					*pxCoRoutineWoken = pdTRUE;
+				}
+			}
+		}
+
+		xReturn = pdPASS;
+	}
+	else
+	{
+		xReturn = pdFAIL;
+	}
+
+	return xReturn;
+}
+#endif
+/*-----------------------------------------------------------*/
 
