@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -30,7 +30,10 @@
 	***************************************************************************
 */
 
-/* 
+/*
+Changes from V3.2.1
+	+ CallReturn Depth increased from 8 to 10 levels to accomodate wizC/fedC V12.
+	
 Changes from V3.2.0
 	+ TBLPTRU is now initialised to zero during the initial stack creation of a new task. This solves
 	an error on devices with more than 64kB ROM.
@@ -86,7 +89,7 @@ extern volatile tskTCB * volatile pxCurrentTCB;
 	#define portSTACK_CALLRETURN_ENTRY_SIZE	(  2 )
 #endif
 
-#define portSTACK_MINIMAL_CALLRETURN_DEPTH	(  8 )
+#define portSTACK_MINIMAL_CALLRETURN_DEPTH	( 10 )
 #define portSTACK_OTHER_BYTES				( 20 )
 
 unsigned portSHORT usCalcMinStackSize		= 0;

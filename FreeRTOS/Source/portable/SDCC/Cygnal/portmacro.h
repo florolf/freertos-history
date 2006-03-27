@@ -1,5 +1,5 @@
 /* 
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -103,6 +103,10 @@ void vPortYield( void ) _naked;
 
 /* Compiler specifics. */
 #define inline
+#define portNOP()				_asm	\
+									nop \
+								_endasm;
+
 /*-----------------------------------------------------------*/	
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

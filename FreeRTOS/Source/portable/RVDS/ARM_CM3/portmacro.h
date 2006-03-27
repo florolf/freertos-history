@@ -30,6 +30,7 @@
 	***************************************************************************
 */
 
+
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
@@ -48,9 +49,9 @@
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portSHORT
-#define portBASE_TYPE	portSHORT
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -59,75 +60,43 @@
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
-
 /*-----------------------------------------------------------*/	
 
-/* Interrupt control macros. */
-#define portDISABLE_INTERRUPTS()	_DINT();
-#define portENABLE_INTERRUPTS()		_EINT();
-/*-----------------------------------------------------------*/
-
-/* Critical section control macros. */
-#define portNO_CRITICAL_SECTION_NESTING		( ( unsigned portSHORT ) 0 )
-
-#define portENTER_CRITICAL()													\
-{																				\
-extern volatile unsigned portSHORT usCriticalNesting;							\
-																				\
-	portDISABLE_INTERRUPTS();													\
-																				\
-	/* Now interrupts are disabled usCriticalNesting can be accessed */			\
-	/* directly.  Increment ulCriticalNesting to keep a count of how many */	\
-	/* times portENTER_CRITICAL() has been called. */							\
-	usCriticalNesting++;														\
-}
-
-#define portEXIT_CRITICAL()														\
-{																				\
-extern volatile unsigned portSHORT usCriticalNesting;							\
-																				\
-	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
-	{																			\
-		/* Decrement the nesting count as we are leaving a critical section. */	\
-		usCriticalNesting--;													\
-																				\
-		/* If the nesting level has reached zero then interrupts should be */	\
-		/* re-enabled. */														\
-		if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )				\
-		{																		\
-			portENABLE_INTERRUPTS();											\
-		}																		\
-	}																			\
-}
-/*-----------------------------------------------------------*/
-
-/* Task utilities. */
-
-/*
- * Manual context switch called by portYIELD or taskYIELD.  
- */
-extern void vPortYield( void ); 
-#define portYIELD() vPortYield()
-/*-----------------------------------------------------------*/
-
-/* Hardware specifics. */
-#define portBYTE_ALIGNMENT			2
+/* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )	
-#define portNOP()	
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT			4
+/*-----------------------------------------------------------*/	
+
+
+/* Scheduler utilities. */
+extern void vPortYield( void );
+extern void vPortYieldFromISR( void );
+
+#define portYIELD()					vPortYield()
+#define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
+/*-----------------------------------------------------------*/
+
+
+/* Critical section management. */
+
+extern void vPortDisableInterrupts( void );
+extern void vPortEnableInterrupts( void );
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+
+#define portDISABLE_INTERRUPTS()	vPortDisableInterrupts()
+#define portENABLE_INTERRUPTS()		vPortEnableInterrupts()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters ) __toplevel
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
-/* Compiler specifics. */
 #define inline
-
-/* Just used by the demo application to indicate which form of interrupt 
-service routine should be used.  See the online port documentation for more
-information. */
-#define MSP_ROWLEY_RB_PORT
+#define portNOP()
 
 #endif /* PORTMACRO_H */
 

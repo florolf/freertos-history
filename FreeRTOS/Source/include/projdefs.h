@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -33,6 +33,7 @@
 #ifndef PROJDEFS_H
 #define PROJDEFS_H
 
+/* Defines to prototype to which task functions must conform. */
 typedef void (*pdTASK_CODE)( void * );
 
 #define pdTRUE		( 1 )
@@ -45,7 +46,8 @@ typedef void (*pdTASK_CODE)( void * );
 #define errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY	( -1 )
 #define errNO_TASK_TO_RUN						( -2 )
 #define errQUEUE_FULL							( -3 )
-
+#define errQUEUE_BLOCKED						( -4 )
+#define errQUEUE_YIELD							( -5 )
 
 #endif
 

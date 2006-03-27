@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -103,6 +103,7 @@ extern volatile void * volatile pxCurrentTCB;															\
 	__asm{ STMDB 	SP!, {R0}		};	/* Store R0 first as we need to use it.						*/	\
 																										\
 	__asm{ STMDB	SP,{SP}^		}; /* Set R0 to point to the task stack pointer.				*/	\
+	__asm{ NOP						};																	\
 	__asm{ SUB		SP, SP, #4		};																	\
 	__asm{ LDMIA	SP!,{R0}		};																	\
 																										\																	
@@ -111,6 +112,7 @@ extern volatile void * volatile pxCurrentTCB;															\
 	__asm{ LDMIA	SP!, {R0}		}; /* Pop R0 so we can save it onto the system mode stack.		*/	\
 																										\
 	__asm{ STMDB	LR,{R0-LR}^		}; /* Push all the system mode registers onto the task stack.	*/	\
+	__asm{ NOP						};																	\
 	__asm{ SUB		LR, LR, #60		};																	\
 																										\
 	__asm{ MRS		R0, SPSR		}; /* Push the SPSR onto the task stack.						*/	\
@@ -211,6 +213,7 @@ extern void vPortExitCritical( void );
 /* Compiler specifics. */
 #define inline
 #define register
+#define portNOP()	__asm{ NOP }
 /*-----------------------------------------------------------*/	
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

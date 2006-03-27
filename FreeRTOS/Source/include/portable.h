@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V3.2.4 - Copyright (C) 2003-2005 Richard Barry.
+	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -107,6 +107,14 @@
 
 #ifdef GCC_AT91FR40008
 	#include "../../Source/portable/GCC/ARM7_AT91FR40008/portmacro.h"
+#endif
+
+#ifdef RVDS_ARMCM3_LM3S102
+	#include "../../Source/portable/RVDS/ARM_CM3/portmacro.h"
+#endif
+
+#ifdef GCC_ARMCM3_LM3S102
+	#include "../../Source/portable/GCC/ARM_CM3/portmacro.h"
 #endif
 
 #ifdef HCS12_CODE_WARRIOR
