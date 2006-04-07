@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS V4.0.1 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -73,7 +73,7 @@
 extern void vPortYield( void );
 extern void vPortYieldFromISR( void );
 
-#define portYIELD()					vPortYield()
+#define portYIELD()					vPortYieldFromISR()
 #define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
 /*-----------------------------------------------------------*/
 

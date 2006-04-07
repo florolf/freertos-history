@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS V4.0.1 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -30,6 +30,12 @@
 	***************************************************************************
 */
 
+/*
+	Changes between V4.0.0 and V4.0.1
+
+	+ Reduced the code used to setup the initial stack frame.
+	+ The kernel no longer has to install or handle the fault interrupt.
+*/
 
 /*-----------------------------------------------------------
  * Implementation of functions defined in portable.h for the ARM CM3 port.
@@ -86,42 +92,16 @@ void prvSetPSP( unsigned long ulValue );
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
-	/* Setup the initial stack of the task.  The stack is set exactly as 
-	expected by the portRESTORE_CONTEXT() macro. */
-
-	/* Simulate the stack frame as it would be created by an interrupt. */
+	/* Simulate the stack frame as it would be created by a context switch
+	interrupt. */
 	*pxTopOfStack = portINITIAL_XPSR;	/* xPSR */
 	pxTopOfStack--;
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;	/* PC */
 	pxTopOfStack--;
 	*pxTopOfStack = 0xfffffffd;	/* LR */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x12121212;	/* R12 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x03030303;	/* R3 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x02020202;	/* R2 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x01010101;	/* R1 */
-	pxTopOfStack--;
+	pxTopOfStack -= 5;	/* R12, R3, R2 and R1. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;	/* R0 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x11111111;	/* R11 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x10101010;	/* R10 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x09090909;	/* R9 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x08080808;	/* R8 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x07070707;	/* R7 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x06060606;	/* R6 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x05050505;	/* R5 */
-	pxTopOfStack--;
-	*pxTopOfStack = 0x04040404;	/* R4 */
-	pxTopOfStack--;
+	pxTopOfStack -= 9;	/* R11, R10, R9, R8, R7, R6, R5 and R4. */
 	*pxTopOfStack = 0x00000000; /* uxCriticalNesting. */
 
 	return pxTopOfStack;
@@ -180,13 +160,7 @@ void vPortYieldFromISR( void )
 {
 	/* Set a PendSV to request a context switch. */
 	*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;	
-}
-/*-----------------------------------------------------------*/
-
-__asm void vPortYield( void )
-{
-	svc 0
-	bx lr
+	portENABLE_INTERRUPTS();
 }
 /*-----------------------------------------------------------*/
 
@@ -218,50 +192,6 @@ void vPortExitCritical( void )
 	{
 		vPortEnableInterrupts();
 	}
-}
-/*-----------------------------------------------------------*/
-
-__asm void xPortFaultHandler( void )
-{
-	extern ulHardFaultStatus
-	extern FaultISR
-	extern ulForceFaultBit
-	extern vPortYieldFromISR
-
-	/* What caused the fault? */
-	ldr r0, =ulHardFaultStatus
-	ldr r2, [r0]
-	ldr r0, [r2]
-	ldr r1, =ulForceFaultBit
-	ldr r1, [r1]
-	tst r0, r1
-	
-	/* The fault was forced by an SVC call.  We want to cause a context switch
-	then continue. */
-	bne clear_fault
-
-	/* Don't know what this fault is, call the fault handler. */
-	push {r14}
-	ldr r1, =FaultISR
-	blx r1
-	pop {r14}
-	orr r14, #0xd
-	bx r14
-
-clear_fault;
-
-	/* Clear the fault. */
-	str r1, [r2]
-
-	/* Force a yeild. */
-	push {r14}
-	ldr r0, =vPortYieldFromISR
-	blx r0
-	pop {r14}
-	orr r14, #0xd
-	cpsie i
-	bx r14
-	nop
 }
 /*-----------------------------------------------------------*/
 
@@ -333,6 +263,7 @@ __asm void xPortSysTickHandler( void )
 
 	/* If using preemption, also force a context switch. */
 	#if configUSE_PREEMPTION == 1
+	extern vPortYieldFromISR
 		push {r14}
 		ldr r0, =vPortYieldFromISR
 		blx r0

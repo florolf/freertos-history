@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS V4.0.1 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -72,7 +72,8 @@
 /* Scheduler utilities. */
 extern void vPortYieldFromISR( void );
 
-#define portYIELD()					__asm volatile( "swi 0\n" ) /* Workaround for svc compiler bug. */
+#define portYIELD()					vPortYieldFromISR()
+
 #define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
 /*-----------------------------------------------------------*/
 
@@ -83,8 +84,8 @@ extern void vPortEnableInterrupts( void );
 extern void vPortEnterCritical( void );
 extern void vPortExitCritical( void );
 
-#define portDISABLE_INTERRUPTS()	__asm volatile( "cpsid i\n" )
-#define portENABLE_INTERRUPTS()		__asm volatile( "cpsie i\n" )
+#define portDISABLE_INTERRUPTS()	__asm volatile( "cpsid i" )
+#define portENABLE_INTERRUPTS()		__asm volatile( "cpsie i" )
 #define portENTER_CRITICAL()		vPortEnterCritical()
 #define portEXIT_CRITICAL()			vPortExitCritical()
 /*-----------------------------------------------------------*/
