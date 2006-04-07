@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V4.0.0 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS V4.0.1 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -145,6 +145,10 @@ Changes from V3.2.4
 	+ The need for a context switch is now signalled if a task woken by an 
 	  event has a priority greater or equal to the currently running task.
 	  Previously this was only greater than.
+
+Changes from V4.0.0
+
+	+ Added the xMissedYield handling.
 */
 
 #include <stdio.h>
@@ -232,6 +236,7 @@ static volatile unsigned portBASE_TYPE uxTopReadyPriority		= tskIDLE_PRIORITY;
 static volatile signed portBASE_TYPE xSchedulerRunning			= pdFALSE;
 static volatile unsigned portBASE_TYPE uxSchedulerSuspended		= ( unsigned portBASE_TYPE ) pdFALSE;
 static volatile unsigned portBASE_TYPE uxMissedTicks			= ( unsigned portBASE_TYPE ) 0;
+static volatile portBASE_TYPE xMissedYield						= ( portBASE_TYPE ) pdFALSE;
 
 /* Debugging and trace facilities private variables and macros. ------------*/
 
@@ -1014,9 +1019,10 @@ signed portBASE_TYPE xAlreadyYielded = pdFALSE;
 					xYieldRequired = pdTRUE;
 				}
 				
-				if( xYieldRequired == pdTRUE )
+				if( ( xYieldRequired == pdTRUE ) || ( xMissedYield == pdTRUE ) )
 				{
 					xAlreadyYielded = pdTRUE;
+					xMissedYield = pdFALSE;
 					taskYIELD();
 				}
 			}
@@ -1266,6 +1272,7 @@ void vTaskSwitchContext( void )
 	{
 		/* The scheduler is currently suspended - do not allow a context
 		switch. */
+		xMissedYield = pdTRUE;
 		return;
 	}
 
