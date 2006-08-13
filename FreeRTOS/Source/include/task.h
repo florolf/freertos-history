@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.0.4 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.0.5 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -40,7 +40,7 @@
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V4.0.4"
+#define tskKERNEL_VERSION_NUMBER "V4.0.5"
 
 /**
  * task. h
@@ -532,6 +532,26 @@ void vTaskSuspend( xTaskHandle pxTaskToSuspend );
  * \ingroup TaskCtrl
  */
 void vTaskResume( xTaskHandle pxTaskToResume );
+
+/**
+ * task. h
+ * <pre>void xTaskResumeFromISR( xTaskHandle pxTaskToResume );</pre>
+ *
+ * INCLUDE_xTaskResumeFromISR must be defined as 1 for this function to be 
+ * available.  See the configuration section for more information.
+ *
+ * An implementation of vTaskResume() that can be called from within an ISR.
+ *
+ * A task that has been suspended by one of more calls to vTaskSuspend ()
+ * will be made available for running again by a single call to
+ * xTaskResumeFromISR ().
+ *
+ * @param pxTaskToResume Handle to the task being readied.
+ *
+ * \defgroup vTaskResumeFromISR vTaskResumeFromISR
+ * \ingroup TaskCtrl
+ */
+portBASE_TYPE xTaskResumeFromISR( xTaskHandle pxTaskToResume );
 
 /*-----------------------------------------------------------
  * SCHEDULER CONTROL

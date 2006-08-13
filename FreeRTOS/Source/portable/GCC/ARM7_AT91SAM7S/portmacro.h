@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.0.4 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.0.5 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -231,7 +231,6 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	
 #else
 
-	#define portDISABLE_INTERRUPTS()																\
 	#define portDISABLE_INTERRUPTS()											\
 		asm volatile (															\
 			"STMDB	SP!, {R0}		\n\t"	/* Push R0.						*/	\
