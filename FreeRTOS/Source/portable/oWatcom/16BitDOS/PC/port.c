@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.0.5 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.1.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -288,7 +288,7 @@ unsigned portLONG ulOutput;
 	/* Setup the 8245 to tick at the wanted frequency. */
 	portOUTPUT_BYTE( usPIT_MODE, us8254_CTR0_MODE3 );
 	ulOutput = ulPIT_CONST / ulTickRateHz;
-    
+   
 	portOUTPUT_BYTE( usPIT0, ( unsigned portSHORT )( ulOutput & ( unsigned portLONG ) 0xff ) );
 	ulOutput >>= 8;
 	portOUTPUT_BYTE( usPIT0, ( unsigned portSHORT ) ( ulOutput & ( unsigned portLONG ) 0xff ) );
