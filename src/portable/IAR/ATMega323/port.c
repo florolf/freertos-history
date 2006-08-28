@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.0.5 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.1.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -51,6 +51,12 @@
 /* The number of bytes used on the hardware stack by the task start address. */
 #define portBYTES_USED_BY_RETURN_ADDRESS		( 2 )
 /*-----------------------------------------------------------*/
+
+/* Stores the critical section nesting.  This must not be initialised to 0.
+It will be initialised when a task starts. */
+#define portNO_CRITICAL_NESTING					( ( unsigned portBASE_TYPE ) 0 )
+unsigned portBASE_TYPE uxCriticalNesting = 0x50;
+
 
 /*
  * Perform hardware setup to enable ticks from timer 1, compare match A.
@@ -221,6 +227,9 @@ portSTACK_TYPE *pxTopOfHardwareStack;
 	pxTopOfStack--;
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x031;	/* R31 */
 
+	pxTopOfStack--;
+	*pxTopOfStack = portNO_CRITICAL_NESTING;	/* Critical nesting is zero when the task starts. */
+
 	/*lint +e950 +e611 +e923 */
 
 	return pxTopOfStack;
@@ -315,6 +324,22 @@ unsigned portCHAR ucHighByte, ucLowByte;
 		vTaskIncrementTick();
 	}
 #endif
+/*-----------------------------------------------------------*/
 
+void vPortEnterCritical( void )
+{
+	portDISABLE_INTERRUPTS();
+	uxCriticalNesting++;
+}
+/*-----------------------------------------------------------*/
+
+void vPortExitCritical( void )
+{
+	uxCriticalNesting--;
+	if( uxCriticalNesting == portNO_CRITICAL_NESTING )
+	{
+		portENABLE_INTERRUPTS();
+	}
+}
 
 	

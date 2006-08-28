@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.0.5 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.1.0 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -39,16 +39,18 @@ typedef void (*pdTASK_CODE)( void * );
 #define pdTRUE		( 1 )
 #define pdFALSE		( 0 )
 
-#define pdPASS		( 1 )
-#define pdFAIL		( 0 )
+#define pdPASS									( 1 )
+#define pdFAIL									( 0 )
+#define errQUEUE_EMPTY							( 0 )
+#define errQUEUE_FULL							( 0 )
 
 /* Error definitions. */
 #define errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY	( -1 )
 #define errNO_TASK_TO_RUN						( -2 )
-#define errQUEUE_FULL							( -3 )
 #define errQUEUE_BLOCKED						( -4 )
 #define errQUEUE_YIELD							( -5 )
 
-#endif
+#endif /* PROJDEFS_H */
+
 
 
