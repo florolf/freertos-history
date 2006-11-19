@@ -34,8 +34,6 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include <intrinsic.h>
-
 /*-----------------------------------------------------------
  * Port specific definitions.
  *
@@ -68,20 +66,51 @@
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 #define portBYTE_ALIGNMENT			4
-#define portYIELD()					asm ( "SWI 0" )
-#define portNOP()					asm ( "NOP" )
+#define portYIELD()					asm volatile ( "SWI 0" )
+#define portNOP()					asm volatile ( "NOP" )
 /*-----------------------------------------------------------*/	
 
 /* Critical section handling. */
-__arm __interwork void vPortDisableInterruptsFromThumb( void );
-__arm __interwork void vPortEnableInterruptsFromThumb( void );
-__arm __interwork void vPortEnterCritical( void );
-__arm __interwork void vPortExitCritical( void );
+/*
+ * The interrupt management utilities can only be called from ARM mode.  When
+ * THUMB_INTERWORK is defined the utilities are defined as functions in 
+ * portISR.c to ensure a switch to ARM mode.  When THUMB_INTERWORK is not 
+ * defined then the utilities are defined as macros here - as per other ports.
+ */
 
-#define portDISABLE_INTERRUPTS()	__disable_interrupt()
-#define portENABLE_INTERRUPTS()		__enable_interrupt()
-#define portENTER_CRITICAL()		vPortEnterCritical()
-#define portEXIT_CRITICAL()			vPortExitCritical()
+#ifdef THUMB_INTERWORK
+
+	extern void vPortDisableInterruptsFromThumb( void ) __attribute__ ((naked));
+	extern void vPortEnableInterruptsFromThumb( void ) __attribute__ ((naked));
+
+	#define portDISABLE_INTERRUPTS()	vPortDisableInterruptsFromThumb()
+	#define portENABLE_INTERRUPTS()		vPortEnableInterruptsFromThumb()
+	
+#else
+
+	#define portDISABLE_INTERRUPTS()											\
+		asm volatile (															\
+			"STMDB	SP!, {R0}		\n\t"	/* Push R0.						*/	\
+			"MRS	R0, CPSR		\n\t"	/* Get CPSR.					*/	\
+			"ORR	R0, R0, #0xC0	\n\t"	/* Disable IRQ, FIQ.			*/	\
+			"MSR	CPSR, R0		\n\t"	/* Write back modified value.	*/	\
+			"LDMIA	SP!, {R0}			" )	/* Pop R0.						*/
+			
+	#define portENABLE_INTERRUPTS()												\
+		asm volatile (															\
+			"STMDB	SP!, {R0}		\n\t"	/* Push R0.						*/	\
+			"MRS	R0, CPSR		\n\t"	/* Get CPSR.					*/	\
+			"BIC	R0, R0, #0xC0	\n\t"	/* Enable IRQ, FIQ.				*/	\
+			"MSR	CPSR, R0		\n\t"	/* Write back modified value.	*/	\
+			"LDMIA	SP!, {R0}			" )	/* Pop R0.						*/
+
+#endif /* THUMB_INTERWORK */
+
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+
+#define portENTER_CRITICAL()		vPortEnterCritical();
+#define portEXIT_CRITICAL()			vPortExitCritical();
 /*-----------------------------------------------------------*/	
 
 /* Task utilities. */
@@ -96,9 +125,8 @@ extern void vTaskSwitchContext( void );				\
 }
 /*-----------------------------------------------------------*/	
 
-/* Compiler specifics. */
+/* Compiler specifics */
 #define inline
-/*-----------------------------------------------------------*/	
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void * pvParameters )

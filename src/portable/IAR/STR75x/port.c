@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.1.2 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.1.3 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -56,7 +56,7 @@
 
 /*-----------------------------------------------------------*/
 
-/* Setup the watchdog to generate the tick interrupts. */
+/* Setup the TB to generate the tick interrupts. */
 static void prvSetupTimerInterrupt( void );
 
 /* ulCriticalNesting will get set to zero when the first task starts.  It
