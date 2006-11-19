@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.1.2 - Copyright (C) 2003-2006 Richard Barry.
+	FreeRTOS.org V4.1.3 - Copyright (C) 2003-2006 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -113,6 +113,10 @@
 	#include "..\..\Source\portable\IAR\STR75x\portmacro.h"
 #endif
 	
+#ifdef STR75X_GCC
+	#include "..\..\Source\portable\GCC\STR75x\portmacro.h"
+#endif
+
 #ifdef STR91X_IAR
 	#include "..\..\Source\portable\IAR\STR91x\portmacro.h"
 #endif
