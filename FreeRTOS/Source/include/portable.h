@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.2.0 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.2.1 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -27,6 +27,9 @@
 	See http:www.FreeRTOS.org for documentation, latest information, license
 	and contact details.  Please ensure to read the configuration and relevant
 	port sections of the online documentation.
+
+	Also see http://www.SafeRTOS.com for an IEC 61508 compliant version along
+	with commercial development and support options.
 	***************************************************************************
 */
 
@@ -79,6 +82,10 @@
 
 #ifdef GCC_ARM7
 	#include "../../Source/portable/GCC/ARM7_LPC2000/portmacro.h"
+#endif
+
+#ifdef ROWLEY_LPC23xx
+	#include "../../Source/portable/GCC/ARM7_LPC23xx/portmacro.h"
 #endif
 
 #ifdef GCC_MSP430
@@ -176,6 +183,23 @@
 	#include "..\portable\BCC\16BitDOS\flsh186\prtmacro.h"
     typedef void ( __interrupt __far *pxISR )();
 #endif
+
+#if __GNUC__ && (__AVR32_UC3A0256__ || \
+                 __AVR32_UC3A0512__ || \
+                 __AVR32_UC3A1128__ || \
+                 __AVR32_UC3A1256__ || \
+                 __AVR32_UC3A1512__)
+	#include "portmacro.h"
+#endif
+
+#if __ICCAVR32__ && (__AT32UC3A0256__ || \
+                     __AT32UC3A0512__ || \
+                     __AT32UC3A1128__ || \
+                     __AT32UC3A1256__ || \
+                     __AT32UC3A1512__)
+	#include "portmacro.h"
+#endif
+
 /*
  * Setup the stack of a new task so it is ready to be placed under the
  * scheduler control.  The registers have to be placed on the stack in
