@@ -27,9 +27,6 @@
 	See http://www.FreeRTOS.org for documentation, latest information, license 
 	and contact details.  Please ensure to read the configuration and relevant 
 	port sections of the online documentation.
-
-	Also see http://www.SafeRTOS.com for an IEC 61508 compliant version along
-	with commercial development and support options.
 	***************************************************************************
 */
 
@@ -69,7 +66,7 @@
 #define portLONG		long
 #define portSHORT		short
 #define portSTACK_TYPE	unsigned portLONG
-#define portBASE_TYPE	long
+#define portBASE_TYPE	portLONG
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -80,24 +77,15 @@
 #endif
 /*-----------------------------------------------------------*/	
 
-/* Hardware specifics. */
+/* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 #define portBYTE_ALIGNMENT			4
-#define portYIELD()					asm volatile ( "SWI" );	
 #define portNOP()					asm volatile ( "NOP" );
-
-/*
- * These define the timer to use for generating the tick interrupt.
- * They are put in this file so they can be shared between "port.c"
- * and "portisr.c".
- */
-#define portTIMER_REG_BASE_PTR		AT91C_BASE_TC0
-#define portTIMER_CLK_ENABLE_BIT	AT91C_PS_TC0
-#define portTIMER_AIC_CHANNEL		( ( unsigned portLONG ) 4 )
 /*-----------------------------------------------------------*/	
 
-/* Task utilities. */
+
+/* Scheduler utilities. */
 
 /*
  * portRESTORE_CONTEXT, portRESTORE_CONTEXT, portENTER_SWITCHING_ISR
@@ -189,10 +177,12 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	( void ) pxCurrentTCB;												\
 }
 
+
 /*-----------------------------------------------------------
  * ISR entry and exit macros.  These are only required if a task switch
  * is required from the ISR.
  *----------------------------------------------------------*/
+
 
 #define portENTER_SWITCHING_ISR()										\
 	/* Save the context of the interrupted task. */						\
@@ -202,7 +192,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	/* pointer will be set to the top of the task stack, and the stack*/\
 	/* pointer left where it is.  The IRQ stack will get used for any */\
 	/* functions calls made by this ISR. */								\
-	asm volatile ( "SUB		R11, LR, #4" );								\
+	asm volatile ( "SUB		R11, LR, #4" );							\
 	{
 
 #define portEXIT_SWITCHING_ISR( SwitchRequired )						\
@@ -217,9 +207,12 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	/* Restore the context of which ever task is now the highest */		\
 	/* priority that is ready to run. */								\
 	portRESTORE_CONTEXT();
-/*-----------------------------------------------------------*/	
 
-/* Critical section handling. */
+#define portYIELD()					asm volatile ( "SWI" );	
+/*-----------------------------------------------------------*/
+
+
+/* Critical section management. */
 
 /*
  * The interrupt management utilities can only be called from ARM mode.  When
@@ -261,8 +254,7 @@ extern void vPortExitCritical( void );
 
 #define portENTER_CRITICAL()		vPortEnterCritical();
 #define portEXIT_CRITICAL()			vPortExitCritical();
-
-/*-----------------------------------------------------------*/	
+/*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
