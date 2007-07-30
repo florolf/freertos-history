@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.3.1 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.4.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -82,6 +82,10 @@
 
 #ifdef GCC_ARM7
 	#include "../../Source/portable/GCC/ARM7_LPC2000/portmacro.h"
+#endif
+
+#ifdef GCC_ARM7_ECLIPSE
+	#include "portmacro.h"
 #endif
 
 #ifdef ROWLEY_LPC23xx
@@ -188,12 +192,18 @@
     typedef void ( __interrupt __far *pxISR )();
 #endif
 
-#ifdef GCC_AVR32_PORT
-	#include "portmacro.h"
+#ifdef __GNUC__
+   #ifdef __AVR32_AVR32A__
+	   #include "portmacro.h"
+   #endif
 #endif
 
-#ifdef IAR_AVR32_PORT
-	#include "portmacro.h"
+#ifdef __ICCAVR32__
+   #ifdef __CORE__
+      #if __CORE__ == __AVR32A__
+	      #include "portmacro.h"
+      #endif
+   #endif
 #endif
 
 /*
