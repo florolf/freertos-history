@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.5.0 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.6.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -47,6 +47,13 @@
 
 	+ The assembler statements are now included in a single asm block rather
 	  than each line having its own asm block.
+
+	Changes from V4.5.0
+
+	+ Removed the portENTER_SWITCHING_ISR() and portEXIT_SWITCHING_ISR() macros
+	  and replaced them with portYIELD_FROM_ISR() macro.  Application code 
+	  should now make use of the portSAVE_CONTEXT() and portRESTORE_CONTEXT()
+	  macros as per the V4.5.1 demo code.
 */
 
 #ifndef PORTMACRO_H
@@ -84,8 +91,8 @@
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 #define portBYTE_ALIGNMENT			4
-#define portYIELD()					asm volatile ( "SWI" );	
-#define portNOP()					asm volatile ( "NOP" );
+#define portYIELD()					asm volatile ( "SWI" )
+#define portNOP()					asm volatile ( "NOP" )
 
 /*
  * These define the timer to use for generating the tick interrupt.
@@ -189,35 +196,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	( void ) pxCurrentTCB;												\
 }
 
-/*-----------------------------------------------------------
- * ISR entry and exit macros.  These are only required if a task switch
- * is required from the ISR.
- *----------------------------------------------------------*/
-
-#define portENTER_SWITCHING_ISR()										\
-	/* Save the context of the interrupted task. */						\
-	portSAVE_CONTEXT();													\
-																		\
-	/* We don't know the stack requirements for the ISR, so the frame */\
-	/* pointer will be set to the top of the task stack, and the stack*/\
-	/* pointer left where it is.  The IRQ stack will get used for any */\
-	/* functions calls made by this ISR. */								\
-	asm volatile ( "SUB		R11, LR, #4" );								\
-	{
-
-#define portEXIT_SWITCHING_ISR( SwitchRequired )						\
-		/* If a switch is required then we just need to call */			\
-		/* vTaskSwitchContext() as the context has already been */		\
-		/* saved. */													\
-		if( SwitchRequired )											\
-		{																\
-			vTaskSwitchContext();										\
-		}																\
-	}																	\
-	/* Restore the context of which ever task is now the highest */		\
-	/* priority that is ready to run. */								\
-	portRESTORE_CONTEXT();
-/*-----------------------------------------------------------*/	
+#define portYIELD_FROM_ISR() vTaskSwitchContext()
 
 /* Critical section handling. */
 
