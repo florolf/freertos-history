@@ -37,6 +37,9 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+/* System include files */
+#include <plib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,13 +57,11 @@ extern "C" {
 /* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
-#define portDOUBLE		long
+#define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portSHORT
-#define portBASE_TYPE	portSHORT
-
-typedef void ( __interrupt __far *pxISR )();
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned long
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -71,38 +72,36 @@ typedef void ( __interrupt __far *pxISR )();
 #endif
 /*-----------------------------------------------------------*/
 
-/* Critical section handling. */
-#define portENTER_CRITICAL()			__asm{ pushf }  \
-										__asm{ cli 	 }	\
-
-#define portEXIT_CRITICAL()				__asm{ popf }
-
-#define portDISABLE_INTERRUPTS()		__asm{ cli }
-
-#define portENABLE_INTERRUPTS()			__asm{ sti }
-/*-----------------------------------------------------------*/
-
 /* Hardware specifics. */
-#define portNOP()						__asm{ nop }
-#define portSTACK_GROWTH				( -1 )
-#define portSWITCH_INT_NUMBER 			0x80
-#define portYIELD()						__asm{ int portSWITCH_INT_NUMBER } 
-#define portTICK_RATE_MS				( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT				2
-#define portINITIAL_SW					( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
+#define portBYTE_ALIGNMENT			4
+#define portSTACK_GROWTH			-4
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 /*-----------------------------------------------------------*/
 
-/* Compiler specifics. */
-#define portINPUT_BYTE( xAddr )				inp( xAddr )
-#define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
-#define portINPUT_WORD( xAddr )				inpw( xAddr )
-#define portOUTPUT_WORD( xAddr, usValue )	outpw( xAddr, usValue )
-#define inline
+/* Critical section management. */
+#define portDISABLE_INTERRUPTS()	INTDisableInterrupts()                   
+#define portENABLE_INTERRUPTS()		INTEnableInterrupts()
+
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
+/*-----------------------------------------------------------*/
+
+/* Task utilities. */
+#define portYIELD() asm volatile ( 	"ehb \r\n"	\
+									"SYSCALL \r\n" )
+
+#define portNOP()				asm volatile ( 	"nop" )
+
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
-#define portTASK_FUNCTION( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters ) __attribute__((noreturn))
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+/*-----------------------------------------------------------*/
+
+#define portEND_SWITCHING_ISR( vSwitchRequired ) if( vSwitchRequired ) vTaskSwitchContext()
 
 #ifdef __cplusplus
 }
