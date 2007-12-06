@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.6.1 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.7.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -1159,6 +1159,26 @@ signed portBASE_TYPE xQueueGenericSendFromISR( xQueueHandle pxQueue, const void 
  */
 signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, const void * const pvBuffer, signed portBASE_TYPE *pxTaskWoken );
 
+/* 
+ * xQueueAltGenericSend() is an alternative version of xQueueGenericSend().
+ * Likewise xQueueAltGenericReceive() is an alternative version of
+ * xQueueGenericReceive().
+ *
+ * The source code that implements the alternative (Alt) API is much 
+ * simpler	because it executes everything from within a critical section.  
+ * This is	the approach taken by many other RTOSes, but FreeRTOS.org has the 
+ * preferred fully featured API too.  The fully featured API has more 
+ * complex	code that takes longer to execute, but makes much less use of 
+ * critical sections.  Therefore the alternative API sacrifices interrupt 
+ * responsiveness to gain execution speed, whereas the fully featured API
+ * sacrifices execution speed to ensure better interrupt responsiveness.
+ */
+signed portBASE_TYPE xQueueAltGenericSend( xQueueHandle pxQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition );
+signed portBASE_TYPE xQueueAltGenericReceive( xQueueHandle pxQueue, const void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking );
+#define xQueueAltSendToFront( xQueue, pvItemToQueue, xTicksToWait ) xQueueAltGenericSend( xQueue, pvItemToQueue, xTicksToWait, queueSEND_TO_FRONT )
+#define xQueueAltSendToBack( xQueue, pvItemToQueue, xTicksToWait ) xQueueAltGenericSend( xQueue, pvItemToQueue, xTicksToWait, queueSEND_TO_BACK )
+#define xQueueAltReceive( xQueue, pvBuffer, xTicksToWait ) xQueueAltGenericReceive( xQueue, pvBuffer, xTicksToWait, pdFALSE )
+#define xQueueAltPeek( xQueue, pvBuffer, xTicksToWait ) xQueueAltGenericReceive( xQueue, pvBuffer, xTicksToWait, pdTRUE )
 
 /*
  * The functions defined above are for passing data to and from tasks.  The
@@ -1175,10 +1195,11 @@ signed portBASE_TYPE xQueueCRSend( xQueueHandle pxQueue, const void *pvItemToQue
 signed portBASE_TYPE xQueueCRReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait );
 
 /*
- * For internal use only.  Use xSemaphoreCreateMutex() instead of calling
- * this function directly.
+ * For internal use only.  Use xSemaphoreCreateMutex() or
+ * xSemaphoreCreateCounting() instead of calling these functions directly.
  */
 xQueueHandle xQueueCreateMutex( void );
+xQueueHandle xQueueCreateCountingSemaphore( unsigned portBASE_TYPE uxCountValue, unsigned portBASE_TYPE uxInitialCount );
 
 #ifdef __cplusplus
 }

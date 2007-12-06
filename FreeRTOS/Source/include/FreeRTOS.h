@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.6.1 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.7.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -114,6 +114,14 @@
 
 #ifndef configUSE_MUTEXES
 	#define configUSE_MUTEXES 0
+#endif
+
+#ifndef configUSE_COUNTING_SEMAPHORES
+	#define configUSE_COUNTING_SEMAPHORES 0
+#endif
+
+#ifndef configUSE_ALTERNATIVE_API
+	#define configUSE_ALTERNATIVE_API 0
 #endif
 
 #if ( configUSE_MUTEXES == 1 )

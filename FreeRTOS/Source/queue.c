@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.6.1 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.7.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -34,49 +34,6 @@
 	***************************************************************************
 */
 
-/*
-Changes from V1.01
-
-	+ More use of 8bit data types.
-	+ Function name prefixes changed where the data type returned has changed.
-
-Changed from V2.0.0
-
-	+ Added the queue locking mechanism and make more use of the scheduler
-	  suspension feature to minimise the time interrupts have to be disabled
-	  when accessing a queue.
-
-Changed from V2.2.0
-
-	+ Explicit use of 'signed' qualifier on portCHAR types added.
-
-Changes from V3.0.0
-
-	+ API changes as described on the FreeRTOS.org WEB site.
-
-Changes from V3.2.3
-
-	+ Added the queue functions that can be used from co-routines.
-
-Changes from V4.0.5
-
-	+ Added a loop within xQueueSend() and xQueueReceive() to prevent the
-	  functions exiting when a block time remains and the function has
-	  not completed.
-
-Changes from V4.1.2:
-
-	+ BUG FIX:  Removed the call to prvIsQueueEmpty from within xQueueCRReceive
-	  as it exited with interrupts enabled.  Thanks Paul Katz.
-
-Changes from V4.1.3:
-
-	+ Modified xQueueSend() and xQueueReceive() to handle the (very unlikely)
-	case whereby a task unblocking due to a temporal event can remove/send an
-	item from/to a queue when a higher priority task is	still blocked on the
-	queue.  This modification is a result of the SafeRTOS testing.
-*/
-
 #include <stdlib.h>
 #include <string.h>
 #include "FreeRTOS.h"
@@ -100,6 +57,11 @@ Changes from V4.1.3:
 #define uxQueueType					pcHead
 #define queueQUEUE_IS_MUTEX			NULL
 
+/* Semaphores do not actually store or copy data, so have an items size of
+zero. */
+#define queueSEMAPHORE_QUEUE_ITEM_LENGTH ( 0 )
+#define queueDONT_BLOCK					 ( ( portTickType ) 0 )
+
 /*
  * Definition of the queue used by the scheduler.
  * Items are queued by copy, not reference.
@@ -115,7 +77,7 @@ typedef struct QueueDefinition
 	xList xTasksWaitingToSend;				/*< List of tasks that are blocked waiting to post onto this queue.  Stored in priority order. */
 	xList xTasksWaitingToReceive;			/*< List of tasks that are blocked waiting to read from this queue.  Stored in priority order. */
 
-	unsigned portBASE_TYPE uxMessagesWaiting;/*< The number of items currently in the queue. */
+	volatile unsigned portBASE_TYPE uxMessagesWaiting;/*< The number of items currently in the queue. */
 	unsigned portBASE_TYPE uxLength;		/*< The length of the queue defined as the number of items it will hold, not the number of bytes. */
 	unsigned portBASE_TYPE uxItemSize;		/*< The size of each items that the queue will hold. */
 
@@ -144,6 +106,9 @@ signed portBASE_TYPE xQueueGenericSendFromISR( xQueueHandle pxQueue, const void 
 signed portBASE_TYPE xQueueGenericReceive( xQueueHandle pxQueue, const void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking );
 signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, const void * const pvBuffer, signed portBASE_TYPE *pxTaskWoken );
 xQueueHandle xQueueCreateMutex( void );
+xQueueHandle xQueueCreateCountingSemaphore( unsigned portBASE_TYPE uxCountValue, unsigned portBASE_TYPE uxInitialCount );
+signed portBASE_TYPE xQueueAltGenericSend( xQueueHandle pxQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition );
+signed portBASE_TYPE xQueueAltGenericReceive( xQueueHandle pxQueue, const void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking );
 
 #if configUSE_CO_ROUTINES == 1
 	signed portBASE_TYPE xQueueCRSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xCoRoutinePreviouslyWoken );
@@ -294,6 +259,25 @@ size_t xQueueSizeInBytes;
 	}
 
 #endif /* configUSE_MUTEXES */
+/*-----------------------------------------------------------*/
+
+#if configUSE_COUNTING_SEMAPHORES == 1
+
+	xQueueHandle xQueueCreateCountingSemaphore( unsigned portBASE_TYPE uxCountValue, unsigned portBASE_TYPE uxInitialCount )
+	{
+	xQueueHandle pxHandle;
+	
+		pxHandle = xQueueCreate( ( unsigned portBASE_TYPE ) uxCountValue, queueSEMAPHORE_QUEUE_ITEM_LENGTH );
+
+		if( pxHandle != NULL )
+		{
+			pxHandle->uxMessagesWaiting = uxInitialCount;
+		}
+
+		return pxHandle;
+	}
+
+#endif /* configUSE_COUNTING_SEMAPHORES */
 /*-----------------------------------------------------------*/
 
 signed portBASE_TYPE xQueueGenericSend( xQueueHandle pxQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition )
@@ -471,6 +455,198 @@ xTimeOutType xTimeOut;
 
 	return xReturn;
 }
+/*-----------------------------------------------------------*/
+
+#if configUSE_ALTERNATIVE_API == 1
+
+	signed portBASE_TYPE xQueueAltGenericSend( xQueueHandle pxQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition )
+	{
+	signed portBASE_TYPE xReturn;
+	xTimeOutType xTimeOut;
+
+		/* The source code that implements the alternative (Alt) API is much 
+		simpler	because it executes everything from within a critical section.  
+		This is	the approach taken by many other RTOSes, but FreeRTOS.org has the 
+		preferred fully featured API too.  The fully featured API has more 
+		complex	code that takes longer to execute, but makes much less use of 
+		critical sections.  Therefore the alternative API sacrifices interrupt 
+		responsiveness to gain execution speed, whereas the fully featured API
+		sacrifices execution speed to ensure better interrupt responsiveness.  */
+
+		taskENTER_CRITICAL();
+		{
+			/* Capture the current time status for future reference. */
+			vTaskSetTimeOutState( &xTimeOut );
+
+			/* If the queue is already full we may have to block. */
+			do
+			{
+				if( pxQueue->uxMessagesWaiting == pxQueue->uxLength )
+				{
+					/* The queue is full - do we want to block or just leave without
+					posting? */
+					if( xTicksToWait > ( portTickType ) 0 )
+					{
+						/* We are going to place ourselves on the xTasksWaitingToSend 
+						event list, and will get woken should the delay expire, or 
+						space become available on the queue. */
+						vTaskPlaceOnEventList( &( pxQueue->xTasksWaitingToSend ), xTicksToWait );
+			
+						/* Force a context switch now as we are blocked.  We can do
+						this from within a critical section as the task we are
+						switching to has its own context.  When we return here (i.e.
+						we unblock) we will leave the critical section as normal. */
+						taskYIELD();
+					}
+				}
+					
+				if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
+				{
+					/* There is room in the queue, copy the data into the queue. */			
+					prvCopyDataToQueue( pxQueue, pvItemToQueue, xCopyPosition );
+					xReturn = pdPASS;
+
+					if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
+					{
+						if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+						{
+							/* The task waiting has a higher priority. */
+							taskYIELD();
+						}
+					}			
+				}
+				else
+				{
+					xReturn = errQUEUE_FULL;
+
+					if( xTicksToWait > 0 )
+					{					
+						if( xTaskCheckForTimeOut( &xTimeOut, &xTicksToWait ) == pdFALSE )
+						{
+							/* Another task must have accessed the queue between 
+							this task unblocking and actually executing. */
+							xReturn = queueERRONEOUS_UNBLOCK;
+						}
+					}
+				}
+			}
+			while( xReturn == queueERRONEOUS_UNBLOCK );
+		}
+		taskEXIT_CRITICAL();
+
+		return xReturn;
+	}
+
+#endif /* configUSE_ALTERNATIVE_API */
+/*-----------------------------------------------------------*/
+
+#if configUSE_ALTERNATIVE_API == 1
+
+	signed portBASE_TYPE xQueueAltGenericReceive( xQueueHandle pxQueue, const void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking )
+	{
+	signed portBASE_TYPE xReturn = pdTRUE;
+	xTimeOutType xTimeOut;
+	signed portCHAR *pcOriginalReadPosition;
+
+		/* The source code that implements the alternative (Alt) API is much 
+		simpler	because it executes everything from within a critical section.  
+		This is	the approach taken by many other RTOSes, but FreeRTOS.org has the 
+		preferred fully featured API too.  The fully featured API has more 
+		complex	code that takes longer to execute, but makes much less use of 
+		critical sections.  Therefore the alternative API sacrifices interrupt 
+		responsiveness to gain execution speed, whereas the fully featured API
+		sacrifices execution speed to ensure better interrupt responsiveness.  */
+
+		taskENTER_CRITICAL();
+		{
+			/* Capture the current time status for future reference. */
+			vTaskSetTimeOutState( &xTimeOut );
+
+			do
+			{
+				/* If there are no messages in the queue we may have to block. */
+				if( pxQueue->uxMessagesWaiting == ( unsigned portBASE_TYPE ) 0 )
+				{
+					/* There are no messages in the queue, do we want to block or just
+					leave with nothing? */			
+					if( xTicksToWait > ( portTickType ) 0 )
+					{
+						#if ( configUSE_MUTEXES == 1 )
+						{
+							if( pxQueue->uxQueueType == queueQUEUE_IS_MUTEX )
+							{
+								vTaskPriorityInherit( ( void * const ) pxQueue->pxMutexHolder );
+							}
+						}
+						#endif
+						
+						vTaskPlaceOnEventList( &( pxQueue->xTasksWaitingToReceive ), xTicksToWait );
+						taskYIELD();
+					}
+				}
+			
+				if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
+				{
+					/* Remember our read position in case we are just peeking. */
+					pcOriginalReadPosition = pxQueue->pcReadFrom;
+
+					prvCopyDataFromQueue( pxQueue, pvBuffer );
+
+					if( xJustPeeking == pdFALSE )
+					{
+						/* We are actually removing data. */
+						--( pxQueue->uxMessagesWaiting );
+							
+						#if ( configUSE_MUTEXES == 1 )
+						{
+							if( pxQueue->uxQueueType == queueQUEUE_IS_MUTEX )
+							{
+								/* Record the information required to implement
+								priority inheritance should it become necessary. */
+								pxQueue->pxMutexHolder = xTaskGetCurrentTaskHandle();
+							}
+						}
+						#endif
+
+						if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
+						{
+							if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
+							{
+								/* The task waiting has a higher priority. */
+								taskYIELD();
+							}
+						}
+					}
+					else
+					{
+						/* We are not removing the data, so reset our read
+						pointer. */
+						pxQueue->pcReadFrom = pcOriginalReadPosition;
+					}
+					
+					xReturn = pdPASS;					
+				}
+				else
+				{
+					xReturn = errQUEUE_EMPTY;
+
+					if( xTicksToWait > 0 )
+					{
+						if( xTaskCheckForTimeOut( &xTimeOut, &xTicksToWait ) == pdFALSE )
+						{
+							xReturn = queueERRONEOUS_UNBLOCK;
+						}
+					}
+				}
+
+			} while( xReturn == queueERRONEOUS_UNBLOCK );
+		}
+		taskEXIT_CRITICAL();
+
+		return xReturn;
+	}
+
+#endif /* configUSE_ALTERNATIVE_API */
 /*-----------------------------------------------------------*/
 
 signed portBASE_TYPE xQueueGenericSendFromISR( xQueueHandle pxQueue, const void * const pvItemToQueue, signed portBASE_TYPE xTaskPreviouslyWoken, portBASE_TYPE xCopyPosition )

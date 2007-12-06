@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.6.1 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.7.0 - Copyright (C) 2003-2007 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -34,10 +34,10 @@
 	***************************************************************************
 */
 
-#include "queue.h"
-
 #ifndef SEMAPHORE_H
 #define SEMAPHORE_H
+
+#include "queue.h"
 
 typedef xQueueHandle xSemaphoreHandle;
 
@@ -84,12 +84,12 @@ typedef xQueueHandle xSemaphoreHandle;
  * \defgroup vSemaphoreCreateBinary vSemaphoreCreateBinary
  * \ingroup Semaphores
  */
-#define vSemaphoreCreateBinary( xSemaphore )		{																							\
-														xSemaphore = xQueueCreate( ( unsigned portCHAR ) 1, semSEMAPHORE_QUEUE_ITEM_LENGTH );	\
-														if( xSemaphore != NULL )																\
-														{																						\
-															xSemaphoreGive( xSemaphore );														\
-														}																						\
+#define vSemaphoreCreateBinary( xSemaphore )		{																								\
+														xSemaphore = xQueueCreate( ( unsigned portBASE_TYPE ) 1, semSEMAPHORE_QUEUE_ITEM_LENGTH );	\
+														if( xSemaphore != NULL )																	\
+														{																							\
+															xSemaphoreGive( xSemaphore );															\
+														}																							\
 													}
 
 /**
@@ -154,7 +154,21 @@ typedef xQueueHandle xSemaphoreHandle;
  * \defgroup xSemaphoreTake xSemaphoreTake
  * \ingroup Semaphores
  */
-#define xSemaphoreTake( xSemaphore, xBlockTime )	xQueueReceive( ( xQueueHandle ) xSemaphore, NULL, xBlockTime )
+#define xSemaphoreTake( xSemaphore, xBlockTime )		xQueueGenericReceive( ( xQueueHandle ) xSemaphore, NULL, xBlockTime, pdFALSE )
+
+/* 
+ * xSemaphoreAltTake() is an alternative version of xSemaphoreTake().
+ *
+ * The source code that implements the alternative (Alt) API is much 
+ * simpler	because it executes everything from within a critical section.  
+ * This is	the approach taken by many other RTOSes, but FreeRTOS.org has the 
+ * preferred fully featured API too.  The fully featured API has more 
+ * complex	code that takes longer to execute, but makes much less use of 
+ * critical sections.  Therefore the alternative API sacrifices interrupt 
+ * responsiveness to gain execution speed, whereas the fully featured API
+ * sacrifices execution speed to ensure better interrupt responsiveness.
+ */
+#define xSemaphoreAltTake( xSemaphore, xBlockTime )		xQueueAltGenericReceive( ( xQueueHandle ) xSemaphore, NULL, xBlockTime, pdFALSE )
 
 /**
  * semphr. h
@@ -213,7 +227,21 @@ typedef xQueueHandle xSemaphoreHandle;
  * \defgroup xSemaphoreGive xSemaphoreGive
  * \ingroup Semaphores
  */
-#define xSemaphoreGive( xSemaphore )				xQueueGenericSend( ( xQueueHandle ) xSemaphore, NULL, semGIVE_BLOCK_TIME, queueSEND_TO_BACK )
+#define xSemaphoreGive( xSemaphore )		xQueueGenericSend( ( xQueueHandle ) xSemaphore, NULL, semGIVE_BLOCK_TIME, queueSEND_TO_BACK )
+
+/* 
+ * xSemaphoreAltGive() is an alternative version of xSemaphoreGive().
+ *
+ * The source code that implements the alternative (Alt) API is much 
+ * simpler	because it executes everything from within a critical section.  
+ * This is	the approach taken by many other RTOSes, but FreeRTOS.org has the 
+ * preferred fully featured API too.  The fully featured API has more 
+ * complex	code that takes longer to execute, but makes much less use of 
+ * critical sections.  Therefore the alternative API sacrifices interrupt 
+ * responsiveness to gain execution speed, whereas the fully featured API
+ * sacrifices execution speed to ensure better interrupt responsiveness.
+ */
+#define xSemaphoreAltGive( xSemaphore )		xQueueAltGenericSend( ( xQueueHandle ) xSemaphore, NULL, semGIVE_BLOCK_TIME, queueSEND_TO_BACK )
 
 /**
  * semphr. h
@@ -311,7 +339,7 @@ typedef xQueueHandle xSemaphoreHandle;
  *
  * Mutex type semaphores cannot be used from within interrupt service routines.  
  *
- * See xSemaphoreCreateBinary() for an alternative implemnetation that can be 
+ * See xSemaphoreCreateBinary() for an alternative implementation that can be 
  * used for pure synchronisation (where one task or interrupt always 'gives' the 
  * semaphore and another always 'takes' the semaphore) and from within interrupt 
  * service routines.
@@ -341,6 +369,68 @@ typedef xQueueHandle xSemaphoreHandle;
  */
 #define xSemaphoreCreateMutex() xQueueCreateMutex()
 
+/**
+ * semphr. h
+ * <pre>xSemaphoreHandle xSemaphoreCreateCounting( uxCountValue, uxInitialCount )</pre>
+ *
+ * <i>Macro</i> that creates a counting semaphore by using the existing 
+ * queue mechanism.  
+ *
+ * Counting semaphores are typically used for two things:
+ *
+ * 1) Counting events.  
+ *
+ *    In this usage scenario an event handler will 'give' a semaphore each time
+ *    an event occurs (incrementing the semaphore count value), and a handler 
+ *    task will 'take' a semaphore each time it processes an event 
+ *    (decrementing the semaphore count value).  The count value is therefore 
+ *    the difference between the number of events that have occurred and the 
+ *    number that have been processed.  In this case it is desirable for the 
+ *    initial count value to be zero.
+ *
+ * 2) Resource management.
+ *
+ *    In this usage scenario the count value indicates the number of resources
+ *    available.  To obtain control of a resource a task must first obtain a 
+ *    semaphore - decrementing the semaphore count value.  When the count value
+ *    reaches zero there are no free resources.  When a task finishes with the
+ *    resource it 'gives' the semaphore back - incrementing the semaphore count
+ *    value.  In this case it is desirable for the initial count value to be
+ *    equal to the maximum count value, indicating that all resources are free.
+ *
+ * @param uxMaxCount The maximum count value that can be reached.  When the 
+ *        semaphore reaches this value it can no longer be 'given'.
+ *
+ * @param uxInitialCount The count value assigned to the semaphore when it is
+ *        created.
+ *
+ * @return Handle to the created semaphore.  Null if the semaphore could not be
+ *         created.
+ * 
+ * Example usage:
+ <pre>
+ xSemaphoreHandle xSemaphore;
+
+ void vATask( void * pvParameters )
+ {
+ xSemaphoreHandle xSemaphore = NULL;
+
+    // Semaphore cannot be used before a call to xSemaphoreCreateCounting().
+    // The max value to which the semaphore can count should be 10, and the
+    // initial value assigned to the count should be 0.
+    xSemaphore = xSemaphoreCreateCounting( 10, 0 );
+
+    if( xSemaphore != NULL )
+    {
+        // The semaphore was created successfully.
+        // The semaphore can now be used.  
+    }
+ }
+ </pre>
+ * \defgroup xSemaphoreCreateCounting xSemaphoreCreateCounting
+ * \ingroup Semaphores
+ */
+#define xSemaphoreCreateCounting( uxCountValue, uxInitialCount ) xQueueCreateCountingSemaphore( uxCountValue, uxInitialCount )
 
 #endif /* SEMAPHORE_H */
 
