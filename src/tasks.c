@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.7.0 - Copyright (C) 2003-2007 Richard Barry.
+	FreeRTOS.org V4.7.1 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -24,13 +24,19 @@
 	can be applied.
 
 	***************************************************************************
-	See http://www.FreeRTOS.org for documentation, latest information, license
-	and contact details.  Please ensure to read the configuration and relevant
-	port sections of the online documentation.
 
-	Also see http://www.SafeRTOS.com a version that has been certified for use
-	in safety critical systems, plus commercial licensing, development and
-	support options.
+	Please ensure to read the configuration and relevant port sections of the 
+	online documentation.
+
+	+++ http://www.FreeRTOS.org +++
+	Documentation, latest information, license and contact details.  
+
+	+++ http://www.SafeRTOS.com +++
+	A version that is certified for use in safety critical systems.
+
+	+++ http://www.OpenRTOS.com +++
+	Commercial support, development, porting, licensing and training services.
+
 	***************************************************************************
 */
 
@@ -1213,7 +1219,11 @@ signed portBASE_TYPE xAlreadyYielded = pdFALSE;
 					/* As we have processed some ticks it is appropriate to yield
 					to ensure the highest priority task that is ready to run is
 					the task actually running. */
-					xYieldRequired = pdTRUE;
+   					#if configUSE_PREEMPTION == 1
+					{
+						xYieldRequired = pdTRUE;
+					}
+					#endif
 				}
 				
 				if( ( xYieldRequired == pdTRUE ) || ( xMissedYield == pdTRUE ) )
@@ -1985,7 +1995,7 @@ tskTCB *pxNewTCB;
 			/* Adjust the mutex holder state to account for its new priority. */
 			listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), configMAX_PRIORITIES - ( portTickType ) pxCurrentTCB->uxPriority );
 
-			/* If the task being modified is in the read state it will need to
+			/* If the task being modified is in the ready state it will need to
 			be moved in to a new list. */
 			if( listIS_CONTAINED_WITHIN( &( pxReadyTasksLists[ pxTCB->uxPriority ] ), &( pxTCB->xGenericListItem ) ) )
 			{
