@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.7.1 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V4.7.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -487,9 +487,6 @@ unsigned portCHAR ucBlock;
 
 portBASE_TYPE xPortStartScheduler( void )
 {
-	/* In this port we ignore the parameter and use the configUSE_PREEMPTION
-	definition instead. */
-
 	/* Setup a timer for the tick ISR is using the preemptive scheduler. */
 	prvSetupTimerInterrupt(); 
 
