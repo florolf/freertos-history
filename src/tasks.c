@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.7.1 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V4.7.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -1339,7 +1339,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
 	{
 		portENTER_CRITICAL();
 		{
-			pcTraceBuffer = ( volatile signed portCHAR * volatile )pcBuffer;
+			pcTraceBuffer = ( signed portCHAR * )pcBuffer;
 			pcTraceBufferStart = pcBuffer;
 			pcTraceBufferEnd = pcBuffer + ( ulBufferSize - tskSIZE_OF_EACH_TRACE_LINE );
 			xTracing = pdTRUE;
