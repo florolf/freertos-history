@@ -24,21 +24,28 @@
     of http://www.FreeRTOS.org for full details of how and when the exception
     can be applied.
 
-	***************************************************************************
+    ***************************************************************************
+    ***************************************************************************
+    *                                                                         *
+    * SAVE TIME AND MONEY!  We can port FreeRTOS.org to your own hardware,    *
+    * and even write all or part of your application on your behalf.          *
+    * See http://www.OpenRTOS.com for details of the services we provide to   *
+    * expedite your project.                                                  *
+    *                                                                         *
+    ***************************************************************************
+    ***************************************************************************
 
-	Please ensure to read the configuration and relevant port sections of the 
+	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	+++ http://www.FreeRTOS.org +++
-	Documentation, latest information, license and contact details.  
+	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	contact details.
 
-	+++ http://www.SafeRTOS.com +++
-	A version that is certified for use in safety critical systems.
+	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	critical systems.
 
-	+++ http://www.OpenRTOS.com +++
-	Commercial support, development, porting, licensing and training services.
-
-	***************************************************************************
+	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	licensing and training services.
 */
 
 #ifndef PORTMACRO_H

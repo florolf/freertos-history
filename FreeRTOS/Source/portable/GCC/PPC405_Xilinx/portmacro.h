@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.8.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V4.7.1 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -50,6 +50,8 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+#include "xexception_l.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,47 +84,33 @@ extern "C" {
 #endif
 /*-----------------------------------------------------------*/	
 
+/* This port uses the critical nesting count from the TCB rather than
+maintaining a separate value and then saving this value in the task stack. */
+#define portCRITICAL_NESTING_IN_TCB		1
+
 /* Interrupt control macros. */
-void microblaze_disable_interrupts( void );
-void microblaze_enable_interrupts( void );
-#define portDISABLE_INTERRUPTS()	microblaze_disable_interrupts()
-#define portENABLE_INTERRUPTS()		microblaze_enable_interrupts()
+#define portDISABLE_INTERRUPTS()		XExc_mDisableExceptions( XEXC_NON_CRITICAL );
+#define portENABLE_INTERRUPTS()			XExc_mEnableExceptions( XEXC_NON_CRITICAL );
+
 /*-----------------------------------------------------------*/
 
 /* Critical section macros. */
-void vPortEnterCritical( void );
-void vPortExitCritical( void );
-#define portENTER_CRITICAL()		{														\
-										extern unsigned portBASE_TYPE uxCriticalNesting;	\
-										microblaze_disable_interrupts();					\
-										uxCriticalNesting++;								\
-									}
-									
-#define portEXIT_CRITICAL()			{														\
-										extern unsigned portBASE_TYPE uxCriticalNesting;	\
-										/* Interrupts are disabled, so we can */			\
-										/* access the variable directly. */					\
-										uxCriticalNesting--;								\
-										if( uxCriticalNesting == 0 )			\
-										{													\
-											/* The nesting has unwound and we 				\
-											can enable interrupts again. */					\
-											portENABLE_INTERRUPTS();						\
-										}													\
-									}
+void vTaskEnterCritical( void );
+void vTaskExitCritical( void );
+#define portENTER_CRITICAL()			vTaskEnterCritical()
+#define portEXIT_CRITICAL()				vTaskExitCritical()
 
 /*-----------------------------------------------------------*/
 
 /* Task utilities. */
 void vPortYield( void );
-#define portYIELD() vPortYield()
-
-void vTaskSwitchContext();
+#define portYIELD() asm volatile ( "SC \n\t NOP" )
 #define portYIELD_FROM_ISR() vTaskSwitchContext()
+
 /*-----------------------------------------------------------*/
 
 /* Hardware specifics. */
-#define portBYTE_ALIGNMENT			4
+#define portBYTE_ALIGNMENT			8
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 #define portNOP()					asm volatile ( "NOP" )
@@ -131,6 +119,10 @@ void vTaskSwitchContext();
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+
+/* Port specific interrupt handling functions. */
+void vPortSetupInterruptController( void );
+portBASE_TYPE xPortInstallInterruptHandler( unsigned portCHAR ucInterruptID, XInterruptHandler pxHandler, void *pvCallBackRef );
 
 #ifdef __cplusplus
 }

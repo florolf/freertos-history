@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.7.2 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V4.8.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -23,21 +23,28 @@
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
-	***************************************************************************
+    ***************************************************************************
+    ***************************************************************************
+    *                                                                         *
+    * SAVE TIME AND MONEY!  We can port FreeRTOS.org to your own hardware,    *
+    * and even write all or part of your application on your behalf.          *
+    * See http://www.OpenRTOS.com for details of the services we provide to   *
+    * expedite your project.                                                  *
+    *                                                                         *
+    ***************************************************************************
+    ***************************************************************************
 
-	Please ensure to read the configuration and relevant port sections of the 
+	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	+++ http://www.FreeRTOS.org +++
-	Documentation, latest information, license and contact details.  
+	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	contact details.
 
-	+++ http://www.SafeRTOS.com +++
-	A version that is certified for use in safety critical systems.
+	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	critical systems.
 
-	+++ http://www.OpenRTOS.com +++
-	Commercial support, development, porting, licensing and training services.
-
-	***************************************************************************
+	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	licensing and training services.
 */
 
 /*
@@ -60,7 +67,6 @@
 #define portNVIC_SYSTICK_LOAD		( ( volatile unsigned portLONG *) 0xe000e014 )
 #define portNVIC_INT_CTRL			( ( volatile unsigned portLONG *) 0xe000ed04 )
 #define portNVIC_SYSPRI2			( ( volatile unsigned portLONG *) 0xe000ed20 )
-#define portNVIC_SYSPRI1			( ( volatile unsigned portLONG *) 0xe000ed1c )
 #define portNVIC_SYSTICK_CLK		0x00000004
 #define portNVIC_SYSTICK_INT		0x00000002
 #define portNVIC_SYSTICK_ENABLE		0x00000001
@@ -88,16 +94,14 @@ unsigned portBASE_TYPE uxCriticalNesting = 0xaaaaaaaa;
 static void prvSetupTimerInterrupt( void );
 
 /*
- * Set the MSP/PSP to a known value.
+ * Exception handlers.
  */
-extern void vSetMSP( unsigned long ulValue );
-extern void vSetPSP( unsigned long ulValue );
+void xPortSysTickHandler( void );
 
 /*
- * Utilities called from the assembler code.
+ * Start first task is a separate function so it can be tested in isolation.
  */
-void vPortSwitchContext( void );
-void vPortIncrementTick( void );
+extern void vPortStartFirstTask( unsigned portLONG ulValue );
 
 /*-----------------------------------------------------------*/
 
@@ -112,7 +116,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	pxTopOfStack--;
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;	/* PC */
 	pxTopOfStack--;
-	*pxTopOfStack = 0xfffffffd;	/* LR */
+	*pxTopOfStack = 0;	/* LR */
 	pxTopOfStack -= 5;	/* R12, R3, R2 and R1. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;	/* R0 */
 	pxTopOfStack -= 9;	/* R11, R10, R9, R8, R7, R6, R5 and R4. */
@@ -136,12 +140,7 @@ portBASE_TYPE xPortStartScheduler( void )
 	prvSetupTimerInterrupt();
 	
 	/* Start the first task. */
-	vSetPSP( 0 );
-	vSetMSP( *((unsigned portLONG *) 0 ) );
-	*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;
-
-	/* Enable interrupts */
-	portENABLE_INTERRUPTS();
+	vPortStartFirstTask( *((unsigned portLONG *) 0 ) );
 
 	/* Should not get here! */
 	return 0;
@@ -183,6 +182,16 @@ void vPortExitCritical( void )
 }
 /*-----------------------------------------------------------*/
 
+void xPortSysTickHandler( void )
+{
+	vTaskIncrementTick();
+	
+	/* If using preemption, also force a context switch. */
+	#if configUSE_PREEMPTION == 1
+		*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;	
+	#endif
+}
+/*-----------------------------------------------------------*/
 
 /*
  * Setup the systick timer to generate the tick interrupts at the required
@@ -195,20 +204,4 @@ void prvSetupTimerInterrupt( void )
 	*(portNVIC_SYSTICK_CTRL) = portNVIC_SYSTICK_CLK | portNVIC_SYSTICK_INT | portNVIC_SYSTICK_ENABLE;
 }
 /*-----------------------------------------------------------*/
-
-void vPortSwitchContext( void )
-{
-	vPortSetInterruptMask();
-	vTaskSwitchContext();
-	vPortClearInterruptMask();
-}
-/*-----------------------------------------------------------*/
-
-void vPortIncrementTick( void )
-{
-	vPortSetInterruptMask();
-	vTaskIncrementTick();
-	vPortClearInterruptMask();
-}
-
 
