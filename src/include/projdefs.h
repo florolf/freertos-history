@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.8.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -50,7 +50,7 @@
 #ifndef PROJDEFS_H
 #define PROJDEFS_H
 
-/* Defines to prototype to which task functions must conform. */
+/* Defines the prototype to which task functions must conform. */
 typedef void (*pdTASK_CODE)( void * );
 
 #define pdTRUE		( 1 )

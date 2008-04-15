@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.8.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -66,6 +66,9 @@
 #include "portable.h"
 
 
+/* Defines the prototype to which the application task hook function must
+conform. */
+typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 
 
 
@@ -125,6 +128,10 @@
 	#error Missing definition:  configUSE_16_BIT_TICKS should be defined in FreeRTOSConfig.h as either 1 or 0.  See the Configuration section of the FreeRTOS API documentation for details.
 #endif
 
+#ifndef configUSE_APPLICATION_TASK_TAG
+	#define configUSE_APPLICATION_TASK_TAG 0
+#endif
+
 #ifndef INCLUDE_uxTaskGetStackHighWaterMark
 	#define INCLUDE_uxTaskGetStackHighWaterMark 0
 #endif
@@ -147,6 +154,27 @@
 
 #ifndef portCRITICAL_NESTING_IN_TCB
 	#define portCRITICAL_NESTING_IN_TCB 0
+#endif
+
+#ifndef configMAX_TASK_NAME_LEN
+	#define configMAX_TASK_NAME_LEN 16
+#endif
+
+#ifndef configIDLE_SHOULD_YIELD
+	#define configIDLE_SHOULD_YIELD		1
+#endif
+
+#if configMAX_TASK_NAME_LEN < 1
+	#undef configMAX_TASK_NAME_LEN
+	#define configMAX_TASK_NAME_LEN 1
+#endif
+
+#ifndef INCLUDE_xTaskResumeFromISR
+	#define INCLUDE_xTaskResumeFromISR 1
+#endif
+
+#ifndef INCLUDE_xTaskGetSchedulerState
+	#define INCLUDE_xTaskGetSchedulerState 0
 #endif
 
 #if ( configUSE_MUTEXES == 1 )
@@ -178,6 +206,12 @@
 	/* Called after a task has been selected to run.  pxCurrentTCB holds a pointer
 	to the task control block of the selected task. */
 	#define traceTASK_SWITCHED_IN()
+#endif
+
+#ifndef traceTASK_SWITCHED_OUT
+	/* Called before a task has been selected to run.  pxCurrentTCB holds a pointer
+	to the task control block of the task being switched out. */
+	#define traceTASK_SWITCHED_OUT()
 #endif
 
 #ifndef traceBLOCKING_ON_QUEUE_RECEIVE

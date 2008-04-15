@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V4.8.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -184,12 +184,12 @@ void vPortExitCritical( void )
 
 void xPortSysTickHandler( void )
 {
-	vTaskIncrementTick();
-	
 	/* If using preemption, also force a context switch. */
 	#if configUSE_PREEMPTION == 1
 		*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;	
 	#endif
+
+	vTaskIncrementTick();
 }
 /*-----------------------------------------------------------*/
 
@@ -200,7 +200,7 @@ void xPortSysTickHandler( void )
 void prvSetupTimerInterrupt( void )
 {
 	/* Configure SysTick to interrupt at the requested rate. */
-	*(portNVIC_SYSTICK_LOAD) = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
+	*(portNVIC_SYSTICK_LOAD) = ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;
 	*(portNVIC_SYSTICK_CTRL) = portNVIC_SYSTICK_CLK | portNVIC_SYSTICK_INT | portNVIC_SYSTICK_ENABLE;
 }
 /*-----------------------------------------------------------*/
