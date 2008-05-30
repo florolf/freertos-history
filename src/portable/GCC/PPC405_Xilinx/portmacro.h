@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -114,6 +114,10 @@ void vPortYield( void );
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 #define portNOP()					asm volatile ( "NOP" )
+
+/* There are 32 * 32bit floating point regieters, plus the FPSCR to save. */
+#define portNO_FLOP_REGISTERS_TO_SAVE  ( 32 + 1 )
+
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

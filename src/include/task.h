@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -66,7 +66,7 @@ extern "C" {
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V5.0.0"
+#define tskKERNEL_VERSION_NUMBER "V5.0.2"
 
 /**
  * task. h
@@ -287,38 +287,39 @@ void vTaskDelete( xTaskHandle pxTask );
  * INCLUDE_vTaskDelay must be defined as 1 for this function to be available.
  * See the configuration section for more information.
  *
+ *
+ * vTaskDelay() specifies a time at which the task wishes to unblock relative to
+ * the time at which vTaskDelay() is called.  For example, specifying a block 
+ * period of 100 ticks will cause the task to unblock 100 ticks after 
+ * vTaskDelay() is called.  vTaskDelay() does not therefore provide a good method
+ * of controlling the frequency of a cyclical task as the path taken through the 
+ * code, as well as other task and interrupt activity, will effect the frequency 
+ * at which vTaskDelay() gets called and therefore the time at which the task 
+ * next executes.  See vTaskDelayUntil() for an alternative API function designed 
+ * to facilitate fixed frequency execution.  It does this by specifying an 
+ * absolute time (rather than a relative time) at which the calling task should 
+ * unblock.
+ *
  * @param xTicksToDelay The amount of time, in tick periods, that
  * the calling task should block.
  *
  * Example usage:
-   <pre>
- // Wait 10 ticks before performing an action.
- // NOTE:
- // This is for demonstration only and would be better achieved
- // using vTaskDelayUntil ().
+
  void vTaskFunction( void * pvParameters )
  {
- portTickType xDelay, xNextTime;
-
-     // Calc the time at which we want to perform the action
-     // next.
-     xNextTime = xTaskGetTickCount () + ( portTickType ) 10;
+ void vTaskFunction( void * pvParameters )
+ {
+ // Block for 500ms.
+ const portTickType xDelay = 500 / portTICK_RATE_MS;
 
      for( ;; )
      {
-         xDelay = xNextTime - xTaskGetTickCount ();
-         xNextTime += ( portTickType ) 10;
-
-         // Guard against overflow
-         if( xDelay <= ( portTickType ) 10 )
-         {
-             vTaskDelay( xDelay );
-         }
-
-         // Perform action here.
+         // Simply toggle the LED every 500ms, blocking between each toggle.
+         vToggleLED();
+         vTaskDelay( xDelay );
      }
  }
-   </pre>
+
  * \defgroup vTaskDelay vTaskDelay
  * \ingroup TaskCtrl
  */
@@ -694,6 +695,10 @@ void vTaskEndScheduler( void );
  * without risk of being swapped out until a call to xTaskResumeAll () has been
  * made.
  *
+ * API functions that have the potential to cause a context switch (for example, 
+ * vTaskDelayUntil(), xQueueSend(), etc.) must not be called while the scheduler 
+ * is suspended.
+ *
  * Example usage:
    <pre>
  void vTask1( void * pvParameters )
@@ -782,6 +787,16 @@ void vTaskSuspendAll( void );
  */
 signed portBASE_TYPE xTaskResumeAll( void );
 
+/**
+ * task. h
+ * <pre>signed portBASE_TYPE xTaskIsTaskSuspended( xTaskHandle xTask );</pre>
+ *
+ * Utility task that simply returns pdTRUE if the task referenced by xTask is
+ * currently in the Suspended state, or pdFALSE if the task referenced by xTask
+ * is in any other state.
+ *
+ */
+signed portBASE_TYPE xTaskIsTaskSuspended( xTaskHandle xTask );
 
 /*-----------------------------------------------------------
  * TASK UTILITIES
@@ -930,7 +945,7 @@ portBASE_TYPE xTaskCallApplicationTaskHook( xTaskHandle xTask, void *pvParameter
  * for a finite period required removing from a blocked list and placing on
  * a ready list.
  */
-inline void vTaskIncrementTick( void );
+void vTaskIncrementTick( void );
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
@@ -993,7 +1008,7 @@ void vTaskCleanUpResources( void );
  * Sets the pointer to the current TCB to the TCB of the highest priority task
  * that is ready to run.
  */
-inline void vTaskSwitchContext( void );
+void vTaskSwitchContext( void );
 
 /*
  * Return the handle of the calling task.

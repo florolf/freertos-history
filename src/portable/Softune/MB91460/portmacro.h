@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -121,8 +121,6 @@
 
 #define portMINIMAL_STACK_SIZE configMINIMAL_STACK_SIZE
 
-/* Remove the inline statement from within the kernel code. */
-#define inline
 
 #endif /* PORTMACRO_H */
 

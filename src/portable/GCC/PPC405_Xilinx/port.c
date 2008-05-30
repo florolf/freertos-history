@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -67,7 +67,16 @@
 #define portCRITICAL_INTERRUPT_ENABLE	( 1UL << 17UL )
 #define portEXTERNAL_INTERRUPT_ENABLE	( 1UL << 15UL )
 #define portMACHINE_CHECK_ENABLE		( 1UL << 12UL )
-#define portINITIAL_MSR		( portCRITICAL_INTERRUPT_ENABLE | portEXTERNAL_INTERRUPT_ENABLE | portMACHINE_CHECK_ENABLE )
+
+#if configUSE_FPU == 1
+	#define portAPU_PRESENT				( 1UL << 25UL )
+	#define portFCM_FPU_PRESENT			( 1UL << 13UL )
+#else
+	#define portAPU_PRESENT				( 0UL )
+	#define portFCM_FPU_PRESENT			( 0UL )
+#endif
+
+#define portINITIAL_MSR		( portCRITICAL_INTERRUPT_ENABLE | portEXTERNAL_INTERRUPT_ENABLE | portMACHINE_CHECK_ENABLE | portAPU_PRESENT | portFCM_FPU_PRESENT )
 
 /*-----------------------------------------------------------*/
 
@@ -112,7 +121,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	pxTopOfStack--;
 
 	/* EABI stack frame. */
-	pxTopOfStack -= 28;	/* R31 to R4 inclusive. */
+	pxTopOfStack -= 30;	/* Previous backchain and LR, R31 to R4 inclusive. */
 
 	/* Parameters in R3. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;
@@ -185,12 +194,15 @@ const unsigned portLONG ulInterval = ( ( configCPU_CLOCK_HZ / configTICK_RATE_HZ
 }
 /*-----------------------------------------------------------*/
 
-void vPortISRHandler( void *vNullDoNotUse )
+void vPortISRHandler( void *pvNullDoNotUse )
 {
 unsigned portLONG ulInterruptStatus, ulInterruptMask = 1UL;
 portBASE_TYPE xInterruptNumber;
 XIntc_Config *pxInterruptController;
 XIntc_VectorTableEntry *pxTable;
+
+	/* Just to remove compiler warning. */
+	( void ) pvNullDoNotUse;	
 
 	/* Get the configuration by using the device ID - in this case it is
 	assumed that only one interrupt controller is being used. */

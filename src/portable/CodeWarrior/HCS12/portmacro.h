@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -215,8 +215,6 @@
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
-
-#define inline
 
 #endif /* PORTMACRO_H */
 

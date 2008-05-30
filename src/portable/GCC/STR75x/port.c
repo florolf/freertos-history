@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -192,7 +192,7 @@ TB_InitTypeDef      TB_InitStructure;
 	/* Setup the TB for the generation of the tick interrupt. */
 	TB_InitStructure.TB_Mode = TB_Mode_Timing;
 	TB_InitStructure.TB_CounterMode = TB_CounterMode_Down;
-	TB_InitStructure.TB_Prescaler = portPRESCALE;
+	TB_InitStructure.TB_Prescaler = portPRESCALE - 1;
 	TB_InitStructure.TB_AutoReload = ( ( configCPU_CLOCK_HZ / ( portPRESCALE + 1 ) ) / configTICK_RATE_HZ ) + 1;
 	TB_Init(&TB_InitStructure);
 	

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -186,6 +186,26 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 	#ifndef INCLUDE_xTaskGetCurrentTaskHandle
 		#define INCLUDE_xTaskGetCurrentTaskHandle 0
 	#endif
+#endif
+
+
+#ifndef portSET_INTERRUPT_MASK_FROM_ISR
+	#define portSET_INTERRUPT_MASK_FROM_ISR() 0
+#endif
+
+#ifndef portCLEAR_INTERRUPT_MASK_FROM_ISR
+	#define portCLEAR_INTERRUPT_MASK_FROM_ISR( uxSavedStatusValue ) ( void ) uxSavedStatusValue
+#endif
+
+
+#ifndef configQUEUE_REGISTRY_SIZE
+	#define configQUEUE_REGISTRY_SIZE 0
+#endif
+
+#if configQUEUE_REGISTRY_SIZE < 1
+	#define configQUEUE_REGISTRY_SIZE 0
+	#define vQueueAddToRegistry( xQueue, pcName )
+	#define vQueueUnregisterQueue( xQueue )
 #endif
 
 

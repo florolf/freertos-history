@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -769,7 +769,7 @@ void vQueueDelete( xQueueHandle xQueue );
  portBASE_TYPE xQueueSendToFrontFromISR(
                                          xQueueHandle pxQueue,
                                          const void *pvItemToQueue,
-                                         portBASE_TYPE xTaskPreviouslyWoken
+                                         portBASE_TYPE *pxHigherPriorityTaskWoken
                                       );
  </pre>
  *
@@ -840,7 +840,7 @@ void vQueueDelete( xQueueHandle xQueue );
  portBASE_TYPE xQueueSendToBackFromISR(
                                          xQueueHandle pxQueue,
                                          const void *pvItemToQueue,
-                                         portBASE_TYPE xTaskPreviouslyWoken
+                                         portBASE_TYPE *pxHigherPriorityTaskWoken
                                       );
  </pre>
  *
@@ -910,7 +910,7 @@ void vQueueDelete( xQueueHandle xQueue );
  portBASE_TYPE xQueueSendFromISR(
                                      xQueueHandle pxQueue,
                                      const void *pvItemToQueue,
-                                     portBASE_TYPE xTaskPreviouslyWoken
+                                     portBASE_TYPE *pxHigherPriorityTaskWoken
                                 );
  </pre>
  *
@@ -1202,6 +1202,32 @@ xQueueHandle xQueueCreateCountingSemaphore( unsigned portBASE_TYPE uxCountValue,
  */
 portBASE_TYPE xQueueTakeMutexRecursive( xQueueHandle xMutex, portTickType xBlockTime );
 portBASE_TYPE xQueueGiveMutexRecursive( xQueueHandle xMutex );
+
+/*
+ * The registry is provided as a means for kernel aware debuggers to
+ * locate queues, semaphores and mutexes.  Call vQueueAddToRegistry() add
+ * a queue, semaphore or mutex handle to the registry if you want the handle 
+ * to be available to a kernel aware debugger.  If you are not using a kernel 
+ * aware debugger then this function can be ignored.
+ *
+ * configQUEUE_REGISTRY_SIZE defines the maximum number of handles the
+ * registry can hold.  configQUEUE_REGISTRY_SIZE must be greater than 0 
+ * within FreeRTOSConfig.h for the registry to be available.  Its value
+ * does not effect the number of queues, semaphores and mutexes that can be 
+ * created - just the number that the registry can hold.
+ *
+ * @param xQueue The handle of the queue being added to the registry.  This
+ * is the handle returned by a call to xQueueCreate().  Semaphore and mutex
+ * handles can also be passed in here.
+ *
+ * @param pcName The name to be associated with the handle.  This is the
+ * name that the kernel aware debugger will display.
+ */
+#if configQUEUE_REGISTRY_SIZE > 0
+	void vQueueAddToRegistry( xQueueHandle xQueue, signed portCHAR *pcName );
+#endif
+
+
 
 
 #ifdef __cplusplus

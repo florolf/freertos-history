@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -78,6 +78,7 @@ zero. */
 #define queueSEMAPHORE_QUEUE_ITEM_LENGTH ( 0 )
 #define queueDONT_BLOCK					 ( ( portTickType ) 0 )
 #define queueMUTEX_GIVE_BLOCK_TIME		 ( ( portTickType ) 0 )
+
 /*
  * Definition of the queue used by the scheduler.
  * Items are queued by copy, not reference.
@@ -99,6 +100,7 @@ typedef struct QueueDefinition
 
 	signed portBASE_TYPE xRxLock;			/*< Stores the number of items received from the queue (removed from the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
 	signed portBASE_TYPE xTxLock;			/*< Stores the number of items transmitted to the queue (added to the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
+
 } xQUEUE;
 /*-----------------------------------------------------------*/
 
@@ -131,13 +133,44 @@ signed portBASE_TYPE xQueueIsQueueEmptyFromISR( const xQueueHandle pxQueue );
 signed portBASE_TYPE xQueueIsQueueFullFromISR( const xQueueHandle pxQueue );
 unsigned portBASE_TYPE uxQueueMessagesWaitingFromISR( const xQueueHandle pxQueue );
 
-
+/*
+ * Co-routine queue functions differ from task queue functions.  Co-routines are
+ * an optional component.
+ */
 #if configUSE_CO_ROUTINES == 1
 	signed portBASE_TYPE xQueueCRSendFromISR( xQueueHandle pxQueue, const void *pvItemToQueue, signed portBASE_TYPE xCoRoutinePreviouslyWoken );
 	signed portBASE_TYPE xQueueCRReceiveFromISR( xQueueHandle pxQueue, void *pvBuffer, signed portBASE_TYPE *pxTaskWoken );
 	signed portBASE_TYPE xQueueCRSend( xQueueHandle pxQueue, const void *pvItemToQueue, portTickType xTicksToWait );
 	signed portBASE_TYPE xQueueCRReceive( xQueueHandle pxQueue, void *pvBuffer, portTickType xTicksToWait );
 #endif
+
+/*
+ * The queue registry is just a means for kernel aware debuggers to locate
+ * queue structures.  It has no other purpose so is an optional component.
+ */
+#if configQUEUE_REGISTRY_SIZE > 0
+	
+	/* The type stored within the queue registry array.  This allows a name
+	to be assigned to each queue making kernel aware debugging a little 
+	more user friendly. */
+	typedef struct QUEUE_REGISTRY_ITEM
+	{
+		signed portCHAR *pcQueueName;
+		xQueueHandle xHandle;
+	} xQueueRegistryItem;
+
+	/* The queue registry is simply an array of xQueueRegistryItem structures.
+	The pcQueueName member of a structure being NULL is indicative of the
+	array position being vacant. */
+	xQueueRegistryItem xQueueRegistry[ configQUEUE_REGISTRY_SIZE ];
+
+	/* Removes a queue from the registry by simply setting the pcQueueName
+	member to NULL. */
+	static void vQueueUnregisterQueue( xQueueHandle xQueue );
+	void vQueueAddToRegistry( xQueueHandle xQueue, signed portCHAR *pcQueueName );
+
+#endif
+
 
 /*
  * Unlocks a queue locked by a call to prvLockQueue.  Locking a queue does not
@@ -690,9 +723,7 @@ xTimeOutType xTimeOut;
 							{
 								if( pxQueue->uxQueueType == queueQUEUE_IS_MUTEX )
 								{
-									portENTER_CRITICAL();
-										vTaskPriorityInherit( ( void * ) pxQueue->pxMutexHolder );
-									portEXIT_CRITICAL();
+									vTaskPriorityInherit( ( void * ) pxQueue->pxMutexHolder );
 								}
 							}
 							#endif
@@ -802,46 +833,51 @@ xTimeOutType xTimeOut;
 signed portBASE_TYPE xQueueGenericSendFromISR( xQueueHandle pxQueue, const void * const pvItemToQueue, signed portBASE_TYPE *pxHigherPriorityTaskWoken, portBASE_TYPE xCopyPosition )
 {
 signed portBASE_TYPE xReturn;
+unsigned portBASE_TYPE uxSavedInterruptStatus;
 
 	/* Similar to xQueueGenericSend, except we don't block if there is no room
 	in the queue.  Also we don't directly wake a task that was blocked on a
 	queue read, instead we return a flag to say whether a context switch is
 	required or not (i.e. has a task with a higher priority than us been woken
 	by this	post). */
-	if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
+	uxSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
 	{
-		traceQUEUE_SEND_FROM_ISR( pxQueue );
-
-		prvCopyDataToQueue( pxQueue, pvItemToQueue, xCopyPosition );
-
-		/* If the queue is locked we do not alter the event list.  This will
-		be done when the queue is unlocked later. */
-		if( pxQueue->xTxLock == queueUNLOCKED )
+		if( pxQueue->uxMessagesWaiting < pxQueue->uxLength )
 		{
-			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
+			traceQUEUE_SEND_FROM_ISR( pxQueue );
+	
+			prvCopyDataToQueue( pxQueue, pvItemToQueue, xCopyPosition );
+	
+			/* If the queue is locked we do not alter the event list.  This will
+			be done when the queue is unlocked later. */
+			if( pxQueue->xTxLock == queueUNLOCKED )
 			{
-				if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+				if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) )
 				{
-					/* The task waiting has a higher priority so record that a
-					context	switch is required. */
-					*pxHigherPriorityTaskWoken = pdTRUE;
+					if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+					{
+						/* The task waiting has a higher priority so record that a
+						context	switch is required. */
+						*pxHigherPriorityTaskWoken = pdTRUE;
+					}
 				}
 			}
+			else
+			{
+				/* Increment the lock count so the task that unlocks the queue
+				knows that data was posted while it was locked. */
+				++( pxQueue->xTxLock );
+			}
+	
+			xReturn = pdPASS;
 		}
 		else
 		{
-			/* Increment the lock count so the task that unlocks the queue
-			knows that data was posted while it was locked. */
-			++( pxQueue->xTxLock );
+			traceQUEUE_SEND_FROM_ISR_FAILED( pxQueue );
+			xReturn = errQUEUE_FULL;
 		}
-
-		xReturn = pdPASS;
 	}
-	else
-	{
-		traceQUEUE_SEND_FROM_ISR_FAILED( pxQueue );
-		xReturn = errQUEUE_FULL;
-	}
+	portCLEAR_INTERRUPT_MASK_FROM_ISR( uxSavedInterruptStatus );
 
 	return xReturn;
 }
@@ -1003,44 +1039,49 @@ signed portCHAR *pcOriginalReadPosition;
 signed portBASE_TYPE xQueueReceiveFromISR( xQueueHandle pxQueue, void * const pvBuffer, signed portBASE_TYPE *pxTaskWoken )
 {
 signed portBASE_TYPE xReturn;
+unsigned portBASE_TYPE uxSavedInterruptStatus;
 
-	/* We cannot block from an ISR, so check there is data available. */
-	if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
+	uxSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
 	{
-		traceQUEUE_RECEIVE_FROM_ISR( pxQueue );
-
-		prvCopyDataFromQueue( pxQueue, pvBuffer );
-		--( pxQueue->uxMessagesWaiting );
-
-		/* If the queue is locked we will not modify the event list.  Instead
-		we update the lock count so the task that unlocks the queue will know
-		that an ISR has removed data while the queue was locked. */
-		if( pxQueue->xRxLock == queueUNLOCKED )
+		/* We cannot block from an ISR, so check there is data available. */
+		if( pxQueue->uxMessagesWaiting > ( unsigned portBASE_TYPE ) 0 )
 		{
-			if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
+			traceQUEUE_RECEIVE_FROM_ISR( pxQueue );
+	
+			prvCopyDataFromQueue( pxQueue, pvBuffer );
+			--( pxQueue->uxMessagesWaiting );
+	
+			/* If the queue is locked we will not modify the event list.  Instead
+			we update the lock count so the task that unlocks the queue will know
+			that an ISR has removed data while the queue was locked. */
+			if( pxQueue->xRxLock == queueUNLOCKED )
 			{
-				if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
+				if( !listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToSend ) ) )
 				{
-					/* The task waiting has a higher priority than us so
-					force a context switch. */
-					*pxTaskWoken = pdTRUE;
+					if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToSend ) ) != pdFALSE )
+					{
+						/* The task waiting has a higher priority than us so
+						force a context switch. */
+						*pxTaskWoken = pdTRUE;
+					}
 				}
 			}
+			else
+			{
+				/* Increment the lock count so the task that unlocks the queue
+				knows that data was removed while it was locked. */
+				++( pxQueue->xRxLock );
+			}
+	
+			xReturn = pdPASS;
 		}
 		else
 		{
-			/* Increment the lock count so the task that unlocks the queue
-			knows that data was removed while it was locked. */
-			++( pxQueue->xRxLock );
+			xReturn = pdFAIL;
+			traceQUEUE_RECEIVE_FROM_ISR_FAILED( pxQueue );
 		}
-
-		xReturn = pdPASS;
 	}
-	else
-	{
-		xReturn = pdFAIL;
-		traceQUEUE_RECEIVE_FROM_ISR_FAILED( pxQueue );
-	}
+	portCLEAR_INTERRUPT_MASK_FROM_ISR( uxSavedInterruptStatus );
 
 	return xReturn;
 }
@@ -1071,7 +1112,7 @@ unsigned portBASE_TYPE uxReturn;
 void vQueueDelete( xQueueHandle pxQueue )
 {
 	traceQUEUE_DELETE( pxQueue );
-
+	vQueueUnregisterQueue( pxQueue );
 	vPortFree( pxQueue->pcHead );
 	vPortFree( pxQueue );
 }
@@ -1448,4 +1489,48 @@ signed portBASE_TYPE xReturn;
 }
 #endif
 /*-----------------------------------------------------------*/
+
+#if configQUEUE_REGISTRY_SIZE > 0
+
+	void vQueueAddToRegistry( xQueueHandle xQueue, signed portCHAR *pcQueueName )
+	{
+	unsigned portBASE_TYPE ux;
+
+		/* See if there is an empty space in the registry.  A NULL name denotes
+		a free slot. */
+		for( ux = 0; ux < configQUEUE_REGISTRY_SIZE; ux++ )
+		{
+			if( xQueueRegistry[ ux ].pcQueueName == NULL )
+			{
+				/* Store the information on this queue. */
+				xQueueRegistry[ ux ].pcQueueName = pcQueueName;
+				xQueueRegistry[ ux ].xHandle = xQueue;
+				break;
+			}
+		}
+	}
+
+#endif
+	/*-----------------------------------------------------------*/
+
+#if configQUEUE_REGISTRY_SIZE > 0
+
+	static void vQueueUnregisterQueue( xQueueHandle xQueue )
+	{
+	unsigned portBASE_TYPE ux;
+
+		/* See if the handle of the queue being unregistered in actually in the
+		registry. */
+		for( ux = 0; ux < configQUEUE_REGISTRY_SIZE; ux++ )
+		{
+			if( xQueueRegistry[ ux ].xHandle == xQueue )
+			{
+				/* Set the name to NULL to show that this slot if free again. */
+				xQueueRegistry[ ux ].pcQueueName = NULL;
+				break;
+			}
+		}	
+	}
+
+#endif
 

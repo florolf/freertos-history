@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -103,7 +103,7 @@
 /* Compiler specifics. */
 #define portINPUT_BYTE( xAddr )				inp( xAddr )
 #define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
-#define inline
+
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -51,20 +51,17 @@
 #include <sys/asm.h>
 #include "ISR_Support.h"
  
-#define portEXC_CODE_MASK ( 0x1f << 2 )
 
 	.set	nomips16
  	.set 	noreorder
  	
  	.extern pxCurrentTCB
- 	.extern uxCriticalNesting
  	.extern vTaskSwitchContext
- 	.extern vTaskIncrementTick
-	.extern vApplicationGeneralExceptionHandler
+ 	.extern vPortIncrementTick
 	.extern xISRStackTop
  	
  	.global vPortStartFirstTask
-	.global _general_exception_context
+	.global vPortYieldISR
 	.global vT1InterruptHandler
 
 
@@ -79,20 +76,8 @@ vT1InterruptHandler:
 
 	portSAVE_CONTEXT
 
-	jal 		vTaskIncrementTick
+	jal 		vPortIncrementTick
 	nop
-
-	/* If we are using the preemptive scheduler then we might want to select
-	a different task to execute. */
-	#if configUSE_PREEMPTION == 1
-		jal 		vTaskSwitchContext
-		nop
-	#endif /* configUSE_PREEMPTION */
-
-	/* Clear timer 0 interrupt. */
-	la			s1, IFS0CLR
-	addiu       s0,zero,_IFS0_T1IF_MASK
-	sw			s0, 0(s1)
 
 	portRESTORE_CONTEXT
 
@@ -113,58 +98,192 @@ vPortStartFirstTask:
 
 	.end xPortStartScheduler
 
+
+
 /*******************************************************************/
 
  	.section 	.FreeRTOS, "ax", @progbits
  	.set		noreorder
 	.set 		noat
- 	.ent		_general_exception_context
+ 	.ent		vPortYieldISR
 
-_general_exception_context:
+vPortYieldISR:
 
-	/* Save the context of the current task. */
-	portSAVE_CONTEXT
+	/* Make room for the context. First save the current status so we can 
+	manipulate it, and the cause and EPC registers so we capture their 
+	original values in case of interrupt nesting. */
+	mfc0		k0, _CP0_CAUSE
+	addiu		sp,	sp, -portCONTEXT_SIZE
+	mfc0		k1, _CP0_STATUS
 
-	/* Was this handler caused by a syscall?  The original Cause
-	value was saved to the stack as it could change as interrupts
-	nest.  Use of k registers must be protected from use by nesting
-	interrupts. */
-	lw			s7, portCAUSE_STACK_LOCATION(s5)
-	andi		s7, s7, portEXC_CODE_MASK
-	addi		s7, s7, -( _EXCCODE_SYS << 2 )
+	/* Also save s6 and s5 so we can use them during this interrupt.  Any
+	nesting interrupts should maintain the values of these registers
+	across the ISR. */
+	sw			s6, 44(sp)
+	sw			s5, 40(sp)
+	sw			k1, portSTATUS_STACK_LOCATION(sp)
 
-	/* Yes - call the SYSCALL handler to select a new task to execute. */
-	beq         s7, zero, SyscallHandler
-	nop
+	/* Enable interrupts above the current priority. */
+	srl			k0, k0, 0xa
+	ins 		k1, k0, 10, 6
+	ins			k1, zero, 1, 4
 
-	/* No - call the application handler to handle all other types of 
-	exception.  Pass the status and cause to the application provided 
-	handler.  Interrupts are disabled during the execution of the user
-	defined handler. */
-	di
-	lw			a1, portSTATUS_STACK_LOCATION(s5)
-	lw			a0, portCAUSE_STACK_LOCATION(s5)
-	jal			vApplicationGeneralExceptionHandler
-	nop
-	ei
-	beq 		zero, zero, FinishExceptionHandler
-	nop
+	/* s5 is used as the frame pointer. */
+	add			s5, zero, sp
 
-SyscallHandler:
+	/* Swap to the system stack.  This is not conditional on the nesting
+	count as this interrupt is always the lowest priority and therefore
+	the nesting is always 0. */
+	la			sp, xISRStackTop
+	lw			sp, (sp)
 
-	/* Adjust the return that was placed onto the stack to be the 
-	address of the instruction following the syscall.  s6 already
-	contains the EPC value. */
-	addi		s6, 4
+	/* Set the nesting count. */
+	la			k0, uxInterruptNesting
+	addiu		s6, zero, 1
+	sw			s6, 0(k0)
+
+	/* s6 holds the EPC value, this is saved with the rest of the context
+	after interrupts are enabled. */
+	mfc0 		s6, _CP0_EPC
+
+	/* Re-enable interrupts. */
+	mtc0		k1, _CP0_STATUS
+
+	/* Save the context into the space just created.  s6 is saved again
+	here as it now contains the EPC value. */
+	sw			ra,	120(s5)
+	sw			s8, 116(s5)
+	sw			t9, 112(s5)
+	sw			t8,	108(s5)
+	sw			t7,	104(s5)
+	sw			t6, 100(s5)
+	sw			t5, 96(s5)
+	sw			t4, 92(s5)
+	sw			t3, 88(s5)
+	sw			t2, 84(s5)
+	sw			t1, 80(s5)
+	sw			t0, 76(s5)
+	sw			a3, 72(s5)
+	sw			a2, 68(s5)
+	sw			a1, 64(s5)
+	sw			a0, 60(s5)
+	sw			v1, 56(s5)
+	sw			v0, 52(s5)
+	sw			s7, 48(s5)
 	sw			s6, portEPC_STACK_LOCATION(s5)
+	/* s5 and s6 has already been saved. */
+	sw			s4,	36(s5)
+	sw			s3, 32(s5)
+	sw			s2, 28(s5)
+	sw			s1, 24(s5)
+	sw			s0, 20(s5)
+	sw			$1, 16(s5)
+
+	/* s7 is used as a scratch register as this should always be saved across
+	nesting interrupts. */
+	mfhi		s7
+	sw			s7, 12(s5)
+	mflo		s7
+	sw			s7, 8(s5)
+
+	/* Save the stack pointer to the task. */
+	la			s7, pxCurrentTCB
+	lw			s7, (s7)
+	sw			s5, (s7)
+
+	/* Set the interrupt mask to the max priority that can use the API. */
+	di
+	mfc0		s7, _CP0_STATUS
+	ori			s7, s7, 1
+	ori			s6, s7, configMAX_SYSCALL_INTERRUPT_PRIORITY << 10
+
+	/* This mtc0 re-enables interrupts, but only above 
+	configMAX_SYSCALL_INTERRUPT_PRIORITY. */
+	mtc0		s6, _CP0_STATUS
+
+	/* Clear the software interrupt in the core. */
+	mfc0		s6, _CP0_CAUSE
+	addiu       s4,zero,-257
+	and			s6, s6, s4
+	mtc0		s6, _CP0_CAUSE
+
+	/* Clear the interrupt in the interrupt controller. */
+	la			s6, IFS0CLR
+	addiu		s4, zero, 2
+	sw			s4, (s6)
 
 	jal			vTaskSwitchContext
 	nop
 
-FinishExceptionHandler:
-	portRESTORE_CONTEXT
+	/* Clear the interrupt mask again.  The saved status value is still in s7. */
+	mtc0		s7, _CP0_STATUS
 
-	.end		_general_exception_context
+	/* Restore the stack pointer from the TCB. */
+	la			s0, pxCurrentTCB
+	lw			s0, (s0)
+	lw			s5, (s0)
+
+	/* Restore the rest of the context. */
+	lw			s0, 8(s5)
+	mtlo		s0
+	lw			s0, 12(s5)
+	mthi		s0
+	lw			$1, 16(s5)
+	lw			s0, 20(s5)
+	lw			s1, 24(s5)
+	lw			s2, 28(s5)
+	lw			s3, 32(s5)
+	lw			s4, 36(s5)
+	/* s5 is loaded later. */
+	lw			s6, 44(s5)
+	lw			s7, 48(s5)
+	lw			v0, 52(s5)
+	lw			v1, 56(s5)
+	lw			a0, 60(s5)
+	lw			a1, 64(s5)
+	lw			a2, 68(s5)
+	lw			a3, 72(s5)
+	lw			t0, 76(s5)
+	lw			t1, 80(s5)
+	lw			t2, 84(s5)
+	lw			t3, 88(s5)
+	lw			t4, 92(s5)
+	lw			t5, 96(s5)
+	lw			t6, 100(s5)
+	lw			t7, 104(s5)
+	lw			t8, 108(s5)
+	lw			t9, 112(s5)
+	lw			s8, 116(s5)
+	lw			ra, 120(s5)
+
+	/* Protect access to the k registers, and others. */
+	di
+
+	/* Set nesting back to zero.  As the lowest priority interrupt this
+	interrupt cannot have nested. */
+	la			k0, uxInterruptNesting
+	sw			zero, 0(k0)
+
+	/* Switch back to use the real stack pointer. */
+	add			sp, zero, s5
+
+	/* Restore the real s5 value. */
+	lw			s5, 40(sp)
+
+	/* Pop the status and epc values. */
+	lw			k1, portSTATUS_STACK_LOCATION(sp)
+	lw			k0, portEPC_STACK_LOCATION(sp)
+
+	/* Remove stack frame. */
+	addiu		sp,	sp,	portCONTEXT_SIZE
+
+	mtc0		k1, _CP0_STATUS
+	ehb	
+	mtc0 		k0, _CP0_EPC
+	eret 
+	nop
+
+	.end		vPortYieldISR
 
 
 

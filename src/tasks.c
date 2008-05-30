@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -60,7 +60,6 @@
  */
 #define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
 
-
 /*
  * Task control block.  A task control block (TCB) is allocated to each task,
  * and stores the context of the task.
@@ -91,6 +90,14 @@ typedef struct tskTaskControlBlock
 	#endif
 		
 } tskTCB;
+
+/*
+ * Some kernel aware debuggers require data to be viewed to be global, rather
+ * than file scope.
+ */
+#ifdef portREMOVE_STATIC_QUALIFIER
+	#define static
+#endif
 
 /*lint -e956 */
 
@@ -403,15 +410,6 @@ static tskTCB *prvAllocateTCBAndStack( unsigned portSHORT usStackDepth );
 
 #endif
 
-/*
- * Checks that a task being resumed (unsuspended) is actually in the Suspended
- * state.
- */
-#if ( INCLUDE_vTaskSuspend == 1 )
-
-	static portBASE_TYPE prvIsTaskSuspended( const tskTCB * const pxTCB );	
-
-#endif
 
 /*lint +e956 */
 
@@ -779,6 +777,11 @@ tskTCB * pxNewTCB;
 
 		taskENTER_CRITICAL();
 		{
+			if( pxTask == pxCurrentTCB )
+			{
+				pxTask = NULL;
+			}
+
 			/* If null is passed in here then we are changing the
 			priority of the calling function. */
 			pxTCB = prvGetTCBFromHandle( pxTask );
@@ -909,9 +912,10 @@ tskTCB * pxNewTCB;
 
 #if ( INCLUDE_vTaskSuspend == 1 )
 
-	static portBASE_TYPE prvIsTaskSuspended( const tskTCB * const pxTCB )
+	signed portBASE_TYPE xTaskIsTaskSuspended( xTaskHandle xTask )
 	{
 	portBASE_TYPE xReturn = pdFALSE;
+	const tskTCB * const pxTCB = ( tskTCB * ) xTask;
 
 		/* Is the task we are attempting to resume actually in the
 		suspended list? */
@@ -949,11 +953,11 @@ tskTCB * pxNewTCB;
 
 		/* The parameter cannot be NULL as it is impossible to resume the
 		currently executing task. */
-		if( pxTCB != NULL )
+		if( ( pxTCB != NULL ) && ( pxTCB != pxCurrentTCB ) )
 		{
 			taskENTER_CRITICAL();
 			{
-				if( prvIsTaskSuspended( pxTCB ) == pdTRUE )
+				if( xTaskIsTaskSuspended( pxTCB ) == pdTRUE )
 				{
 					traceTASK_RESUME( pxTCB );
 
@@ -988,7 +992,7 @@ tskTCB * pxNewTCB;
 
 		pxTCB = ( tskTCB * ) pxTaskToResume;
 
-		if( prvIsTaskSuspended( pxTCB ) == pdTRUE )
+		if( xTaskIsTaskSuspended( pxTCB ) == pdTRUE )
 		{
 			traceTASK_RESUME_FROM_ISR( pxTCB );
 
@@ -1282,7 +1286,7 @@ unsigned portBASE_TYPE uxNumberOfTasks;
  *----------------------------------------------------------*/
 
 
-inline void vTaskIncrementTick( void )
+void vTaskIncrementTick( void )
 {
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any

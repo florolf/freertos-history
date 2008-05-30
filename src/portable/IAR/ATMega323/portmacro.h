@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -114,10 +114,6 @@ void vPortYield( void );
 #ifdef IAR_MEGA_AVR
 	#define outb( PORT, VALUE ) PORT = VALUE
 #endif
-/*-----------------------------------------------------------*/
-
-/* Compiler specifics. */
-#define inline
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

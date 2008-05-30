@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -116,8 +116,11 @@ extern void vPortYield( void );
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 /*-----------------------------------------------------------*/
 
-/* Compiler specifics. */
-#define inline
+/* Required by the kernel aware debugger. */
+#ifdef __DEBUG
+	#define portREMOVE_STATIC_QUALIFIER
+#endif
+
 
 #define portNOP()				_asm	\
 									NOP \

@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -61,15 +61,18 @@
 /* Bits within various registers. */
 #define portIE_BIT					( 0x00000001 )
 #define portEXL_BIT					( 0x00000002 )
-#define portIPL_SHIFT				( 10 )
-#define portALL_IPL_BITS			( 0x1f << portIPL_SHIFT )
+#define portSW0_ENABLE				( 0x00000100 )
 
 /* The EXL bit is set to ensure interrupts do not occur while the context of
 the first task is being restored. */
-#define portINITIAL_SR				( portIE_BIT | portEXL_BIT )
+#define portINITIAL_SR				( portIE_BIT | portEXL_BIT | portSW0_ENABLE )
 
-/* Records the nesting depth of calls to portENTER_CRITICAL(). */
-unsigned portBASE_TYPE uxCriticalNesting = 0x55555555;
+/* Records the interrupt nesting depth.  This starts at one as it will be
+decremented to 0 when the first task starts. */
+volatile unsigned portBASE_TYPE uxInterruptNesting = 0x01;
+
+/* Stores the task stack pointer when a switch is made to use the system stack. */
+unsigned portBASE_TYPE uxSavedTaskStackPointer = 0;
 
 /* The stack used by interrupt service routines that cause a context switch. */
 portSTACK_TYPE xISRStack[ configISR_STACK_SIZE ] = { 0 };
@@ -81,11 +84,10 @@ const portBASE_TYPE * const xISRStackTop = &( xISRStack[ configISR_STACK_SIZE - 
 /* Place the prototype here to ensure the interrupt vector is correctly installed. */
 extern void __attribute__( (interrupt(ipl1), vector(_TIMER_1_VECTOR))) vT1InterruptHandler( void );
 
-/* 
- * General exception handler that will be called for all general exceptions
- * other than SYS.  This should be overridden by a user provided handler.
+/*
+ * The software interrupt handler that performs the yield.
  */
-void vApplicationGeneralExceptionHandler( unsigned portLONG ulCause, unsigned portLONG ulStatus ) __attribute__((weak));
+void __attribute__( (interrupt(ipl1), vector(_CORE_SOFTWARE_0_VECTOR))) vPortYieldISR( void );
 
 /*-----------------------------------------------------------*/
 
@@ -115,7 +117,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	*pxTopOfStack = (portSTACK_TYPE) pvParameters; /* Parameters to pass in */
 	pxTopOfStack -= 14;
 
-	*pxTopOfStack = (portSTACK_TYPE) 0x00000000; 	/* critical nesting level */
+	*pxTopOfStack = (portSTACK_TYPE) 0x00000000; 	/* critical nesting level - no longer used. */
 	pxTopOfStack--;
 	
 	return pxTopOfStack;
@@ -127,7 +129,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
  */
 void prvSetupTimerInterrupt( void )
 {
-const unsigned portLONG ulCompareMatch = (configPERIPHERAL_CLOCK_HZ / portTIMER_PRESCALE) / configTICK_RATE_HZ;
+const unsigned portLONG ulCompareMatch = ( (configPERIPHERAL_CLOCK_HZ / portTIMER_PRESCALE) / configTICK_RATE_HZ ) - 1;
 
 	OpenTimer1( ( T1_ON | T1_PS_1_8 | T1_SOURCE_INT ), ulCompareMatch );
 	ConfigIntTimer1( T1_INT_ON | configKERNEL_INTERRUPT_PRIORITY );
@@ -143,48 +145,21 @@ void vPortEndScheduler(void)
 }
 /*-----------------------------------------------------------*/
 
-void vPortEnterCritical(void)
-{
-unsigned portLONG ulStatus;
-
-	/* Mask interrupts at and below the kernel interrupt priority. */
-	ulStatus = _CP0_GET_STATUS();
-	ulStatus |= ( configKERNEL_INTERRUPT_PRIORITY << portIPL_SHIFT );
-	_CP0_SET_STATUS( ulStatus );
-
-	/* Once interrupts are disabled we can access the nesting count directly. */
-	uxCriticalNesting++;
-}
-/*-----------------------------------------------------------*/
-
-void vPortExitCritical(void)
-{
-unsigned portLONG ulStatus;
-
-	/* If we are in a critical section then we can access the nesting count
-	directly. */
-	uxCriticalNesting--;
-
-	/* Has the nesting unwound? */
-	if( uxCriticalNesting == 0 ) 
-	{
-		/* Unmask all interrupts. */
-		ulStatus = _CP0_GET_STATUS();
-		ulStatus &= ~portALL_IPL_BITS;
-		_CP0_SET_STATUS( ulStatus );
-	}
-}
-/*-----------------------------------------------------------*/
-
 portBASE_TYPE xPortStartScheduler( void )
 {
 extern void vPortStartFirstTask( void );
+extern void *pxCurrentTCB;
+
+	/* Setup the software interrupt. */
+	mConfigIntCoreSW0( CSW_INT_ON | CSW_INT_PRIOR_1 | CSW_INT_SUB_PRIOR_0 );
 
 	/* Setup the timer to generate the tick.  Interrupts will have been 
 	disabled by the time we get here. */
 	prvSetupTimerInterrupt();
 
-	/* Kick off the highest priority task that has been created so far. */
+	/* Kick off the highest priority task that has been created so far. 
+	Its stack location is loaded into uxSavedTaskStackPointer. */
+	uxSavedTaskStackPointer = *( unsigned portBASE_TYPE * ) pxCurrentTCB;
 	vPortStartFirstTask();
 
 	/* Should never get here as the tasks will now be executing. */
@@ -192,12 +167,42 @@ extern void vPortStartFirstTask( void );
 }
 /*-----------------------------------------------------------*/
 
-void vApplicationGeneralExceptionHandler( unsigned portLONG ulCause, unsigned portLONG ulStatus )
+void vPortIncrementTick( void )
 {
-	/* This function is declared weak and should be overridden by the users
-	application. */
-	while( 1 );
+unsigned portBASE_TYPE uxSavedStatus;
+
+	uxSavedStatus = uxPortSetInterruptMaskFromISR();
+		vTaskIncrementTick();
+	vPortClearInterruptMaskFromISR( uxSavedStatus );
+	
+	/* If we are using the preemptive scheduler then we might want to select
+	a different task to execute. */
+	#if configUSE_PREEMPTION == 1
+		SetCoreSW0();
+	#endif /* configUSE_PREEMPTION */
+
+	/* Clear timer 0 interrupt. */
+	mT1ClearIntFlag();
 }
+/*-----------------------------------------------------------*/
+
+unsigned portBASE_TYPE uxPortSetInterruptMaskFromISR( void )
+{
+unsigned portBASE_TYPE uxSavedStatusRegister;
+
+	asm volatile ( "di" );
+	uxSavedStatusRegister = _CP0_GET_STATUS() | 0x01;
+	_CP0_SET_STATUS( ( uxSavedStatusRegister | ( configMAX_SYSCALL_INTERRUPT_PRIORITY << portIPL_SHIFT ) ) );
+
+	return uxSavedStatusRegister;
+}
+/*-----------------------------------------------------------*/
+
+void vPortClearInterruptMaskFromISR( unsigned portBASE_TYPE uxSavedStatusRegister )
+{
+	_CP0_SET_STATUS( uxSavedStatusRegister );
+}
+/*-----------------------------------------------------------*/
 
 
 
