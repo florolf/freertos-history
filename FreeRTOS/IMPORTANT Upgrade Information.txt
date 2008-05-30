@@ -1,0 +1,21 @@
+*** VERY IMPORTANT INFORMATION ON UPGRADING TO FREERTOS.ORG V5.0.x ***
+
+The parameters to the functions xQueueSendFromISR(), xQueueSendToFrontFromISR(), 
+xQueueSendToBackFromISR() and xSemaphoreGiveFromISR() have changed.  You must
+update all calls to these functions to use the new calling convention!  Your
+compiler might not issue any type mismatch warnings!
+
+
+See http://www.FreeRTOS.org/upgrading.html for full information.
+
+
+It is understood that this change may cause some minor inconvenience.  The 
+change has been made in response to numerous change requests, and makes this
+family of API functions consistent with the calling convention used by
+xQueueReceiveFromISR().
+
+
+
+Remember - all calls to xQueueSendFromISR(), xQueueSendToFrontFromISR(), 
+xQueueSendToBackFromISR and xSemaphoreGiveFromISR() ***MUST*** be updated to 
+use the new calling convention.
