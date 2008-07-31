@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -162,7 +162,7 @@ unsigned portBASE_TYPE uxQueueMessagesWaitingFromISR( const xQueueHandle pxQueue
 	/* The queue registry is simply an array of xQueueRegistryItem structures.
 	The pcQueueName member of a structure being NULL is indicative of the
 	array position being vacant. */
-	xQueueRegistryItem xQueueRegistry[ configQUEUE_REGISTRY_SIZE ];
+	xQueueRegistryItem xQueueRegistry[ configQUEUE_REGISTRY_SIZE ] = { 0 };
 
 	/* Removes a queue from the registry by simply setting the pcQueueName
 	member to NULL. */

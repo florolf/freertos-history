@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -37,21 +37,14 @@
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
-*/
-
-/*
-	Change from V4.2.1:
-
-	+ Introduced usage of configKERNEL_INTERRUPT_PRIORITY macro to set the
-	  interrupt priority used by the kernel.
 */
 
 
@@ -93,7 +86,7 @@ extern "C" {
 /* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			4
+#define portBYTE_ALIGNMENT			8
 /*-----------------------------------------------------------*/	
 
 
@@ -113,10 +106,13 @@ extern void vPortExitCritical( void );
 extern void vPortSetInterruptMask( void );
 extern void vPortClearInterruptMask( void );
 
-#define portDISABLE_INTERRUPTS()	vPortSetInterruptMask();
-#define portENABLE_INTERRUPTS()		vPortClearInterruptMask();
-#define portENTER_CRITICAL()		vPortEnterCritical()
-#define portEXIT_CRITICAL()			vPortExitCritical()
+#define portDISABLE_INTERRUPTS()	vPortSetInterruptMask()
+#define portENABLE_INTERRUPTS()		vPortClearInterruptMask()
+#define portENTER_CRITICAL()					vPortEnterCritical()
+#define portEXIT_CRITICAL()						vPortExitCritical()
+#define portSET_INTERRUPT_MASK_FROM_ISR()		0;vPortSetInterruptMask()
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	vPortClearInterruptMask();(void)x
+
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */

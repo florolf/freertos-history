@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.2 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -37,13 +37,13 @@
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
 */
 
@@ -86,7 +86,7 @@ FreeRTOS.org versions prior to V4.3.0 did not include this definition. */
 
 /* Each task maintains its own interrupt status in the critical nesting
 variable. */
-unsigned portBASE_TYPE uxCriticalNesting = 0xaaaaaaaa;
+static unsigned portBASE_TYPE uxCriticalNesting = 0xaaaaaaaa;
 
 /*
  * Setup the timer to generate the tick interrupts.
@@ -101,7 +101,7 @@ void xPortSysTickHandler( void );
 /*
  * Start first task is a separate function so it can be tested in isolation.
  */
-extern void vPortStartFirstTask( unsigned portLONG ulValue );
+extern void vPortStartFirstTask( void );
 
 /*-----------------------------------------------------------*/
 
@@ -119,8 +119,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	*pxTopOfStack = 0;	/* LR */
 	pxTopOfStack -= 5;	/* R12, R3, R2 and R1. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;	/* R0 */
-	pxTopOfStack -= 9;	/* R11, R10, R9, R8, R7, R6, R5 and R4. */
-	*pxTopOfStack = 0x00000000; /* uxCriticalNesting. */
+	pxTopOfStack -= 8;	/* R11, R10, R9, R8, R7, R6, R5 and R4. */
 
 	return pxTopOfStack;
 }
@@ -139,8 +138,11 @@ portBASE_TYPE xPortStartScheduler( void )
 	here already. */
 	prvSetupTimerInterrupt();
 	
+	/* Initialise the critical nesting count ready for the first task. */
+	uxCriticalNesting = 0;
+
 	/* Start the first task. */
-	vPortStartFirstTask( *((unsigned portLONG *) 0 ) );
+	vPortStartFirstTask();
 
 	/* Should not get here! */
 	return 0;
@@ -158,10 +160,6 @@ void vPortYieldFromISR( void )
 {
 	/* Set a PendSV to request a context switch. */
 	*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;
-
-	/* This function is also called in response to a Yield(), so we want
-	the yield to occur immediately. */
-	portENABLE_INTERRUPTS();
 }
 /*-----------------------------------------------------------*/
 
@@ -184,12 +182,18 @@ void vPortExitCritical( void )
 
 void xPortSysTickHandler( void )
 {
+unsigned portLONG ulDummy;
+
 	/* If using preemption, also force a context switch. */
 	#if configUSE_PREEMPTION == 1
 		*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;	
 	#endif
 
-	vTaskIncrementTick();
+	ulDummy = portSET_INTERRUPT_MASK_FROM_ISR();
+	{
+		vTaskIncrementTick();
+	}
+	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulDummy );
 }
 /*-----------------------------------------------------------*/
 
