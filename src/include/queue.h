@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -46,6 +46,13 @@
 	http://www.OpenRTOS.com - Commercial support, development, porting, 
 	licensing and training services.
 */
+
+#ifndef INC_FREERTOS_H
+	#error "#include FreeRTOS.h" must appear in source files before "#include queue.h"
+#endif
+
+
+
 
 #ifndef QUEUE_H
 #define QUEUE_H

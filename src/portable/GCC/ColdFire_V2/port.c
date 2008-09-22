@@ -47,83 +47,110 @@
 	licensing and training services.
 */
 
+/* Kernel includes. */
+#include "FreeRTOS.h"
+#include "task.h"
 
-#ifndef PORTMACRO_H
-#define PORTMACRO_H
+#define portINITIAL_FORMAT_VECTOR		( ( portSTACK_TYPE ) 0x4000 )
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* Supervisor mode set. */
+#define portINITIAL_STATUS_REGISTER		( ( portSTACK_TYPE ) 0x2000)
 
-/*-----------------------------------------------------------
- * Port specific definitions.
- *
- * The settings in this file configure FreeRTOS correctly for the
- * given hardware and compiler.
- *
- * These settings should not be altered.
- *-----------------------------------------------------------
- */
-
-/* Type definitions. */
-#define portCHAR		char
-#define portFLOAT		float
-#define portDOUBLE		double
-#define portLONG		long
-#define portSHORT		short
-#define portSTACK_TYPE	unsigned portLONG
-#define portBASE_TYPE	long
-
-#if( configUSE_16_BIT_TICKS == 1 )
-	typedef unsigned portSHORT portTickType;
-	#define portMAX_DELAY ( portTickType ) 0xffff
-#else
-	typedef unsigned portLONG portTickType;
-	#define portMAX_DELAY ( portTickType ) 0xffffffff
-#endif
-/*-----------------------------------------------------------*/	
-
-/* Architecture specifics. */
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			8
-/*-----------------------------------------------------------*/	
-
-
-/* Scheduler utilities. */
-extern void vPortYieldFromISR( void );
-
-#define portYIELD()					vPortYieldFromISR()
-
-#define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
-/*-----------------------------------------------------------*/
-
-
-/* Critical section management. */
-
-extern void vPortEnterCritical( void );
-extern void vPortExitCritical( void );
-extern void vPortSetInterruptMask( void );
-extern void vPortClearInterruptMask( void );
-
-#define portDISABLE_INTERRUPTS()	vPortSetInterruptMask()
-#define portENABLE_INTERRUPTS()		vPortClearInterruptMask()
-#define portENTER_CRITICAL()					vPortEnterCritical()
-#define portEXIT_CRITICAL()						vPortExitCritical()
-#define portSET_INTERRUPT_MASK_FROM_ISR()		0;vPortSetInterruptMask()
-#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	vPortClearInterruptMask();(void)x
+/* Used to keep track of the number of nested calls to taskENTER_CRITICAL().  This
+will be set to 0 prior to the first task being started. */
+static unsigned portLONG ulCriticalNesting = 0x9999UL;
 
 /*-----------------------------------------------------------*/
 
-/* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE * pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
+{
+	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;
+	pxTopOfStack--;
 
-#define portNOP()
+	*pxTopOfStack = (portSTACK_TYPE) 0xDEADBEEF;
+	pxTopOfStack--;
 
-#ifdef __cplusplus
+	/* Exception stack frame starts with the return address. */
+	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;
+	pxTopOfStack--;
+
+	*pxTopOfStack = ( portINITIAL_FORMAT_VECTOR << 16UL ) | ( portINITIAL_STATUS_REGISTER );
+	pxTopOfStack--;
+
+	*pxTopOfStack = ( portSTACK_TYPE ) 0x0; /*FP*/
+	pxTopOfStack -= 14; /* A5 to D0. */
+
+    return pxTopOfStack;
 }
-#endif
+/*-----------------------------------------------------------*/
 
-#endif /* PORTMACRO_H */
+portBASE_TYPE xPortStartScheduler( void )
+{
+extern void vPortStartFirstTask( void );
+
+	ulCriticalNesting = 0UL;
+
+	/* Configure the interrupts used by this port. */
+	vApplicationSetupInterrupts();
+
+	/* Start the first task executing. */
+	vPortStartFirstTask();
+
+	return pdFALSE;
+}
+/*-----------------------------------------------------------*/
+
+void vPortEndScheduler( void )
+{
+	/* Not implemented as there is nothing to return to. */
+}
+/*-----------------------------------------------------------*/
+
+void vPortEnterCritical( void )
+{
+	if( ulCriticalNesting == 0UL )
+	{
+		/* Guard against context switches being pended simultaneously with a
+		critical section being entered. */
+		do
+		{
+			portDISABLE_INTERRUPTS();
+			if( MCF_INTC0_INTFRCL == 0UL )
+			{
+				break;
+			}
+
+			portENABLE_INTERRUPTS();
+
+		} while( 1 );
+	}
+	ulCriticalNesting++;
+}
+/*-----------------------------------------------------------*/
+
+void vPortExitCritical( void )
+{
+	ulCriticalNesting--;
+	if( ulCriticalNesting == 0 )
+	{
+		portENABLE_INTERRUPTS();
+	}
+}
+/*-----------------------------------------------------------*/
+
+void vPortYieldHandler( void )
+{
+unsigned portLONG ulSavedInterruptMask;
+
+	ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+		/* Note this will clear all forced interrupts - this is done for speed. */
+		MCF_INTC0_INTFRCL = 0;
+		vTaskSwitchContext();
+	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+}
+
+
+
+
+
 

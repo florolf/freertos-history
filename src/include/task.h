@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -47,11 +47,12 @@
 	licensing and training services.
 */
 
-/*
-Changes since V4.3.1:
 
-	+ Added xTaskGetSchedulerState() function.
-*/
+#ifndef INC_FREERTOS_H
+	#error "#include FreeRTOS.h" must appear in source files before "#include task.h"
+#endif
+
+
 
 #ifndef TASK_H
 #define TASK_H
@@ -66,7 +67,7 @@ extern "C" {
  * MACROS AND DEFINITIONS
  *----------------------------------------------------------*/
 
-#define tskKERNEL_VERSION_NUMBER "V5.0.2"
+#define tskKERNEL_VERSION_NUMBER "V5.0.4"
 
 /**
  * task. h
@@ -214,10 +215,13 @@ typedef struct xTIME_OUT
  // Function that creates a task.
  void vOtherFunction( void )
  {
- unsigned char ucParameterToPass;
+ static unsigned char ucParameterToPass;
  xTaskHandle xHandle;
 		
-     // Create the task, storing the handle.
+     // Create the task, storing the handle.  Note that the passed parameter ucParameterToPass
+     // must exist for the lifetime of the task, so in this case is declared static.  If it was just an
+     // an automatic stack variable it might no longer exist, or at least have been corrupted, by the time
+     // the new time attempts to access it.
      xTaskCreate( vTaskCode, "NAME", STACK_SIZE, &ucParameterToPass, tskIDLE_PRIORITY, &xHandle );
 		
      // Use the handle to delete the task.
