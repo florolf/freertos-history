@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.3 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -189,7 +189,7 @@ void vPortEndScheduler( void )
 void vPortYieldFromISR( void )
 {
 	/* Set a PendSV to request a context switch. */
-	*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;
+	*(portNVIC_INT_CTRL) = portNVIC_PENDSVSET;
 }
 /*-----------------------------------------------------------*/
 
@@ -251,7 +251,7 @@ unsigned portLONG ulDummy;
 
 	/* If using preemption, also force a context switch. */
 	#if configUSE_PREEMPTION == 1
-		*(portNVIC_INT_CTRL) |= portNVIC_PENDSVSET;
+		*(portNVIC_INT_CTRL) = portNVIC_PENDSVSET;
 	#endif
 
 	ulDummy = portSET_INTERRUPT_MASK_FROM_ISR();
