@@ -47,83 +47,106 @@
 	licensing and training services.
 */
 
-
-#ifndef PORTMACRO_H
-#define PORTMACRO_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*-----------------------------------------------------------
- * Port specific definitions.
+/*
+ * Purpose: Lowest level routines for all ColdFire processors.
  *
- * The settings in this file configure FreeRTOS correctly for the
- * given hardware and compiler.
- *
- * These settings should not be altered.
- *-----------------------------------------------------------
+ * Notes:
+ * 
+ * ulPortSetIPL() and mcf5xxx_wr_cacr() copied with permission from FreeScale
+ * supplied source files.
  */
 
-/* Type definitions. */
-#define portCHAR		char
-#define portFLOAT		float
-#define portDOUBLE		double
-#define portLONG		long
-#define portSHORT		short
-#define portSTACK_TYPE	unsigned portLONG
-#define portBASE_TYPE	long
+    .global ulPortSetIPL
+    .global _ulPortSetIPL
+    .global mcf5xxx_wr_cacrx
+    .global _mcf5xxx_wr_cacrx
+    .global vPortYieldISR
+    .global _vPortYieldISR
+    .global vPortStartFirstTask
+    .global _vPortStartFirstTask
+    .extern _pxCurrentTCB
+    .extern _vPortYieldHandler
 
-#if( configUSE_16_BIT_TICKS == 1 )
-	typedef unsigned portSHORT portTickType;
-	#define portMAX_DELAY ( portTickType ) 0xffff
-#else
-	typedef unsigned portLONG portTickType;
-	#define portMAX_DELAY ( portTickType ) 0xffffffff
-#endif
-/*-----------------------------------------------------------*/	
+    .text
 
-/* Architecture specifics. */
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			8
-/*-----------------------------------------------------------*/	
+.macro portSAVE_CONTEXT
+
+	lea.l		(-60, sp), sp
+	movem.l		d0-a6, (sp)
+	move.l		_pxCurrentTCB, a0
+	move.l		sp, (a0)
+
+	.endm
+
+.macro portRESTORE_CONTEXT
+
+	move.l		_pxCurrentTCB, a0
+	move.l		(a0), sp
+	movem.l		(sp), d0-a6
+	lea.l		(60, sp), sp
+	rte
+
+	.endm
+
+/********************************************************************/
+/*
+ * This routines changes the IPL to the value passed into the routine.
+ * It also returns the old IPL value back.
+ * Calling convention from C:
+ *   old_ipl = asm_set_ipl(new_ipl);
+ * For the Diab Data C compiler, it passes return value thru D0.
+ * Note that only the least significant three bits of the passed
+ * value are used.
+ */
+
+ulPortSetIPL:
+_ulPortSetIPL:
+    link    A6,#-8
+    movem.l D6-D7,(SP)
+
+    move.w  SR,D7       /* current sr    */
+
+    move.l  D7,D0       /* prepare return value  */
+    andi.l  #0x0700,D0  /* mask out IPL  */
+    lsr.l   #8,D0       /* IPL   */
+
+    move.l  8(A6),D6    /* get argument  */
+    andi.l  #0x07,D6    /* least significant three bits  */
+    lsl.l   #8,D6       /* move over to make mask    */
+
+    andi.l  #0x0000F8FF,D7  /* zero out current IPL  */
+    or.l    D6,D7           /* place new IPL in sr   */
+    move.w  D7,SR
+
+    movem.l (SP),D6-D7
+    lea     8(SP),SP
+    unlk    A6
+    rts
+/********************************************************************/
+
+mcf5xxx_wr_cacrx:
+_mcf5xxx_wr_cacrx:
+    move.l  4(sp),d0
+    .long   0x4e7b0002  /* movec d0,cacr   */
+    nop
+    rts
+
+/********************************************************************/
+
+/* Yield interrupt. */
+_vPortYieldISR:
+vPortYieldISR:
+	portSAVE_CONTEXT
+	jsr _vPortYieldHandler
+	portRESTORE_CONTEXT
+
+/********************************************************************/
 
 
-/* Scheduler utilities. */
-extern void vPortYieldFromISR( void );
+vPortStartFirstTask:
+_vPortStartFirstTask:
+	portRESTORE_CONTEXT
 
-#define portYIELD()					vPortYieldFromISR()
+    .end
 
-#define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
-/*-----------------------------------------------------------*/
-
-
-/* Critical section management. */
-
-extern void vPortEnterCritical( void );
-extern void vPortExitCritical( void );
-extern void vPortSetInterruptMask( void );
-extern void vPortClearInterruptMask( void );
-
-#define portDISABLE_INTERRUPTS()	vPortSetInterruptMask()
-#define portENABLE_INTERRUPTS()		vPortClearInterruptMask()
-#define portENTER_CRITICAL()					vPortEnterCritical()
-#define portEXIT_CRITICAL()						vPortExitCritical()
-#define portSET_INTERRUPT_MASK_FROM_ISR()		0;vPortSetInterruptMask()
-#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	vPortClearInterruptMask();(void)x
-
-/*-----------------------------------------------------------*/
-
-/* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
-
-#define portNOP()
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* PORTMACRO_H */
 

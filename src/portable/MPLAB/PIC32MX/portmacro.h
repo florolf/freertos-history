@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.1.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -87,7 +87,7 @@ extern "C" {
 
 /* Hardware specifics. */
 #define portBYTE_ALIGNMENT			4
-#define portSTACK_GROWTH			-4
+#define portSTACK_GROWTH			-1
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
 /*-----------------------------------------------------------*/
 

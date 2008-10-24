@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.1.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -118,8 +118,8 @@
 	#include "../../Source/portable/Rowley/MSP430F449/portmacro.h"
 #endif
 
-#ifdef KEIL_ARM7
-	#include "..\..\Source\portable\Keil\ARM7\portmacro.h"
+#ifdef ARM7_LPC21xx_KEIL_RVDS
+	#include "..\..\Source\portable\RVDS\ARM7_LPC21xx\portmacro.h"
 #endif
 
 #ifdef SAM7_GCC
@@ -202,6 +202,9 @@
 	#include "../../../source/portable/GCC/ColdFire_V2/portmacro.h"
 #endif
 
+#ifdef COLDFIRE_V2_CODEWARRIOR
+	#include "../../Source/portable/CodeWarrior/ColdFire_V2/portmacro.h"
+#endif
 
 #ifdef GCC_PPC405
 	#include "../../Source/portable/GCC/PPC405_Xilinx/portmacro.h"

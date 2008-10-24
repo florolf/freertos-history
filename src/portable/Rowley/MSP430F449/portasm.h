@@ -50,60 +50,53 @@
 #ifndef PORT_ASM_H
 #define PORT_ASM_H
 
-typedef void tskTCB;
-extern volatile tskTCB * volatile pxCurrentTCB;
-extern void vTaskSwitchContext( void );
+portSAVE_CONTEXT macro
+                /* Save the remaining registers. */
+		push	r4
+		push	r5
+		push	r6
+		push	r7
+		push	r8
+		push	r9
+		push	r10
+		push	r11
+		push	r12
+		push	r13
+		push	r14
+		push	r15
+		mov.w	&_usCriticalNesting, r14
+		push	r14
+		mov.w	&_pxCurrentTCB, r12
+		mov.w	r1, @r12
+		endm
+/*-----------------------------------------------------------*/
+		
+portRESTORE_CONTEXT macro
+		mov.w	&_pxCurrentTCB, r12
+		mov.w	@r12, r1
+		pop		r15
+		mov.w	r15, &_usCriticalNesting
+		pop		r15
+		pop		r14
+		pop		r13
+		pop		r12
+		pop		r11
+		pop		r10
+		pop		r9
+		pop		r8
+		pop		r7
+		pop		r6
+		pop		r5
+		pop		r4
 
-/*
- * Saves the stack pointer for one task into its TCB, calls
- * vTaskSwitchContext() to update the TCB being used, then restores the stack
- * from the new TCB read to run the task.
- */
-void portSWITCH_CONTEXT( void );
+		/* The last thing on the stack will be the status register.
+                Ensure the power down bits are clear ready for the next
+                time this power down register is popped from the stack. */
+		bic.w   #0xf0,0(SP)
 
-/*
- * Load the stack pointer from the TCB of the task which is going to be first
- * to execute.  Then force an IRET so the registers and IP are popped off the
- * stack.
- */
-void portFIRST_CONTEXT( void );
-
-/* There are slightly different versions depending on whether you are building
-to include debugger information.  If debugger information is used then there
-are a couple of extra bytes left of the ISR stack (presumably for use by the
-debugger).  The true stack pointer is then stored in the bp register.  We add
-2 to the stack pointer to remove the extra bytes before we restore our context. */
-
-#define portSWITCH_CONTEXT()											\
-							asm { mov	ax, seg pxCurrentTCB		}	\
-							asm { mov	ds, ax						}	\
-							asm { les	bx, pxCurrentTCB			}	/* Save the stack pointer into the TCB. */		\
-							asm { mov	es:0x2[ bx ], ss			}	\
-							asm { mov	es:[ bx ], sp				}	\
-							asm { call  far ptr vTaskSwitchContext	}	/* Perform the switch. */						\
-							asm { mov	ax, seg pxCurrentTCB		}	/* Restore the stack pointer from the TCB. */	\
-							asm { mov	ds, ax						}	\
-							asm { les	bx, dword ptr pxCurrentTCB	}	\
-							asm { mov	ss, es:[ bx + 2 ]			}	\
-							asm { mov	sp, es:[ bx ]				}
-
-#define portFIRST_CONTEXT()												\
-							__asm { mov	ax, seg pxCurrentTCB		}	\
-							__asm { mov	ds, ax						}	\
-							__asm { les	bx, dword ptr pxCurrentTCB	}	\
-							__asm { mov	ss, es:[ bx + 2 ]			}	\
-							__asm { mov	sp, es:[ bx ]				}	\
-							__asm { pop	bp							}	\
-							__asm { pop	di							}	\
-							__asm { pop	si							}	\
-							__asm { pop	ds							}	\
-							__asm { pop	es							}	\
-							__asm { pop	dx							}	\
-							__asm { pop	cx							}	\
-							__asm { pop	bx							}	\
-							__asm { pop	ax							}	\
-							__asm { iret							}
-
+		reti
+		endm
+/*-----------------------------------------------------------*/
 
 #endif
 

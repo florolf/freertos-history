@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.0.4 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.1.0 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -138,11 +138,12 @@ extern void vPortYield( void );
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters ) __toplevel
 
+#if configINTERRUPT_EXAMPLE_METHOD == 2
 
-/* Just used by the demo application to indicate which form of interrupt 
-service routine should be used.  See the online port documentation for more
-information. */
-#define MSP_ROWLEY_RB_PORT
+extern void vTaskSwitchContext( void );
+#define portYIELD_FROM_ISR( x ) if( x ) vTaskSwitchContext()
+
+#endif
 
 #endif /* PORTMACRO_H */
 

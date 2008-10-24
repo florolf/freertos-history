@@ -51,6 +51,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+
 #define portINITIAL_FORMAT_VECTOR		( ( portSTACK_TYPE ) 0x4000 )
 
 /* Supervisor mode set. */
@@ -59,6 +60,22 @@
 /* Used to keep track of the number of nested calls to taskENTER_CRITICAL().  This
 will be set to 0 prior to the first task being started. */
 static unsigned portLONG ulCriticalNesting = 0x9999UL;
+
+
+#define portSAVE_CONTEXT()				\
+	lea.l		(-60, %sp), %sp;		\
+	movem.l		%d0-%fp, (%sp);			\
+	move.l		pxCurrentTCB, %a0;		\
+	move.l		%sp, (%a0);
+
+#define portRESTORE_CONTEXT()			\
+	move.l		pxCurrentTCB, %a0;		\
+	move.l		(%a0), %sp;				\
+	movem.l		(%sp), %d0-%fp;			\
+	lea.l		%sp@(60), %sp;			\
+	rte
+
+
 
 /*-----------------------------------------------------------*/
 
@@ -115,7 +132,7 @@ void vPortEnterCritical( void )
 		do
 		{
 			portDISABLE_INTERRUPTS();
-			if( MCF_INTC0_INTFRCL == 0UL )
+			if( MCF_INTC0_INTFRCH == 0UL )
 			{
 				break;
 			}
@@ -148,9 +165,5 @@ unsigned portLONG ulSavedInterruptMask;
 		vTaskSwitchContext();
 	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
 }
-
-
-
-
-
+/*-----------------------------------------------------------*/
 
