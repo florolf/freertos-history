@@ -19,7 +19,7 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS.org, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
@@ -37,62 +37,70 @@
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
 */
 
-typedef void tskTCB;
-extern volatile tskTCB * volatile pxCurrentTCB;
-extern void vTaskSwitchContext( void );
+#ifndef PORTASM_H
+#define PORTASM_H
 
-/*
- * Saves the stack pointer for one task into its TCB, calls
- * vTaskSwitchContext() to update the TCB being used, then restores the stack
- * from the new TCB read to run the task.
- */
-void portSWITCH_CONTEXT( void );
+portSAVE_CONTEXT macro
 
-/*
- * Load the stack pointer from the TCB of the task which is going to be first
- * to execute.  Then force an IRET so the registers and IP are popped off the
- * stack.
- */
-void portFIRST_CONTEXT( void );
+		IMPORT pxCurrentTCB
+		IMPORT usCriticalNesting
 
-#define portSWITCH_CONTEXT()										 \
-						asm { mov	ax, seg pxCurrentTCB		} \
-							asm { mov	ds, ax						}  \
-							asm { les	bx, pxCurrentTCB			}	/* Save the stack pointer into the TCB. */    \
-							asm { mov	es:0x2[ bx ], ss			}   \
-							asm { mov	es:[ bx ], sp				}   \
-							asm { call  far ptr vTaskSwitchContext	}	/* Perform the switch. */   \
-							asm { mov	ax, seg pxCurrentTCB		}	/* Restore the stack pointer from the TCB. */  \
-							asm { mov	ds, ax						}   \
-							asm { les	bx, dword ptr pxCurrentTCB	}   \
-							asm { mov	ss, es:[ bx + 2 ]			}      \
-							asm { mov	sp, es:[ bx ]				}
+		/* Save the remaining registers. */
+		push	r4
+		push	r5
+		push	r6
+		push	r7
+		push	r8
+		push	r9
+		push	r10
+		push	r11
+		push	r12
+		push	r13
+		push	r14
+		push	r15
+		mov.w	&usCriticalNesting, r14
+		push	r14
+		mov.w	&pxCurrentTCB, r12
+		mov.w	r1, 0(r12)
+		endm
+/*-----------------------------------------------------------*/
+		
+portRESTORE_CONTEXT macro
+		mov.w	&pxCurrentTCB, r12
+		mov.w	@r12, r1
+		pop		r15
+		mov.w	r15, &usCriticalNesting
+		pop		r15
+		pop		r14
+		pop		r13
+		pop		r12
+		pop		r11
+		pop		r10
+		pop		r9
+		pop		r8
+		pop		r7
+		pop		r6
+		pop		r5
+		pop		r4
 
-#define portFIRST_CONTEXT()												\
-							asm { mov	ax, seg pxCurrentTCB		}	\
-							asm { mov	ds, ax						}	\
-							asm { les	bx, dword ptr pxCurrentTCB	}	\
-							asm { mov	ss, es:[ bx + 2 ]			}	\
-							asm { mov	sp, es:[ bx ]				}	\
-							asm { pop	bp							}	\
-							asm { pop	di							}	\
-							asm { pop	si							}	\
-							asm { pop	ds							}	\
-							asm { pop	es							}	\
-							asm { pop	dx							}	\
-							asm { pop	cx							}	\
-							asm { pop	bx							}	\
-							asm { pop	ax							}	\
-							asm { iret								}
+		/* The last thing on the stack will be the status register.
+        Ensure the power down bits are clear ready for the next
+        time this power down register is popped from the stack. */
+		bic.w   #0xf0,0(SP)
 
+		reti
+		endm
+/*-----------------------------------------------------------*/
+
+#endif
 

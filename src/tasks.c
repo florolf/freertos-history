@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.1.0 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.1.1 - Copyright (C) 2003-2008 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -1832,7 +1832,7 @@ tskTCB *pxNewTCB;
 #endif
 /*-----------------------------------------------------------*/
 
-#if ( INCLUDE_uxTaskGetStackHighWaterMark == 1 )
+#if ( ( configUSE_TRACE_FACILITY == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) )
 
 	unsigned portSHORT usTaskCheckFreeStackSpace( const unsigned portCHAR * pucStackByte )
 	{

@@ -19,7 +19,7 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS.org, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
@@ -37,62 +37,92 @@
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
 */
+#include "FreeRTOSConfig.h"
+#include "portasm.h"
 
-typedef void tskTCB;
-extern volatile tskTCB * volatile pxCurrentTCB;
-extern void vTaskSwitchContext( void );
+	IMPORT vTaskIncrementTick
+	IMPORT vTaskSwitchContext
+	IMPORT vPortSetupTimerInterrupt
+
+	EXPORT vTickISR
+	EXPORT vPortYield
+	EXPORT xPortStartScheduler
+	
+	RSEG CODE
 
 /*
- * Saves the stack pointer for one task into its TCB, calls
- * vTaskSwitchContext() to update the TCB being used, then restores the stack
- * from the new TCB read to run the task.
+ * The RTOS tick ISR.
+ *
+ * If the cooperative scheduler is in use this simply increments the tick
+ * count.
+ *
+ * If the preemptive scheduler is in use a context switch can also occur.
  */
-void portSWITCH_CONTEXT( void );
+vTickISR:
+	portSAVE_CONTEXT
+				
+	call	#vTaskIncrementTick
+
+	#if configUSE_PREEMPTION == 1
+		call	#vTaskSwitchContext
+	#endif
+		
+	portRESTORE_CONTEXT
+/*-----------------------------------------------------------*/
+
 
 /*
- * Load the stack pointer from the TCB of the task which is going to be first
- * to execute.  Then force an IRET so the registers and IP are popped off the
- * stack.
+ * Manual context switch called by the portYIELD() macro.
  */
-void portFIRST_CONTEXT( void );
+vPortYield:
 
-#define portSWITCH_CONTEXT()										 \
-						asm { mov	ax, seg pxCurrentTCB		} \
-							asm { mov	ds, ax						}  \
-							asm { les	bx, pxCurrentTCB			}	/* Save the stack pointer into the TCB. */    \
-							asm { mov	es:0x2[ bx ], ss			}   \
-							asm { mov	es:[ bx ], sp				}   \
-							asm { call  far ptr vTaskSwitchContext	}	/* Perform the switch. */   \
-							asm { mov	ax, seg pxCurrentTCB		}	/* Restore the stack pointer from the TCB. */  \
-							asm { mov	ds, ax						}   \
-							asm { les	bx, dword ptr pxCurrentTCB	}   \
-							asm { mov	ss, es:[ bx + 2 ]			}      \
-							asm { mov	sp, es:[ bx ]				}
+	/* Mimic an interrupt by pushing the SR. */
+	push	SR			
 
-#define portFIRST_CONTEXT()												\
-							asm { mov	ax, seg pxCurrentTCB		}	\
-							asm { mov	ds, ax						}	\
-							asm { les	bx, dword ptr pxCurrentTCB	}	\
-							asm { mov	ss, es:[ bx + 2 ]			}	\
-							asm { mov	sp, es:[ bx ]				}	\
-							asm { pop	bp							}	\
-							asm { pop	di							}	\
-							asm { pop	si							}	\
-							asm { pop	ds							}	\
-							asm { pop	es							}	\
-							asm { pop	dx							}	\
-							asm { pop	cx							}	\
-							asm { pop	bx							}	\
-							asm { pop	ax							}	\
-							asm { iret								}
+	/* Now the SR is stacked we can disable interrupts. */
+	dint			
+				
+	/* Save the context of the current task. */
+	portSAVE_CONTEXT			
+
+	/* Switch to the highest priority task that is ready to run. */
+	call	#vTaskSwitchContext		
+
+	/* Restore the context of the new task. */
+	portRESTORE_CONTEXT
+/*-----------------------------------------------------------*/
 
 
+/*
+ * Start off the scheduler by initialising the RTOS tick timer, then restoring
+ * the context of the first task.
+ */
+xPortStartScheduler:
+
+	/* Setup the hardware to generate the tick.  Interrupts are disabled
+	when this function is called. */
+	call	#vPortSetupTimerInterrupt
+
+	/* Restore the context of the first task that is going to run. */
+	portRESTORE_CONTEXT
+/*-----------------------------------------------------------*/
+      		
+
+	/* Install vTickISR as the timer A0 interrupt. */
+	ASEG
+	ORG 0xFFE0 + TIMERA0_VECTOR
+	
+	_vTickISR_: DC16 vTickISR
+	
+
+	END
+		

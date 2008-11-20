@@ -19,7 +19,7 @@
 
 	A special exception to the GPL can be applied should you wish to distribute
 	a combined work that includes FreeRTOS.org, without being obliged to provide
-	the source code for any proprietary components.  See the licensing section 
+	the source code for any proprietary components.  See the licensing section
 	of http://www.FreeRTOS.org for full details of how and when the exception
 	can be applied.
 
@@ -37,13 +37,13 @@
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
 */
 
@@ -55,7 +55,7 @@
  * Implementation of functions defined in portable.h for the MSP430 port.
  *----------------------------------------------------------*/
 
-/* Constants required for hardware setup.  The tick ISR runs off the ACLK, 
+/* Constants required for hardware setup.  The tick ISR runs off the ACLK,
 not the MCLK. */
 #define portACLK_FREQUENCY_HZ			( ( portTickType ) 32768 )
 #define portINITIAL_CRITICAL_NESTING	( ( unsigned portSHORT ) 10 )
@@ -66,9 +66,9 @@ any details of its type. */
 typedef void tskTCB;
 extern volatile tskTCB * volatile pxCurrentTCB;
 
-/* Each task maintains a count of the critical section nesting depth.  Each 
-time a critical section is entered the count is incremented.  Each time a 
-critical section is exited the count is decremented - with interrupts only 
+/* Each task maintains a count of the critical section nesting depth.  Each
+time a critical section is entered the count is incremented.  Each time a
+critical section is exited the count is decremented - with interrupts only
 being re-enabled if the count is zero.
 
 usCriticalNesting will get set to zero when the scheduler starts, but must
@@ -82,19 +82,19 @@ volatile unsigned portSHORT usCriticalNesting = portINITIAL_CRITICAL_NESTING;
  * Sets up the periodic ISR used for the RTOS tick.  This uses timer 0, but
  * could have alternatively used the watchdog timer or timer 1.
  */
-void prvSetupTimerInterrupt( void );
+void vPortSetupTimerInterrupt( void );
 /*-----------------------------------------------------------*/
 
-/* 
- * Initialise the stack of a task to look exactly as if a call to 
+/*
+ * Initialise the stack of a task to look exactly as if a call to
  * portSAVE_CONTEXT had been called.
- * 
+ *
  * See the header file portable.h.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
-	/* 
-		Place a few bytes of known values on the bottom of the stack. 
+	/*
+		Place a few bytes of known values on the bottom of the stack.
 		This is just useful for debugging and can be included if required.
 
 		*pxTopOfStack = ( portSTACK_TYPE ) 0x1111;
@@ -102,10 +102,10 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 		*pxTopOfStack = ( portSTACK_TYPE ) 0x2222;
 		pxTopOfStack--;
 		*pxTopOfStack = ( portSTACK_TYPE ) 0x3333;
-		pxTopOfStack--; 
+		pxTopOfStack--;
 	*/
 
-	/* The msp430 automatically pushes the PC then SR onto the stack before 
+	/* The msp430 automatically pushes the PC then SR onto the stack before
 	executing an ISR.  We want the stack to look just as if this has happened
 	so place a pointer to the start of the task on the stack first - followed
 	by the flags we want the task to use when it starts up. */
@@ -130,21 +130,22 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	*pxTopOfStack = ( portSTACK_TYPE ) 0xaaaa;
 	pxTopOfStack--;
 	*pxTopOfStack = ( portSTACK_TYPE ) 0xbbbb;
-	pxTopOfStack--;
-	*pxTopOfStack = ( portSTACK_TYPE ) 0xcccc;
-	pxTopOfStack--;
-	*pxTopOfStack = ( portSTACK_TYPE ) 0xdddd;
-	pxTopOfStack--;
-	*pxTopOfStack = ( portSTACK_TYPE ) 0xeeee;
-	pxTopOfStack--;
-
+	pxTopOfStack--;	
+	
 	/* When the task starts is will expect to find the function parameter in
 	R15. */
 	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;
 	pxTopOfStack--;
+	
+	*pxTopOfStack = ( portSTACK_TYPE ) 0xdddd;
+	pxTopOfStack--;
+	*pxTopOfStack = ( portSTACK_TYPE ) 0xeeee;
+	pxTopOfStack--;
+	*pxTopOfStack = ( portSTACK_TYPE ) 0xffff;
+	pxTopOfStack--;
 
-	/* A variable is used to keep track of the critical section nesting.  
-	This variable has to be stored as part of the task context and is 
+	/* A variable is used to keep track of the critical section nesting.
+	This variable has to be stored as part of the task context and is
 	initially set to zero. */
 	*pxTopOfStack = ( portSTACK_TYPE ) portNO_CRITICAL_SECTION_NESTING;	
 
@@ -163,9 +164,9 @@ void vPortEndScheduler( void )
 
 /*
  * Hardware initialisation to generate the RTOS tick.  This uses timer 0
- * but could alternatively use the watchdog timer or timer 1. 
+ * but could alternatively use the watchdog timer or timer 1.
  */
-void prvSetupTimerInterrupt( void )
+void vPortSetupTimerInterrupt( void )
 {
 	/* Ensure the timer is stopped. */
 	TACTL = 0;
