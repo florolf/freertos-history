@@ -1,5 +1,5 @@
 /*
-	FreeRTOS.org V5.1.1 - Copyright (C) 2003-2008 Richard Barry.
+	FreeRTOS.org V5.1.2 - Copyright (C) 2003-2009 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
@@ -26,10 +26,13 @@
     ***************************************************************************
     ***************************************************************************
     *                                                                         *
-    * SAVE TIME AND MONEY!  We can port FreeRTOS.org to your own hardware,    *
-    * and even write all or part of your application on your behalf.          *
-    * See http://www.OpenRTOS.com for details of the services we provide to   *
-    * expedite your project.                                                  *
+    * Get the FreeRTOS eBook!  See http://www.FreeRTOS.org/Documentation      *
+	*                                                                         *
+	* This is a concise, step by step, 'hands on' guide that describes both   *
+	* general multitasking concepts and FreeRTOS specifics. It presents and   *
+	* explains numerous examples that are written using the FreeRTOS API.     *
+	* Full source code for all the examples is provided in an accompanying    *
+	* .zip file.                                                              *
     *                                                                         *
     ***************************************************************************
     ***************************************************************************
@@ -57,12 +60,12 @@
 /* Include the macro file relevant to the port being used. */
 
 #ifdef OPEN_WATCOM_INDUSTRIAL_PC_PORT
-	#include "..\..\source\portable\owatcom\16bitdos\pc\portmacro.h"
+	#include "..\..\Source\portable\owatcom\16bitdos\pc\portmacro.h"
 	typedef void ( __interrupt __far *pxISR )();
 #endif
 
 #ifdef OPEN_WATCOM_FLASH_LITE_186_PORT
-	#include "..\..\source\portable\owatcom\16bitdos\flsh186\portmacro.h"
+	#include "..\..\Source\portable\owatcom\16bitdos\flsh186\portmacro.h"
 	typedef void ( __interrupt __far *pxISR )();
 #endif
 
@@ -83,7 +86,7 @@
 #endif
 
 #ifdef MPLAB_PIC18F_PORT
-	#include "..\..\source\portable\MPLAB\PIC18F\portmacro.h"
+	#include "..\..\Source\portable\MPLAB\PIC18F\portmacro.h"
 #endif
 
 #ifdef MPLAB_PIC32MX_PORT
@@ -132,6 +135,10 @@
 
 #ifdef SAM7_IAR
 	#include "..\..\Source\portable\IAR\AtmelSAM7S64\portmacro.h"
+#endif
+
+#ifdef SAM9XE_IAR
+	#include "..\..\Source\portable\IAR\AtmelSAM9XE\portmacro.h"
 #endif
 
 #ifdef LPC2000_IAR
@@ -203,7 +210,7 @@
 #endif
 
 #ifdef COLDFIRE_V2_GCC
-	#include "../../../source/portable/GCC/ColdFire_V2/portmacro.h"
+	#include "../../../Source/portable/GCC/ColdFire_V2/portmacro.h"
 #endif
 
 #ifdef COLDFIRE_V2_CODEWARRIOR
@@ -214,6 +221,9 @@
 	#include "../../Source/portable/GCC/PPC405_Xilinx/portmacro.h"
 #endif
 
+#ifdef _16FX_SOFTUNE
+	#include "..\..\Source\portable\Softune\MB96340\portmacro.h"
+#endif
 
 #ifdef BCC_INDUSTRIAL_PC_PORT
 	/* A short file name has to be used in place of the normal
@@ -253,9 +263,39 @@
 	#include "portmacro.h"
 #endif
 
+
+#ifdef __IAR_V850ES_Fx3__
+	#include "../../Source/portable/IAR/V850ES/portmacro.h"
+#endif
+
+#ifdef __IAR_V850ES_Jx3__
+	#include "../../Source/portable/IAR/V850ES/portmacro.h"
+#endif
+
+#ifdef __IAR_V850ES_Jx3_L__
+	#include "../../Source/portable/IAR/V850ES/portmacro.h"
+#endif
+
+#ifdef __IAR_V850ES_Jx2__
+	#include "../../Source/portable/IAR/V850ES/portmacro.h"
+#endif
+
+#ifdef __IAR_V850ES_Hx2__
+	#include "../../Source/portable/IAR/V850ES/portmacro.h"
+#endif
+
+#ifdef __IAR_78K0R_Kx3__
+	#include "../../Source/portable/IAR/78K0R/portmacro.h"
+#endif
+	
+#ifdef __IAR_78K0R_Kx3L__
+	#include "../../Source/portable/IAR/78K0R/portmacro.h"
+#endif
+	
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /*
  * Setup the stack of a new task so it is ready to be placed under the
  * scheduler control.  The registers have to be placed on the stack in
