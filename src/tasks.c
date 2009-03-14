@@ -1,52 +1,51 @@
 /*
-	FreeRTOS.org V5.1.2 - Copyright (C) 2003-2009 Richard Barry.
+	FreeRTOS.org V5.2.0 - Copyright (C) 2003-2009 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
-	FreeRTOS.org is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
+	FreeRTOS.org is free software; you can redistribute it and/or modify it 
+	under the terms of the GNU General Public License (version 2) as published
+	by the Free Software Foundation and modified by the FreeRTOS exception.
 
-	FreeRTOS.org is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+	FreeRTOS.org is distributed in the hope that it will be useful,	but WITHOUT
+	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+	more details.
 
-	You should have received a copy of the GNU General Public License
-	along with FreeRTOS.org; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License along 
+	with FreeRTOS.org; if not, write to the Free Software Foundation, Inc., 59 
+	Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
-	A special exception to the GPL can be applied should you wish to distribute
-	a combined work that includes FreeRTOS.org, without being obliged to provide
+	A special exception to the GPL is included to allow you to distribute a 
+	combined work that includes FreeRTOS.org without being obliged to provide
 	the source code for any proprietary components.  See the licensing section
-	of http://www.FreeRTOS.org for full details of how and when the exception
-	can be applied.
+	of http://www.FreeRTOS.org for full details.
 
-    ***************************************************************************
-    ***************************************************************************
-    *                                                                         *
-    * Get the FreeRTOS eBook!  See http://www.FreeRTOS.org/Documentation      *
+
+	***************************************************************************
+	*                                                                         *
+	* Get the FreeRTOS eBook!  See http://www.FreeRTOS.org/Documentation      *
 	*                                                                         *
 	* This is a concise, step by step, 'hands on' guide that describes both   *
 	* general multitasking concepts and FreeRTOS specifics. It presents and   *
 	* explains numerous examples that are written using the FreeRTOS API.     *
 	* Full source code for all the examples is provided in an accompanying    *
 	* .zip file.                                                              *
-    *                                                                         *
-    ***************************************************************************
-    ***************************************************************************
+	*                                                                         *
+	***************************************************************************
+
+	1 tab == 4 spaces!
 
 	Please ensure to read the configuration and relevant port sections of the
 	online documentation.
 
-	http://www.FreeRTOS.org - Documentation, latest information, license and 
+	http://www.FreeRTOS.org - Documentation, latest information, license and
 	contact details.
 
-	http://www.SafeRTOS.com - A version that is certified for use in safety 
+	http://www.SafeRTOS.com - A version that is certified for use in safety
 	critical systems.
 
-	http://www.OpenRTOS.com - Commercial support, development, porting, 
+	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
 */
 
@@ -143,9 +142,7 @@ static volatile unsigned portBASE_TYPE uxSchedulerSuspended		= ( unsigned portBA
 static volatile unsigned portBASE_TYPE uxMissedTicks			= ( unsigned portBASE_TYPE ) 0;
 static volatile portBASE_TYPE xMissedYield						= ( portBASE_TYPE ) pdFALSE;
 static volatile portBASE_TYPE xNumOfOverflows					= ( portBASE_TYPE ) 0;
-#if ( configUSE_TRACE_FACILITY == 1 )
-	static unsigned portBASE_TYPE uxTaskNumber = 0; /*lint !e956 Static is deliberate - this is guarded before use. */
-#endif
+static unsigned portBASE_TYPE uxTaskNumber = 0;
 
 /* Debugging and trace facilities private variables and macros. ------------*/
 
@@ -438,9 +435,9 @@ tskTCB * pxNewTCB;
 			{
 				/* Add a counter into the TCB for tracing only. */
 				pxNewTCB->uxTCBNumber = uxTaskNumber;
-				uxTaskNumber++;
 			}
 			#endif
+			uxTaskNumber++;
 
 			prvAddTaskToReadyQueue( pxNewTCB );
 
@@ -518,6 +515,10 @@ tskTCB * pxNewTCB;
 			there is a task that has been deleted and that it should therefore
 			check the xTasksWaitingTermination list. */
 			++uxTasksDeleted;
+
+			/* Increment the uxTaskNumberVariable also so kernel aware debuggers
+			can detect that the task lists need re-generating. */			
+			uxTaskNumber++;
 		}
 		taskEXIT_CRITICAL();
 
@@ -1014,9 +1015,9 @@ void vTaskEndScheduler( void )
 
 void vTaskSuspendAll( void )
 {
-	portENTER_CRITICAL();
-		++uxSchedulerSuspended;
-	portEXIT_CRITICAL();
+	/* A critical section is not required as the variable is of type
+	portBASE_TYPE. */
+	++uxSchedulerSuspended;
 }
 /*----------------------------------------------------------*/
 
@@ -1119,13 +1120,9 @@ portTickType xTicks;
 
 unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void )
 {
-unsigned portBASE_TYPE uxNumberOfTasks;
-
-	taskENTER_CRITICAL();
-		uxNumberOfTasks = uxCurrentNumberOfTasks;
-	taskEXIT_CRITICAL();
-
-	return uxNumberOfTasks;
+	/* A critical section is not required because the variables are of type
+	portBASE_TYPE. */
+	return uxCurrentNumberOfTasks;
 }
 /*-----------------------------------------------------------*/
 
@@ -1351,7 +1348,8 @@ void vTaskIncrementTick( void )
 			xTCB = ( tskTCB * ) xTask;
 		}
 		
-		/* Save the hook function in the TCB. */
+		/* Save the hook function in the TCB.  A critical section is required as
+		the value can be accessed from an interrupt. */
 		portENTER_CRITICAL();
 			xTCB->pxTaskTag = pxTagValue;
 		portEXIT_CRITICAL();
@@ -1899,15 +1897,10 @@ tskTCB *pxNewTCB;
 
 	xTaskHandle xTaskGetCurrentTaskHandle( void )
 	{
-	xTaskHandle xReturn;
-
-		portENTER_CRITICAL();
-		{
-			xReturn = ( xTaskHandle ) pxCurrentTCB;
-		}
-		portEXIT_CRITICAL();
-
-		return xReturn;
+		/* A critical section is not required as this is not called from
+		an interrupt and the current TCB will always be the same for any
+		individual execution thread. */
+		return pxCurrentTCB;
 	}
 
 #endif
