@@ -1,25 +1,25 @@
 /*
-	FreeRTOS.org V5.2.0 - Copyright (C) 2003-2009 Richard Barry.
+	FreeRTOS.org V5.3.0 - Copyright (C) 2003-2009 Richard Barry.
 
 	This file is part of the FreeRTOS.org distribution.
 
-	FreeRTOS.org is free software; you can redistribute it and/or modify it 
+	FreeRTOS.org is free software; you can redistribute it and/or modify it
 	under the terms of the GNU General Public License (version 2) as published
 	by the Free Software Foundation and modified by the FreeRTOS exception.
+	**NOTE** The exception to the GPL is included to allow you to distribute a
+	combined work that includes FreeRTOS.org without being obliged to provide
+	the source code for any proprietary components.  Alternative commercial
+	license and support terms are also available upon request.  See the 
+	licensing section of http://www.FreeRTOS.org for full details.
 
 	FreeRTOS.org is distributed in the hope that it will be useful,	but WITHOUT
-	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 	more details.
 
-	You should have received a copy of the GNU General Public License along 
-	with FreeRTOS.org; if not, write to the Free Software Foundation, Inc., 59 
+	You should have received a copy of the GNU General Public License along
+	with FreeRTOS.org; if not, write to the Free Software Foundation, Inc., 59
 	Temple Place, Suite 330, Boston, MA  02111-1307  USA.
-
-	A special exception to the GPL is included to allow you to distribute a 
-	combined work that includes FreeRTOS.org without being obliged to provide
-	the source code for any proprietary components.  See the licensing section
-	of http://www.FreeRTOS.org for full details.
 
 
 	***************************************************************************
@@ -372,6 +372,26 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 
 #ifndef traceTASK_INCREMENT_TICK
 	#define traceTASK_INCREMENT_TICK( xTickCount )
+#endif
+
+#ifndef configGENERATE_RUN_TIME_STATS
+	#define configGENERATE_RUN_TIME_STATS 0
+#endif
+
+#if ( configGENERATE_RUN_TIME_STATS == 1 )
+
+	#ifndef portCONFIGURE_TIMER_FOR_RUN_TIME_STATS
+		#error If configGENERATE_RUN_TIME_STATS is defined then portCONFIGURE_TIMER_FOR_RUN_TIME_STATS must also be defined.  portCONFIGURE_TIMER_FOR_RUN_TIME_STATS should call a port layer function to setup a peripheral timer/counter that can then be used as the run time counter time base.
+	#endif /* portCONFIGURE_TIMER_FOR_RUN_TIME_STATS */
+
+	#ifndef portGET_RUN_TIME_COUNTER_VALUE
+		#error If configGENERATE_RUN_TIME_STATS is defined then portGET_RUN_TIME_COUNTER_VALUE must also be defined.  portGET_RUN_TIME_COUNTER_VALUE should evaluate to the counter value of the timer/counter peripheral used as the run time counter time base.
+	#endif /* portGET_RUN_TIME_COUNTER_VALUE */
+
+#endif /* configGENERATE_RUN_TIME_STATS */
+
+#ifndef portCONFIGURE_TIMER_FOR_RUN_TIME_STATS
+	#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()
 #endif
 
 #endif /* INC_FREERTOS_H */
