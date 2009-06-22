@@ -49,77 +49,106 @@
 	licensing and training services.
 */
 
-        .global _vPortYield
-		.extern _vTaskSwitchContext
-		.extern uxCriticalNesting
+/*
+ * Purpose: Lowest level routines for all ColdFire processors.
+ *
+ * Notes:
+ * 
+ * ulPortSetIPL() and mcf5xxx_wr_cacr() copied with permission from FreeScale
+ * supplied source files.
+ */
 
-_vPortYield:
+    .global ulPortSetIPL
+    .global _ulPortSetIPL
+    .global mcf5xxx_wr_cacrx
+    .global _mcf5xxx_wr_cacrx
+    .global vPortYieldISR
+    .global _vPortYieldISR
+    .global vPortStartFirstTask
+    .global _vPortStartFirstTask
+    .extern _pxCurrentTCB
+    .extern _vPortYieldHandler
 
-		PUSH	SR						/* Save the SR used by the task.... */
-		PUSH	W0						/* ....then disable interrupts. */
-		MOV		#32, W0
-		MOV		W0, SR
-		PUSH	W1						/* Save registers to the stack. */
-		PUSH.D	W2
-		PUSH.D	W4
-		PUSH.D	W6
-		PUSH.D 	W8
-		PUSH.D 	W10
-		PUSH.D	W12
-		PUSH	W14
-		PUSH	RCOUNT
-		PUSH	TBLPAG
-		PUSH	ACCAL
-		PUSH	ACCAH
-		PUSH	ACCAU
-		PUSH	ACCBL
-		PUSH	ACCBH
-		PUSH	ACCBU
-		PUSH	DCOUNT
-		PUSH	DOSTARTL
-		PUSH	DOSTARTH
-		PUSH	DOENDL
-		PUSH	DOENDH
-		
-																						
-		PUSH	CORCON
-		PUSH	PSVPAG
-		MOV		_uxCriticalNesting, W0		/* Save the critical nesting counter for the task. */
-		PUSH	W0
-		MOV		_pxCurrentTCB, W0			/* Save the new top of stack into the TCB. */
-		MOV		W15, [W0]
+    .text
 
-		call 	_vTaskSwitchContext
+.macro portSAVE_CONTEXT
 
-		MOV		_pxCurrentTCB, W0			/* Restore the stack pointer for the task. */
-		MOV		[W0], W15
-		POP		W0							/* Restore the critical nesting counter for the task. */
-		MOV		W0, _uxCriticalNesting
-		POP		PSVPAG
-		POP		CORCON
-		POP		DOENDH
-		POP		DOENDL
-		POP		DOSTARTH
-		POP		DOSTARTL
-		POP		DCOUNT
-		POP		ACCBU
-		POP		ACCBH
-		POP		ACCBL
-		POP		ACCAU
-		POP		ACCAH
-		POP		ACCAL
-		POP		TBLPAG
-		POP		RCOUNT						/* Restore the registers from the stack. */
-		POP		W14
-		POP.D	W12
-		POP.D	W10
-		POP.D	W8
-		POP.D	W6
-		POP.D	W4
-		POP.D	W2
-		POP.D	W0
-		POP		SR
+	lea.l		(-60, sp), sp
+	movem.l		d0-a6, (sp)
+	move.l		_pxCurrentTCB, a0
+	move.l		sp, (a0)
 
-        return
+	.endm
 
-        .end
+.macro portRESTORE_CONTEXT
+
+	move.l		_pxCurrentTCB, a0
+	move.l		(a0), sp
+	movem.l		(sp), d0-a6
+	lea.l		(60, sp), sp
+	rte
+
+	.endm
+
+/********************************************************************/
+/*
+ * This routines changes the IPL to the value passed into the routine.
+ * It also returns the old IPL value back.
+ * Calling convention from C:
+ *   old_ipl = asm_set_ipl(new_ipl);
+ * For the Diab Data C compiler, it passes return value thru D0.
+ * Note that only the least significant three bits of the passed
+ * value are used.
+ */
+
+ulPortSetIPL:
+_ulPortSetIPL:
+    link    A6,#-8
+    movem.l D6-D7,(SP)
+
+    move.w  SR,D7       /* current sr    */
+
+    move.l  D7,D6       /* prepare return value  */
+    andi.l  #0x0700,D6  /* mask out IPL  */
+    lsr.l   #8,D6       /* IPL   */
+
+    andi.l  #0x07,D0    /* least significant three bits  */
+    lsl.l   #8,D0       /* move over to make mask    */
+
+    andi.l  #0x0000F8FF,D7  /* zero out current IPL  */
+    or.l    D0,D7           /* place new IPL in sr   */
+    move.w  D7,SR
+
+	move.l	D6, D0		/* Return value in D0. */
+    movem.l (SP),D6-D7
+    lea     8(SP),SP
+    unlk    A6
+    rts
+/********************************************************************/
+
+mcf5xxx_wr_cacrx:
+_mcf5xxx_wr_cacrx:
+    move.l  4(sp),d0
+    .long   0x4e7b0002  /* movec d0,cacr   */
+    nop
+    rts
+
+/********************************************************************/
+
+/* Yield interrupt. */
+_vPortYieldISR:
+vPortYieldISR:
+	portSAVE_CONTEXT
+	jsr _vPortYieldHandler
+	portRESTORE_CONTEXT
+
+/********************************************************************/
+
+
+vPortStartFirstTask:
+_vPortStartFirstTask:
+	portRESTORE_CONTEXT
+
+    .end
+
+
