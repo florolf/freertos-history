@@ -59,32 +59,28 @@
 /* Supervisor mode set. */
 #define portINITIAL_STATUS_REGISTER		( ( portSTACK_TYPE ) 0x2000)
 
+/* The clock prescale into the timer peripheral. */
+#define portPRESCALE_VALUE				( ( unsigned portCHAR ) 10 )
+
+/* The clock frequency into the RTC. */
+#define portRTC_CLOCK_HZ				( ( unsigned portLONG ) 1000 )
+
+asm void interrupt VectorNumber_VL1swi vPortYieldISR( void );
+static void prvSetupTimerInterrupt( void );
+
 /* Used to keep track of the number of nested calls to taskENTER_CRITICAL().  This
 will be set to 0 prior to the first task being started. */
 static unsigned portLONG ulCriticalNesting = 0x9999UL;
-
-
-#define portSAVE_CONTEXT()				\
-	lea.l		(-60, %sp), %sp;		\
-	movem.l		%d0-%fp, (%sp);			\
-	move.l		pxCurrentTCB, %a0;		\
-	move.l		%sp, (%a0);
-
-#define portRESTORE_CONTEXT()			\
-	move.l		pxCurrentTCB, %a0;		\
-	move.l		(%a0), %sp;				\
-	movem.l		(%sp), %d0-%fp;			\
-	lea.l		%sp@(60), %sp;			\
-	rte
-
-
 
 /*-----------------------------------------------------------*/
 
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE * pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
-	*pxTopOfStack = ( portSTACK_TYPE ) pvParameters;
-	pxTopOfStack--;
+
+unsigned portLONG ulOriginalA5;
+
+	__asm{ MOVE.L A5, ulOriginalA5 };
+
 
 	*pxTopOfStack = (portSTACK_TYPE) 0xDEADBEEF;
 	pxTopOfStack--;
@@ -99,7 +95,13 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE * pxTopOfStack, pdTASK_COD
 	*pxTopOfStack = ( portSTACK_TYPE ) 0x0; /*FP*/
 	pxTopOfStack -= 14; /* A5 to D0. */
 
-    return pxTopOfStack;
+	/* Parameter in A0. */
+	*( pxTopOfStack + 8 ) = ( portSTACK_TYPE ) pvParameters;
+
+	/* A5 must be maintained as it is resurved by the compiler. */
+	*( pxTopOfStack + 13 ) = ulOriginalA5;
+
+	return pxTopOfStack;  
 }
 /*-----------------------------------------------------------*/
 
@@ -109,13 +111,27 @@ extern void vPortStartFirstTask( void );
 
 	ulCriticalNesting = 0UL;
 
-	/* Configure the interrupts used by this port. */
-	vApplicationSetupInterrupts();
+	/* Configure a timer to generate the tick interrupt. */
+	prvSetupTimerInterrupt();
 
 	/* Start the first task executing. */
 	vPortStartFirstTask();
 
 	return pdFALSE;
+}
+/*-----------------------------------------------------------*/
+
+static void prvSetupTimerInterrupt( void )
+{				
+	/* Prescale by 1 - ie no prescale. */
+	RTCSC |= 8;
+	
+	/* Compare match value. */
+	RTCMOD = portRTC_CLOCK_HZ / configTICK_RATE_HZ;
+	
+	/* Enable the RTC to generate interrupts - interrupts are already disabled
+	when this code executes. */
+	RTCSC_RTIE = 1;
 }
 /*-----------------------------------------------------------*/
 
@@ -134,7 +150,7 @@ void vPortEnterCritical( void )
 		do
 		{
 			portDISABLE_INTERRUPTS();
-			if( MCF_INTC0_INTFRCH == 0UL )
+			if( INTC_FRC == 0UL )
 			{
 				break;
 			}
@@ -162,10 +178,35 @@ void vPortYieldHandler( void )
 unsigned portLONG ulSavedInterruptMask;
 
 	ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+	{
 		/* Note this will clear all forced interrupts - this is done for speed. */
-		MCF_INTC0_INTFRCL = 0;
+		INTC_CFRC = 0x3E;
 		vTaskSwitchContext();
+	}
 	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
 }
 /*-----------------------------------------------------------*/
+
+void interrupt VectorNumber_Vrtc vPortTickISR( void )
+{
+unsigned portLONG ulSavedInterruptMask;
+
+	/* Clear the interrupt. */
+	RTCSC |= RTCSC_RTIF_MASK;
+
+	/* Increment the RTOS tick. */
+	ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+	{
+		vTaskIncrementTick();
+	}
+	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+
+	/* If we are using the pre-emptive scheduler then also request a
+	context switch as incrementing the tick could have unblocked a task. */
+	#if configUSE_PREEMPTION == 1
+	{
+		taskYIELD();
+	}
+	#endif
+}
 

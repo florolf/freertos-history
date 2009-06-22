@@ -49,13 +49,6 @@
 	licensing and training services.
 */
 
-/*
-Changes from V1.2.3
-
-	+ portCPU_CLOSK_HZ definition changed to 8MHz base 10, previously it
-	  base 16.
-*/
-
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
@@ -78,9 +71,9 @@ extern "C" {
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portCHAR
-#define portBASE_TYPE	portCHAR
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned long
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -89,43 +82,53 @@ extern "C" {
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
+/*-----------------------------------------------------------*/
 
-/*-----------------------------------------------------------*/	
+/* Hardware specifics. */
+#define portBYTE_ALIGNMENT			4
+#define portSTACK_GROWTH			-1
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )
+/*-----------------------------------------------------------*/
 
-/* Critical section management. */
+unsigned portLONG ulPortSetIPL( unsigned portLONG );
+#define portDISABLE_INTERRUPTS()	ulPortSetIPL( configMAX_SYSCALL_INTERRUPT_PRIORITY )
+#define portENABLE_INTERRUPTS()		ulPortSetIPL( 0 )
+
+
 extern void vPortEnterCritical( void );
 extern void vPortExitCritical( void );
-#define portENTER_CRITICAL()	vPortEnterCritical()
-#define portEXIT_CRITICAL()		vPortExitCritical()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
 
-#define portDISABLE_INTERRUPTS()	asm( "cli" )
-#define portENABLE_INTERRUPTS()		asm( "sei" )
+extern unsigned portBASE_TYPE uxPortSetInterruptMaskFromISR( void );
+extern void vPortClearInterruptMaskFromISR( unsigned portBASE_TYPE );
+#define portSET_INTERRUPT_MASK_FROM_ISR()	ulPortSetIPL( configMAX_SYSCALL_INTERRUPT_PRIORITY )
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR( uxSavedStatusRegister ) ulPortSetIPL( uxSavedStatusRegister )
+
 /*-----------------------------------------------------------*/
 
-/* Architecture specifics. */
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			1
-#define portNOP()					asm( "nop" )
-/*-----------------------------------------------------------*/
+/* Task utilities. */
+#define portNOP()	asm volatile ( "nop" )
 
-/* Kernel utilities. */
-void vPortYield( void );
-#define portYIELD()	vPortYield()
+/* Context switches are requested using the force register. */
+#define portYIELD()	INTC_SFRC = 0x3E; portNOP(); portNOP(); portNOP(); portNOP(); portNOP()
 
-#ifdef IAR_MEGA_AVR
-	#define outb( PORT, VALUE ) PORT = VALUE
-#endif
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters ) __attribute__((noreturn))
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+/*-----------------------------------------------------------*/
+
+#define portEND_SWITCHING_ISR( xSwitchRequired )	if( xSwitchRequired != pdFALSE )	\
+													{									\
+														portYIELD();					\
+													}
+
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* PORTMACRO_H */
-
 
