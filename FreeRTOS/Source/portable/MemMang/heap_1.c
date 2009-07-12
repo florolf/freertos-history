@@ -1,36 +1,32 @@
 /*
-	FreeRTOS.org V5.3.1 - Copyright (C) 2003-2009 Richard Barry.
+	FreeRTOS V5.4.0 - Copyright (C) 2003-2009 Richard Barry.
 
-	This file is part of the FreeRTOS.org distribution.
+	This file is part of the FreeRTOS distribution.
 
-	FreeRTOS.org is free software; you can redistribute it and/or modify it
-	under the terms of the GNU General Public License (version 2) as published
-	by the Free Software Foundation and modified by the FreeRTOS exception.
+	FreeRTOS is free software; you can redistribute it and/or modify it	under 
+	the terms of the GNU General Public License (version 2) as published by the 
+	Free Software Foundation and modified by the FreeRTOS exception.
 	**NOTE** The exception to the GPL is included to allow you to distribute a
-	combined work that includes FreeRTOS.org without being obliged to provide
-	the source code for any proprietary components.  Alternative commercial
-	license and support terms are also available upon request.  See the 
-	licensing section of http://www.FreeRTOS.org for full details.
+	combined work that includes FreeRTOS without being obliged to provide the 
+	source code for proprietary components outside of the FreeRTOS kernel.  
+	Alternative commercial license and support terms are also available upon 
+	request.  See the licensing section of http://www.FreeRTOS.org for full 
+	license details.
 
-	FreeRTOS.org is distributed in the hope that it will be useful,	but WITHOUT
+	FreeRTOS is distributed in the hope that it will be useful,	but WITHOUT
 	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 	more details.
 
 	You should have received a copy of the GNU General Public License along
-	with FreeRTOS.org; if not, write to the Free Software Foundation, Inc., 59
+	with FreeRTOS; if not, write to the Free Software Foundation, Inc., 59
 	Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
 
 	***************************************************************************
 	*                                                                         *
-	* Get the FreeRTOS eBook!  See http://www.FreeRTOS.org/Documentation      *
-	*                                                                         *
-	* This is a concise, step by step, 'hands on' guide that describes both   *
-	* general multitasking concepts and FreeRTOS specifics. It presents and   *
-	* explains numerous examples that are written using the FreeRTOS API.     *
-	* Full source code for all the examples is provided in an accompanying    *
-	* .zip file.                                                              *
+	* Looking for a quick start?  Then check out the FreeRTOS eBook!          *
+	* See http://www.FreeRTOS.org/Documentation for details                   *
 	*                                                                         *
 	***************************************************************************
 
@@ -47,19 +43,6 @@
 
 	http://www.OpenRTOS.com - Commercial support, development, porting,
 	licensing and training services.
-*/
-
-/* 
-
-Changes between V2.5.1 and V2.5.1
-
-	+ The memory pool has been defined within a struct to ensure correct memory
-	  alignment on 32bit systems.
-
-Changes between V2.6.1 and V3.0.0
-
-	+ An overflow check has been added to ensure the next free byte variable 
-	  does not wrap around.
 */
 
 
@@ -100,7 +83,11 @@ Changes between V2.6.1 and V3.0.0
 alignment without using any non-portable code. */
 static union xRTOS_HEAP
 {
-	volatile unsigned portLONG ulDummy;
+	#if portBYTE_ALIGNMENT == 8
+		volatile portDOUBLE dDummy;
+	#else
+		volatile unsigned portLONG ulDummy;
+	#endif	
 	unsigned portCHAR ucHeap[ configTOTAL_HEAP_SIZE ];
 } xHeap;
 
