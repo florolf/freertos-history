@@ -46,7 +46,7 @@
 */
 
 /*-----------------------------------------------------------
- * Implementation of functions defined in portable.h for the PPC405 port.
+ * Implementation of functions defined in portable.h for the PPC440 port.
  *----------------------------------------------------------*/
 
 
@@ -110,10 +110,10 @@ static XIntc xInterruptController;
 
 /*-----------------------------------------------------------*/
 
-/* 
+/*
  * Initialise the stack of a task to look exactly as if the task had been
  * interrupted.
- * 
+ *
  * See the header file portable.h.
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
@@ -182,23 +182,23 @@ void vPortEndScheduler( void )
 /*-----------------------------------------------------------*/
 
 /*
- * Hardware initialisation to generate the RTOS tick.   
+ * Hardware initialisation to generate the RTOS tick.
  */
 static void prvSetupTimerInterrupt( void )
 {
 const unsigned portLONG ulInterval = ( ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL );
 
-	XTime_PITClearInterrupt();
+	XTime_DECClearInterrupt();
 	XTime_FITClearInterrupt();
 	XTime_WDTClearInterrupt();
 	XTime_WDTDisableInterrupt();
 	XTime_FITDisableInterrupt();
 
-	XExc_RegisterHandler( XEXC_ID_PIT_INT, ( XExceptionHandler ) vPortTickISR, ( void * ) 0 );
+	XExc_RegisterHandler( XEXC_ID_DEC_INT, ( XExceptionHandler ) vPortTickISR, ( void * ) 0 );
 
-	XTime_PITEnableAutoReload();
-	XTime_PITSetInterval( ulInterval );
-	XTime_PITEnableInterrupt();
+	XTime_DECEnableAutoReload();
+	XTime_DECSetInterval( ulInterval );
+	XTime_DECEnableInterrupt();
 }
 /*-----------------------------------------------------------*/
 
@@ -210,15 +210,15 @@ XIntc_Config *pxInterruptController;
 XIntc_VectorTableEntry *pxTable;
 
 	/* Just to remove compiler warning. */
-	( void ) pvNullDoNotUse;	
+	( void ) pvNullDoNotUse;
 
 	/* Get the configuration by using the device ID - in this case it is
 	assumed that only one interrupt controller is being used. */
 	pxInterruptController = &XIntc_ConfigTable[ XPAR_XPS_INTC_0_DEVICE_ID ];
-  
+
 	/* Which interrupts are pending? */
 	ulInterruptStatus = XIntc_mGetIntrStatus( pxInterruptController->BaseAddress );
-  
+
 	for( xInterruptNumber = 0; xInterruptNumber < XPAR_INTC_MAX_NUM_INTR_INPUTS; xInterruptNumber++ )
 	{
 		if( ulInterruptStatus & 0x01UL )
@@ -230,7 +230,7 @@ XIntc_VectorTableEntry *pxTable;
 			pxTable = &( pxInterruptController->HandlerTable[ xInterruptNumber ] );
 			pxTable->Handler( pxTable->CallBackRef );
 		}
-        
+
 		/* Check the next interrupt. */
 		ulInterruptMask <<= 0x01UL;
 		ulInterruptStatus >>= 0x01UL;
@@ -276,5 +276,5 @@ portBASE_TYPE xReturn = pdFAIL;
 		xReturn = pdPASS;
 	}
 
-	return xReturn;		
+	return xReturn;
 }
