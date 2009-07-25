@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V5.4.0 - Copyright (C) 2003-2009 Richard Barry.
+	FreeRTOS V5.4.1 - Copyright (C) 2009 Real Time Engineers Ltd.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -388,6 +388,10 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 
 #ifndef portCONFIGURE_TIMER_FOR_RUN_TIME_STATS
 	#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()
+#endif
+
+#ifndef configUSE_MALLOC_FAILED_HOOK
+	#define configUSE_MALLOC_FAILED_HOOK 0
 #endif
 
 #endif /* INC_FREERTOS_H */
