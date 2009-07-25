@@ -1,5 +1,5 @@
 /*
-	FreeRTOS V5.4.0 - Copyright (C) 2003-2009 Richard Barry.
+	FreeRTOS V5.4.1 - Copyright (C) 2009 Real Time Engineers Ltd.
 
 	This file is part of the FreeRTOS distribution.
 
@@ -74,6 +74,16 @@ void *pvReturn;
 	}
 	xTaskResumeAll();
 
+	#if( configUSE_MALLOC_FAILED_HOOK == 1 )
+	{
+		if( pvReturn == NULL )
+		{
+			extern void vApplicationMallocFailedHook( void );
+			vApplicationMallocFailedHook();
+		}
+	}
+	#endif
+	
 	return pvReturn;
 }
 /*-----------------------------------------------------------*/
