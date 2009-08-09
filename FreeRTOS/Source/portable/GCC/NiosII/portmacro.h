@@ -48,11 +48,11 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-/* Hardware specific includes. */
-#include "mb91467d.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* Standard includes. */
-#include <stddef.h>
+#include "sys/alt_irq.h"
 
 /*-----------------------------------------------------------
  * Port specific definitions.  
@@ -82,43 +82,40 @@
 #endif
 /*-----------------------------------------------------------*/	
 
-/* Critical section management. */
-#if configKERNEL_INTERRUPT_PRIORITY != 30
-	#error configKERNEL_INTERRUPT_PRIORITY (set in FreeRTOSConfig.h) must match the ILM value set in the following line - 30 (1Eh) being the default.
-#endif
-#define portDISABLE_INTERRUPTS() __asm(" STILM #1Eh ")
-#define portENABLE_INTERRUPTS() __asm(" STILM #1Fh ")
-
-#define portENTER_CRITICAL()	\
-	__asm(" ST PS,@-R15 ");		\
-	__asm(" ANDCCR #0xef ");	\
-
-
-#define portEXIT_CRITICAL()		\
-	__asm(" LD @R15+,PS ");		\
-
-/*-----------------------------------------------------------*/
-
 /* Architecture specifics. */
-#define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			4
-#define portNOP()					__asm( " nop " );
+#define portSTACK_GROWTH				( -1 )
+#define portTICK_RATE_MS				( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT				4
+#define portNOP()                   	asm volatile ( "NOP" )
+#define portCRITICAL_NESTING_IN_TCB		1
+/*-----------------------------------------------------------*/	
+
+extern void vTaskSwitchContext( void );
+#define portYIELD()									asm volatile ( "trap" );
+#define portEND_SWITCHING_ISR( xSwitchRequired ) 	if( xSwitchRequired ) 	vTaskSwitchContext()
+
+
+/* Include the port_asm.S file where the Context saving/restoring is defined. */
+__asm__( "\n\t.globl	save_context" );
+
 /*-----------------------------------------------------------*/
 
-/* portYIELD() uses a SW interrupt */
-#define portYIELD()					__asm( " INT #40H " );
+extern void vTaskEnterCritical( void );
+extern void vTaskExitCritical( void );
 
-/* portYIELD_FROM_ISR() uses delayed interrupt */
-#define portYIELD_FROM_ISR()			DICR_DLYI = 1
+#define portDISABLE_INTERRUPTS()	alt_irq_disable_all()
+#define portENABLE_INTERRUPTS()		alt_irq_enable_all( 0x01 );
+#define portENTER_CRITICAL()        vTaskEnterCritical()
+#define portEXIT_CRITICAL()         vTaskExitCritical()
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
-#define portMINIMAL_STACK_SIZE configMINIMAL_STACK_SIZE
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PORTMACRO_H */
 
