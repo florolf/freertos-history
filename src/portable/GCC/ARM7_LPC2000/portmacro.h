@@ -1,71 +1,54 @@
 /*
-	FreeRTOS V5.4.2 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.0 - Copyright (C) 2009 Real Time Engineers Ltd.
 
-	This file is part of the FreeRTOS distribution.
+    ***************************************************************************
+    *                                                                         *
+    * If you are:                                                             *
+    *                                                                         *
+    *    + New to FreeRTOS,                                                   *
+    *    + Wanting to learn FreeRTOS or multitasking in general quickly       *
+    *    + Looking for basic training,                                        *
+    *    + Wanting to improve your FreeRTOS skills and productivity           *
+    *                                                                         *
+    * then take a look at the FreeRTOS eBook                                  *
+    *                                                                         *
+    *        "Using the FreeRTOS Real Time Kernel - a Practical Guide"        *
+    *                  http://www.FreeRTOS.org/Documentation                  *
+    *                                                                         *
+    * A pdf reference manual is also available.  Both are usually delivered   *
+    * to your inbox within 20 minutes to two hours when purchased between 8am *
+    * and 8pm GMT (although please allow up to 24 hours in case of            *
+    * exceptional circumstances).  Thank you for your support!                *
+    *                                                                         *
+    ***************************************************************************
 
-	FreeRTOS is free software; you can redistribute it and/or modify it	under 
-	the terms of the GNU General Public License (version 2) as published by the 
-	Free Software Foundation and modified by the FreeRTOS exception.
-	**NOTE** The exception to the GPL is included to allow you to distribute a
-	combined work that includes FreeRTOS without being obliged to provide the 
-	source code for proprietary components outside of the FreeRTOS kernel.  
-	Alternative commercial license and support terms are also available upon 
-	request.  See the licensing section of http://www.FreeRTOS.org for full 
-	license details.
+    This file is part of the FreeRTOS distribution.
 
-	FreeRTOS is distributed in the hope that it will be useful,	but WITHOUT
-	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-	more details.
+    FreeRTOS is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License (version 2) as published by the
+    Free Software Foundation AND MODIFIED BY the FreeRTOS exception.
+    ***NOTE*** The exception to the GPL is included to allow you to distribute
+    a combined work that includes FreeRTOS without being obliged to provide the
+    source code for proprietary components outside of the FreeRTOS kernel.
+    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+    more details. You should have received a copy of the GNU General Public 
+    License and the FreeRTOS license exception along with FreeRTOS; if not it 
+    can be viewed here: http://www.freertos.org/a00114.html and also obtained 
+    by writing to Richard Barry, contact details for whom are available on the
+    FreeRTOS WEB site.
 
-	You should have received a copy of the GNU General Public License along
-	with FreeRTOS; if not, write to the Free Software Foundation, Inc., 59
-	Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+    1 tab == 4 spaces!
 
+    http://www.FreeRTOS.org - Documentation, latest information, license and
+    contact details.
 
-	***************************************************************************
-	*                                                                         *
-	* Looking for a quick start?  Then check out the FreeRTOS eBook!          *
-	* See http://www.FreeRTOS.org/Documentation for details                   *
-	*                                                                         *
-	***************************************************************************
+    http://www.SafeRTOS.com - A version that is certified for use in safety
+    critical systems.
 
-	1 tab == 4 spaces!
-
-	Please ensure to read the configuration and relevant port sections of the
-	online documentation.
-
-	http://www.FreeRTOS.org - Documentation, latest information, license and
-	contact details.
-
-	http://www.SafeRTOS.com - A version that is certified for use in safety
-	critical systems.
-
-	http://www.OpenRTOS.com - Commercial support, development, porting,
-	licensing and training services.
-*/
-
-/*
-	Changes from V3.2.3
-	
-	+ Modified portENTER_SWITCHING_ISR() to allow use with GCC V4.0.1.
-
-	Changes from V3.2.4
-
-	+ Removed the use of the %0 parameter within the assembler macros and 
-	  replaced them with hard coded registers.  This will ensure the
-	  assembler does not select the link register as the temp register as
-	  was occasionally happening previously.
-
-	+ The assembler statements are now included in a single asm block rather
-	  than each line having its own asm block.
-
-	Changes from V4.5.0
-
-	+ Removed the portENTER_SWITCHING_ISR() and portEXIT_SWITCHING_ISR() macros
-	  and replaced them with portYIELD_FROM_ISR() macro.  Application code 
-	  should now make use of the portSAVE_CONTEXT() and portRESTORE_CONTEXT()
-	  macros as per the V4.5.1 demo code.
+    http://www.OpenRTOS.com - Commercial support, development, porting,
+    licensing and training services.
 */
 
 #ifndef PORTMACRO_H
@@ -106,8 +89,8 @@ extern "C" {
 /* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT			4
-#define portNOP()					asm volatile ( "NOP" );
+#define portBYTE_ALIGNMENT			8
+#define portNOP()					__asm volatile ( "NOP" );
 /*-----------------------------------------------------------*/	
 
 
@@ -126,7 +109,7 @@ extern volatile void * volatile pxCurrentTCB;							\
 extern volatile unsigned portLONG ulCriticalNesting;					\
 																		\
 	/* Set the LR to the task stack. */									\
-	asm volatile (														\
+	__asm volatile (													\
 	"LDR		R0, =pxCurrentTCB								\n\t"	\
 	"LDR		R0, [R0]										\n\t"	\
 	"LDR		LR, [R0]										\n\t"	\
@@ -163,7 +146,7 @@ extern volatile void * volatile pxCurrentTCB;							\
 extern volatile unsigned portLONG ulCriticalNesting;					\
 																		\
 	/* Push R0 as we are going to use the register. */					\
-	asm volatile (														\
+	__asm volatile (													\
 	"STMDB	SP!, {R0}											\n\t"	\
 																		\
 	/* Set R0 to point to the task stack pointer. */					\
@@ -203,9 +186,9 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 	( void ) pxCurrentTCB;												\
 }
 
-
+extern void vTaskSwitchContext( void );
 #define portYIELD_FROM_ISR()		vTaskSwitchContext()
-#define portYIELD()					asm volatile ( "SWI" )
+#define portYIELD()					__asm volatile ( "SWI" )
 /*-----------------------------------------------------------*/
 
 
@@ -229,7 +212,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 #else
 
 	#define portDISABLE_INTERRUPTS()											\
-		asm volatile (															\
+		__asm volatile (														\
 			"STMDB	SP!, {R0}		\n\t"	/* Push R0.						*/	\
 			"MRS	R0, CPSR		\n\t"	/* Get CPSR.					*/	\
 			"ORR	R0, R0, #0xC0	\n\t"	/* Disable IRQ, FIQ.			*/	\
@@ -237,7 +220,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 			"LDMIA	SP!, {R0}			" )	/* Pop R0.						*/
 			
 	#define portENABLE_INTERRUPTS()												\
-		asm volatile (															\
+		__asm volatile (														\
 			"STMDB	SP!, {R0}		\n\t"	/* Push R0.						*/	\
 			"MRS	R0, CPSR		\n\t"	/* Get CPSR.					*/	\
 			"BIC	R0, R0, #0xC0	\n\t"	/* Enable IRQ, FIQ.				*/	\

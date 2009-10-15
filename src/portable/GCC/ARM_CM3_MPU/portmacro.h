@@ -51,6 +51,7 @@
     licensing and training services.
 */
 
+
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
@@ -59,7 +60,7 @@ extern "C" {
 #endif
 
 /*-----------------------------------------------------------
- * Port specific definitions.  
+ * Port specific definitions.
  *
  * The settings in this file configure FreeRTOS correctly for the
  * given hardware and compiler.
@@ -71,13 +72,11 @@ extern "C" {
 /* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
-#define portDOUBLE		long
+#define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portSHORT
-#define portBASE_TYPE	portSHORT
-
-typedef void ( __interrupt __far *pxISR )();
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -88,37 +87,109 @@ typedef void ( __interrupt __far *pxISR )();
 #endif
 /*-----------------------------------------------------------*/
 
-/* Critical section handling. */
-#define portENTER_CRITICAL()			__asm{ pushf }  \
-										__asm{ cli 	 }	\
+/* MPU specific constants. */
+#define portUSING_MPU_WRAPPERS		1
+#define portPRIVILEGE_BIT			( 0x80000000UL )
 
-#define portEXIT_CRITICAL()				__asm{ popf }
+#define portMPU_REGION_READ_WRITE				( 0x03UL << 24UL )
+#define portMPU_REGION_PRIVILEGED_READ_ONLY		( 0x05UL << 24UL )
+#define portMPU_REGION_READ_ONLY				( 0x06UL << 24UL )
+#define portMPU_REGION_PRIVILEGED_READ_WRITE	( 0x01UL << 24UL )
+#define portMPU_REGION_CACHEABLE_BUFFERABLE		( 0x07UL << 16UL )
+#define portMPU_REGION_EXECUTE_NEVER			( 0x01UL << 28UL )
 
-#define portDISABLE_INTERRUPTS()		__asm{ cli }
+#define portUNPRIVILEGED_FLASH_REGION		( 0UL )
+#define portPRIVILEGED_FLASH_REGION			( 1UL )
+#define portPRIVILEGED_RAM_REGION			( 2UL )
+#define portGENERAL_PERIPHERALS_REGION		( 3UL )
+#define portSTACK_REGION					( 4UL )
+#define portFIRST_CONFIGURABLE_REGION	    ( 5UL )
+#define portLAST_CONFIGURABLE_REGION		( 7UL )
+#define portNUM_CONFIGURABLE_REGIONS		( ( portLAST_CONFIGURABLE_REGION - portFIRST_CONFIGURABLE_REGION ) + 1 )
+#define portTOTAL_NUM_REGIONS				( portNUM_CONFIGURABLE_REGIONS + 1 ) /* Plus one to make space for the stack region. */
 
-#define portENABLE_INTERRUPTS()			__asm{ sti }
+#define portSWITCH_TO_USER_MODE() __asm volatile ( " mrs r0, control \n orr r0, #1 \n msr control, r0 " :::"r0" )
+
+typedef struct MPU_REGION_REGISTERS
+{
+	unsigned portLONG ulRegionBaseAddress;
+	unsigned portLONG ulRegionAttribute;
+} xMPU_REGION_REGISTERS;
+
+/* Plus 1 to create space for the stack region. */
+typedef struct MPU_SETTINGS
+{
+	xMPU_REGION_REGISTERS xRegion[ portTOTAL_NUM_REGIONS ];
+} xMPU_SETTINGS;
+
+/* Architecture specifics. */
+#define portSTACK_GROWTH			( -1 )
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )
+#define portBYTE_ALIGNMENT			8
 /*-----------------------------------------------------------*/
 
-/* Hardware specifics. */
-#define portNOP()						__asm{ nop }
-#define portSTACK_GROWTH				( -1 )
-#define portSWITCH_INT_NUMBER 			0x80
-#define portYIELD()						__asm{ int portSWITCH_INT_NUMBER } 
-#define portTICK_RATE_MS				( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portBYTE_ALIGNMENT				2
-#define portINITIAL_SW					( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
+/* SVC numbers for various services. */
+#define portSVC_START_SCHEDULER				0
+#define portSVC_YIELD						1
+#define portSVC_prvRaisePrivilege			2
+
+/* Scheduler utilities. */
+
+#define portYIELD()				__asm volatile ( "	SVC	%0	\n" :: "i" (portSVC_YIELD) )
+#define portYIELD_WITHIN_API()	*(portNVIC_INT_CTRL) = portNVIC_PENDSVSET
+
+#define portNVIC_INT_CTRL			( ( volatile unsigned portLONG *) 0xe000ed04 )
+#define portNVIC_PENDSVSET			0x10000000
+#define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) *(portNVIC_INT_CTRL) = portNVIC_PENDSVSET
 /*-----------------------------------------------------------*/
 
-/* Compiler specifics. */
-#define portINPUT_BYTE( xAddr )				inp( xAddr )
-#define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
-#define portINPUT_WORD( xAddr )				inpw( xAddr )
-#define portOUTPUT_WORD( xAddr, usValue )	outpw( xAddr, usValue )
+
+/* Critical section management. */
+
+/*
+ * Set basepri to portMAX_SYSCALL_INTERRUPT_PRIORITY without effecting other
+ * registers.  r0 is clobbered.
+ */
+#define portSET_INTERRUPT_MASK()						\
+	__asm volatile										\
+	(													\
+		"	mov r0, %0								\n"	\
+		"	msr basepri, r0							\n" \
+		::"i"(configMAX_SYSCALL_INTERRUPT_PRIORITY):"r0"	\
+	)
+
+/*
+ * Set basepri back to 0 without effective other registers.
+ * r0 is clobbered.
+ */
+#define portCLEAR_INTERRUPT_MASK()			\
+	__asm volatile							\
+	(										\
+		"	mov r0, #0					\n"	\
+		"	msr basepri, r0				\n"	\
+		:::"r0"								\
+	)
+
+#define portSET_INTERRUPT_MASK_FROM_ISR()		0;portSET_INTERRUPT_MASK()
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	portCLEAR_INTERRUPT_MASK();(void)x
+
+
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+
+#define portDISABLE_INTERRUPTS()	portSET_INTERRUPT_MASK()
+#define portENABLE_INTERRUPTS()		portCLEAR_INTERRUPT_MASK()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
-#define portTASK_FUNCTION( vTaskFunction, vParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+
+#define portNOP()
+
+
 
 #ifdef __cplusplus
 }

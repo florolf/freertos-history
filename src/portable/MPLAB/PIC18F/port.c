@@ -1,48 +1,54 @@
 /*
-	FreeRTOS V5.4.2 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.0 - Copyright (C) 2009 Real Time Engineers Ltd.
 
-	This file is part of the FreeRTOS distribution.
+    ***************************************************************************
+    *                                                                         *
+    * If you are:                                                             *
+    *                                                                         *
+    *    + New to FreeRTOS,                                                   *
+    *    + Wanting to learn FreeRTOS or multitasking in general quickly       *
+    *    + Looking for basic training,                                        *
+    *    + Wanting to improve your FreeRTOS skills and productivity           *
+    *                                                                         *
+    * then take a look at the FreeRTOS eBook                                  *
+    *                                                                         *
+    *        "Using the FreeRTOS Real Time Kernel - a Practical Guide"        *
+    *                  http://www.FreeRTOS.org/Documentation                  *
+    *                                                                         *
+    * A pdf reference manual is also available.  Both are usually delivered   *
+    * to your inbox within 20 minutes to two hours when purchased between 8am *
+    * and 8pm GMT (although please allow up to 24 hours in case of            *
+    * exceptional circumstances).  Thank you for your support!                *
+    *                                                                         *
+    ***************************************************************************
 
-	FreeRTOS is free software; you can redistribute it and/or modify it	under 
-	the terms of the GNU General Public License (version 2) as published by the 
-	Free Software Foundation and modified by the FreeRTOS exception.
-	**NOTE** The exception to the GPL is included to allow you to distribute a
-	combined work that includes FreeRTOS without being obliged to provide the 
-	source code for proprietary components outside of the FreeRTOS kernel.  
-	Alternative commercial license and support terms are also available upon 
-	request.  See the licensing section of http://www.FreeRTOS.org for full 
-	license details.
+    This file is part of the FreeRTOS distribution.
 
-	FreeRTOS is distributed in the hope that it will be useful,	but WITHOUT
-	ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-	FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-	more details.
+    FreeRTOS is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License (version 2) as published by the
+    Free Software Foundation AND MODIFIED BY the FreeRTOS exception.
+    ***NOTE*** The exception to the GPL is included to allow you to distribute
+    a combined work that includes FreeRTOS without being obliged to provide the
+    source code for proprietary components outside of the FreeRTOS kernel.
+    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+    more details. You should have received a copy of the GNU General Public 
+    License and the FreeRTOS license exception along with FreeRTOS; if not it 
+    can be viewed here: http://www.freertos.org/a00114.html and also obtained 
+    by writing to Richard Barry, contact details for whom are available on the
+    FreeRTOS WEB site.
 
-	You should have received a copy of the GNU General Public License along
-	with FreeRTOS; if not, write to the Free Software Foundation, Inc., 59
-	Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+    1 tab == 4 spaces!
 
+    http://www.FreeRTOS.org - Documentation, latest information, license and
+    contact details.
 
-	***************************************************************************
-	*                                                                         *
-	* Looking for a quick start?  Then check out the FreeRTOS eBook!          *
-	* See http://www.FreeRTOS.org/Documentation for details                   *
-	*                                                                         *
-	***************************************************************************
+    http://www.SafeRTOS.com - A version that is certified for use in safety
+    critical systems.
 
-	1 tab == 4 spaces!
-
-	Please ensure to read the configuration and relevant port sections of the
-	online documentation.
-
-	http://www.FreeRTOS.org - Documentation, latest information, license and
-	contact details.
-
-	http://www.SafeRTOS.com - A version that is certified for use in safety
-	critical systems.
-
-	http://www.OpenRTOS.com - Commercial support, development, porting,
-	licensing and training services.
+    http://www.OpenRTOS.com - Commercial support, development, porting,
+    licensing and training services.
 */
 
 /* 
@@ -86,7 +92,7 @@ Changes from V3.2.0
  *----------------------------------------------------------*/
 
 /* Hardware setup for tick. */
-#define portTIMER_FOSC_SCALE			( ( unsigned portLONG ) 4 )
+#define portTIMER_FOSC_SCALE			( ( unsigned long ) 4 )
 
 /* Initial interrupt enable state for newly created tasks.  This value is
 copied into INTCON when a task switches in for the first time. */
@@ -103,7 +109,7 @@ enable state to be unchanged when the interrupted task is switched back in. */
 area's get used by the compiler for temporary storage, especially when 
 performing mathematical operations, or when using 32bit data types.  This
 constant defines the size of memory area which must be saved. */
-#define portCOMPILER_MANAGED_MEMORY_SIZE	( ( unsigned portCHAR ) 0x13 )
+#define portCOMPILER_MANAGED_MEMORY_SIZE	( ( unsigned char ) 0x13 )
 
 /* We require the address of the pxCurrentTCB variable, but don't want to know
 any details of its type. */
@@ -111,8 +117,8 @@ typedef void tskTCB;
 extern volatile tskTCB * volatile pxCurrentTCB;
 
 /* IO port constants. */
-#define portBIT_SET		( ( unsigned portCHAR ) 1 )
-#define portBIT_CLEAR	( ( unsigned portCHAR ) 0 )
+#define portBIT_SET		( ( unsigned char ) 1 )
+#define portBIT_CLEAR	( ( unsigned char ) 0 )
 
 /*
  * The serial port ISR's are defined in serial.c, but are called from portable
@@ -225,7 +231,7 @@ static void prvLowInterrupt( void );
 	_endasm																		\
 																				\
 		/* Store each address from the hardware stack. */						\
-		while( STKPTR > ( unsigned portCHAR ) 0 )								\
+		while( STKPTR > ( unsigned char ) 0 )								\
 		{																		\
 			_asm																\
 				MOVFF	TOSL, PREINC1											\
@@ -364,8 +370,8 @@ static void prvLowInterrupt( void );
  */
 portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE pxCode, void *pvParameters )
 {
-unsigned portLONG ulAddress;
-unsigned portCHAR ucBlock;
+unsigned long ulAddress;
+unsigned char ucBlock;
 
 	/* Place a few bytes of known values on the bottom of the stack. 
 	This is just useful for debugging. */
@@ -383,12 +389,12 @@ unsigned portCHAR ucBlock;
 
 	First store the function parameters.  This is where the task will expect to
 	find them when it starts running. */
-	ulAddress = ( unsigned portLONG ) pvParameters;
-	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned portLONG ) 0x00ff );
+	ulAddress = ( unsigned long ) pvParameters;
+	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned long ) 0x00ff );
 	pxTopOfStack++;
 
 	ulAddress >>= 8;
-	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned portLONG ) 0x00ff );
+	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned long ) 0x00ff );
 	pxTopOfStack++;
 
 	/* Next we just leave a space.  When a context is saved the stack pointer
@@ -465,20 +471,20 @@ unsigned portCHAR ucBlock;
 
 	/* The only function return address so far is the address of the 
 	task. */
-	ulAddress = ( unsigned portLONG ) pxCode;
+	ulAddress = ( unsigned long ) pxCode;
 
 	/* TOS low. */
-	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned portLONG ) 0x00ff );
+	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned long ) 0x00ff );
 	pxTopOfStack++;
 	ulAddress >>= 8;
 
 	/* TOS high. */
-	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned portLONG ) 0x00ff );
+	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned long ) 0x00ff );
 	pxTopOfStack++;
 	ulAddress >>= 8;
 
 	/* TOS even higher. */
-	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned portLONG ) 0x00ff );
+	*pxTopOfStack = ( portSTACK_TYPE ) ( ulAddress & ( unsigned long ) 0x00ff );
 	pxTopOfStack++;
 
 	/* Store the number of return addresses on the hardware stack - so far only
@@ -602,9 +608,9 @@ static void prvTickISR( void )
  */
 static void prvSetupTimerInterrupt( void )
 {
-const unsigned portLONG ulConstCompareValue = ( ( configCPU_CLOCK_HZ / portTIMER_FOSC_SCALE ) / configTICK_RATE_HZ );
-unsigned portLONG ulCompareValue;
-unsigned portCHAR ucByte;
+const unsigned long ulConstCompareValue = ( ( configCPU_CLOCK_HZ / portTIMER_FOSC_SCALE ) / configTICK_RATE_HZ );
+unsigned long ulCompareValue;
+unsigned char ucByte;
 
 	/* Interrupts are disabled when this function is called.
 
@@ -612,14 +618,14 @@ unsigned portCHAR ucByte;
 	1.
 
 	Clear the time count then setup timer. */
-	TMR1H = ( unsigned portCHAR ) 0x00;
-	TMR1L = ( unsigned portCHAR ) 0x00;
+	TMR1H = ( unsigned char ) 0x00;
+	TMR1L = ( unsigned char ) 0x00;
 
 	/* Set the compare match value. */
 	ulCompareValue = ulConstCompareValue;
-	CCPR1L = ( unsigned portCHAR ) ( ulCompareValue & ( unsigned portLONG ) 0xff );
-	ulCompareValue >>= ( unsigned portLONG ) 8;
-	CCPR1H = ( unsigned portCHAR ) ( ulCompareValue & ( unsigned portLONG ) 0xff );	
+	CCPR1L = ( unsigned char ) ( ulCompareValue & ( unsigned long ) 0xff );
+	ulCompareValue >>= ( unsigned long ) 8;
+	CCPR1H = ( unsigned char ) ( ulCompareValue & ( unsigned long ) 0xff );	
 
 	CCP1CONbits.CCP1M0 = portBIT_SET;	/*< Compare match mode. */
 	CCP1CONbits.CCP1M1 = portBIT_SET;	/*< Compare match mode. */
