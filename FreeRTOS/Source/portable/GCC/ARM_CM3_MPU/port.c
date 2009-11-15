@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.0 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.1 - Copyright (C) 2009 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -106,7 +106,7 @@ task.h is included from an application file. */
 #define portOFFSET_TO_PC						( 6 )
 
 /* Set the privilege level to user mode if xRunningPrivileged is false. */
-#define portRESET_PRIVILEGE( xRunningPrivileged ) if( xRunningPrivileged != pdTRUE ) __asm volatile ( " mrs r0, control \n orr r0, #1 \n msr control, r0 " )
+#define portRESET_PRIVILEGE( xRunningPrivileged ) if( xRunningPrivileged != pdTRUE ) __asm volatile ( " mrs r0, control \n orr r0, #1 \n msr control, r0" :::"r0" )
 
 /* Each task maintains its own interrupt status in the critical nesting
 variable.  Note this is not saved as part of the task context as context
@@ -155,6 +155,49 @@ static void prvRestoreContextOfFirstTask( void ) __attribute__(( naked )) PRIVIL
  */
 static void prvSVCHandler( unsigned long *pulRegisters ) __attribute__(( noinline )) PRIVILEGED_FUNCTION;
 
+/*
+ * Prototypes for all the MPU wrappers.
+ */
+signed portBASE_TYPE MPU_xTaskGenericCreate( pdTASK_CODE pvTaskCode, const signed char * const pcName, unsigned short usStackDepth, void *pvParameters, unsigned portBASE_TYPE uxPriority, xTaskHandle *pxCreatedTask, portSTACK_TYPE *puxStackBuffer, const xMemoryRegion * const xRegions );
+void MPU_vTaskAllocateMPURegions( xTaskHandle xTask, const xMemoryRegion * const xRegions );
+void MPU_vTaskDelete( xTaskHandle pxTaskToDelete );
+void MPU_vTaskDelayUntil( portTickType * const pxPreviousWakeTime, portTickType xTimeIncrement );
+void MPU_vTaskDelay( portTickType xTicksToDelay );
+unsigned portBASE_TYPE MPU_uxTaskPriorityGet( xTaskHandle pxTask );
+void MPU_vTaskPrioritySet( xTaskHandle pxTask, unsigned portBASE_TYPE uxNewPriority );
+void MPU_vTaskSuspend( xTaskHandle pxTaskToSuspend );
+signed portBASE_TYPE MPU_xTaskIsTaskSuspended( xTaskHandle xTask );
+void MPU_vTaskResume( xTaskHandle pxTaskToResume );
+void MPU_vTaskSuspendAll( void );
+signed portBASE_TYPE MPU_xTaskResumeAll( void );
+portTickType MPU_xTaskGetTickCount( void );
+unsigned portBASE_TYPE MPU_uxTaskGetNumberOfTasks( void );
+void MPU_vTaskList( signed char *pcWriteBuffer );
+void MPU_vTaskGetRunTimeStats( signed char *pcWriteBuffer );
+void MPU_vTaskStartTrace( signed char * pcBuffer, unsigned long ulBufferSize );
+unsigned long MPU_ulTaskEndTrace( void );
+void MPU_vTaskSetApplicationTaskTag( xTaskHandle xTask, pdTASK_HOOK_CODE pxTagValue );
+pdTASK_HOOK_CODE MPU_xTaskGetApplicationTaskTag( xTaskHandle xTask );
+portBASE_TYPE MPU_xTaskCallApplicationTaskHook( xTaskHandle xTask, void *pvParameter );
+unsigned portBASE_TYPE MPU_uxTaskGetStackHighWaterMark( xTaskHandle xTask );
+xTaskHandle MPU_xTaskGetCurrentTaskHandle( void );
+portBASE_TYPE MPU_xTaskGetSchedulerState( void );
+xQueueHandle MPU_xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBASE_TYPE uxItemSize );
+signed portBASE_TYPE MPU_xQueueGenericSend( xQueueHandle xQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition );
+unsigned portBASE_TYPE MPU_uxQueueMessagesWaiting( const xQueueHandle pxQueue );
+signed portBASE_TYPE MPU_xQueueGenericReceive( xQueueHandle pxQueue, void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking );
+xQueueHandle MPU_xQueueCreateMutex( void );
+xQueueHandle MPU_xQueueCreateCountingSemaphore( unsigned portBASE_TYPE uxCountValue, unsigned portBASE_TYPE uxInitialCount );
+portBASE_TYPE MPU_xQueueTakeMutexRecursive( xQueueHandle xMutex, portTickType xBlockTime );
+portBASE_TYPE MPU_xQueueGiveMutexRecursive( xQueueHandle xMutex );
+signed portBASE_TYPE MPU_xQueueAltGenericSend( xQueueHandle pxQueue, const void * const pvItemToQueue, portTickType xTicksToWait, portBASE_TYPE xCopyPosition );
+signed portBASE_TYPE MPU_xQueueAltGenericReceive( xQueueHandle pxQueue, void * const pvBuffer, portTickType xTicksToWait, portBASE_TYPE xJustPeeking );
+void MPU_vQueueAddToRegistry( xQueueHandle xQueue, signed char *pcName );
+void *MPU_pvPortMalloc( size_t xSize );
+void MPU_vPortFree( void *pv );
+void MPU_vPortInitialiseBlocks( void );
+size_t MPU_xPortGetFreeHeapSize( void );
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -164,6 +207,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 {
 	/* Simulate the stack frame as it would be created by a context switch
 	interrupt. */
+	pxTopOfStack--; /* Offset added to account for the way the MCU uses the stack on entry/exit of interrupts. */
 	*pxTopOfStack = portINITIAL_XPSR;	/* xPSR */
 	pxTopOfStack--;
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;	/* PC */
@@ -225,7 +269,7 @@ unsigned char ucSVCNumber;
 		case portSVC_YIELD				:	*(portNVIC_INT_CTRL) = portNVIC_PENDSVSET;
 											break;
 
-		case portSVC_prvRaisePrivilege	:	__asm volatile 
+		case portSVC_RAISE_PRIVILEGE	:	__asm volatile 
 											(
 												"	mrs r1, control		\n" /* Obtain current control value. */
 												"	bic r1, #1			\n" /* Set privilege bit. */
@@ -497,7 +541,7 @@ static portBASE_TYPE prvRaisePrivilege( void )
 		"	svcne %0							\n" /* Switch to privileged. */
 		"	moveq r0, #1						\n" /* CONTROL[0]==0, return true. */
 		"	bx lr								\n"
-		:: "i" (portSVC_prvRaisePrivilege) : "r0" 
+		:: "i" (portSVC_RAISE_PRIVILEGE) : "r0" 
 	);
 
 	return 0;

@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.0 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.1 - Copyright (C) 2009 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -59,7 +59,7 @@ only for ports that are using the MPU. */
 #ifdef portUSING_MPU_WRAPPERS
 
 	/* MPU_WRAPPERS_INCLUDED_FROM_API_FILE will be defined when this file is
-	included from queue.c or task.c to prevent it from having an effict within
+	included from queue.c or task.c to prevent it from having an effect within
 	those files. */
 	#ifndef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 

@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.0 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.1 - Copyright (C) 2009 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -140,7 +140,7 @@ extern void vPortClearInterruptMaskFromISR( unsigned portBASE_TYPE );
 {												\
 unsigned portLONG ulStatus;						\
 												\
-	/* Unmask all interrupts. */				\
+	/* Trigger software interrupt. */			\
 	ulStatus = _CP0_GET_CAUSE();				\
 	ulStatus |= portSW0_BIT;					\
 	_CP0_SET_CAUSE( ulStatus );					\
