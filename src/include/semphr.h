@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.1 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.2 - Copyright (C) 2010 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -115,7 +115,7 @@ typedef xQueueHandle xSemaphoreHandle;
 
 /**
  * semphr. h
- * xSemaphoreTake( 
+ * <pre>xSemaphoreTake( 
  *                   xSemaphoreHandle xSemaphore, 
  *                   portTickType xBlockTime 
  *               )</pre>
@@ -454,7 +454,7 @@ typedef xQueueHandle xSemaphoreHandle;
  * <pre>
  xSemaphoreGiveFromISR( 
                           xSemaphoreHandle xSemaphore, 
-                          portBASE_TYPE *pxHigherPriorityTaskWoken
+                          signed portBASE_TYPE *pxHigherPriorityTaskWoken
                       )</pre>
  *
  * <i>Macro</i> to  release a semaphore.  The semaphore must have previously been
@@ -478,8 +478,8 @@ typedef xQueueHandle xSemaphoreHandle;
  *
  * Example usage:
  <pre>
- #define LONG_TIME 0xffff
- #define TICKS_TO_WAIT	10
+ \#define LONG_TIME 0xffff
+ \#define TICKS_TO_WAIT	10
  xSemaphoreHandle xSemaphore = NULL;
 
  // Repetitive task.
@@ -509,7 +509,7 @@ typedef xQueueHandle xSemaphoreHandle;
  void vTimerISR( void * pvParameters )
  {
  static unsigned char ucLocalTickCount = 0;
- static portBASE_TYPE xHigherPriorityTaskWoken;
+ static signed portBASE_TYPE xHigherPriorityTaskWoken;
 
     // A timer tick has occurred.
 

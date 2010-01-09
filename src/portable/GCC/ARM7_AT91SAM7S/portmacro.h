@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.1 - Copyright (C) 2009 Real Time Engineers Ltd.
+    FreeRTOS V6.0.2 - Copyright (C) 2010 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -211,7 +211,7 @@ extern volatile unsigned portLONG ulCriticalNesting;					\
 
 
 #define portYIELD_FROM_ISR()		vTaskSwitchContext()
-#define portYIELD()					asm volatile ( "SWI" )
+#define portYIELD()					asm volatile ( "SWI 0" )
 /*-----------------------------------------------------------*/
 
 
