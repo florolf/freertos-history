@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.2 - Copyright (C) 2010 Real Time Engineers Ltd.
+    FreeRTOS V6.0.3 - Copyright (C) 2010 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -71,8 +71,6 @@ task.h is included from an application file. */
  * Macro to define the amount of stack available to the idle task.
  */
 #define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
-
-#define tskIDLE_PRIORITY			( ( unsigned portBASE_TYPE ) 0 )
 
 /*
  * Task control block.  A task control block (TCB) is allocated to each task,

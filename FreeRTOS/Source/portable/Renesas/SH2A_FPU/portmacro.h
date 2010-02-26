@@ -51,8 +51,15 @@
     licensing and training services.
 */
 
+
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
+
+#include <machine.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*-----------------------------------------------------------
  * Port specific definitions.  
@@ -64,14 +71,15 @@
  *-----------------------------------------------------------
  */
 
-/* Type definitions. */
+/* Type definitions - these are a bit legacy and not really used now, other than
+portSTACK_TYPE and portBASE_TYPE. */
 #define portCHAR		char
-#define portFLOAT		long
-#define portDOUBLE		long
+#define portFLOAT		float
+#define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portSTACK_TYPE	unsigned portSHORT
-#define portBASE_TYPE	portSHORT
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -82,38 +90,68 @@
 #endif
 /*-----------------------------------------------------------*/
 
-/* Critical section management. */
-#define portENTER_CRITICAL()			__asm{ pushf }  \
-										__asm{ cli 	 }	\
-
-#define portEXIT_CRITICAL()				__asm{ popf }
-
-#define portDISABLE_INTERRUPTS()		__asm{ cli }
-
-#define portENABLE_INTERRUPTS()			__asm{ sti }
-/*-----------------------------------------------------------*/
-
 /* Hardware specifics. */
-#define portNOP()				__asm{ nop }
-#define portSTACK_GROWTH		( -1 )
-#define portSWITCH_INT_NUMBER 	0x80
-#define portYIELD()				__asm{ int portSWITCH_INT_NUMBER } 
-#define portDOS_TICK_RATE		( 18.20648 )
-#define portTICK_RATE_MS		( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-#define portTICKS_PER_DOS_TICK	( ( unsigned portSHORT ) ( ( ( portDOUBLE ) configTICK_RATE_HZ / portDOS_TICK_RATE ) + 0.5 ) )
-#define portINITIAL_SW			( ( portSTACK_TYPE ) 0x0202 )	/* Start the tasks with interrupts enabled. */
-#define portBYTE_ALIGNMENT		( 2 )
-/*-----------------------------------------------------------*/
+#define portBYTE_ALIGNMENT				8
+#define portSTACK_GROWTH				-1
+#define portTICK_RATE_MS				( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portNOP()						nop()
+#define portSTART_SCHEDULER_TRAP_NO		( 32 )
+#define portYIELD_TRAP_NO				( 33 )
+#define portKERNEL_INTERRUPT_PRIORITY	( 1 )
 
-/* Compiler specifics. */
-#define portINPUT_BYTE( xAddr )				inp( xAddr )
-#define portOUTPUT_BYTE( xAddr, ucValue )	outp( xAddr, ucValue )
+void vPortYield( void );
+#define portYIELD()						vPortYield()
+
+extern void vTaskSwitchContext( void );
+#define portYIELD_FROM_ISR( x )			if( x != pdFALSE ) vTaskSwitchContext()
+
+/* 
+ * This function tells the kernel that the task referenced by xTask is going to 
+ * use the floating point registers and therefore requires the floating point 
+ * registers saved as part of its context. 
+ */
+portBASE_TYPE xPortUsesFloatingPoint( void* xTask );
+
+/*
+ * The flop save and restore functions are defined in portasm.src and called by
+ * the trace "task switched in" and "trace task switched out" macros. 
+ */
+void vPortSaveFlopRegisters( void *pulBuffer );
+void vPortRestoreFlopRegisters( void *pulBuffer );
+
+/*
+ * pxTaskTag is used to point to the buffer into which the floating point 
+ * context should be saved.  If pxTaskTag is NULL then the task does not use
+ * a floating point context.
+ */
+#define traceTASK_SWITCHED_OUT() if( pxCurrentTCB->pxTaskTag != NULL ) vPortSaveFlopRegisters( pxCurrentTCB->pxTaskTag )
+#define traceTASK_SWITCHED_IN() if( pxCurrentTCB->pxTaskTag != NULL ) vPortRestoreFlopRegisters( pxCurrentTCB->pxTaskTag )
+
+/*
+ * These macros should be called directly, but through the taskENTER_CRITICAL()
+ * and taskEXIT_CRITICAL() macros.
+ */
+#define portENABLE_INTERRUPTS() 	set_imask( 0x00 )
+#define portDISABLE_INTERRUPTS() 	set_imask( portKERNEL_INTERRUPT_PRIORITY )
+
+/* Critical nesting counts are stored in the TCB. */
+#define portCRITICAL_NESTING_IN_TCB ( 1 )
+
+/* The critical nesting functions defined within tasks.c. */
+extern void vTaskEnterCritical( void );
+extern void vTaskExitCritical( void );
+#define portENTER_CRITICAL()	vTaskEnterCritical();
+#define portEXIT_CRITICAL()		vTaskExitCritical();
 
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
-#define portTASK_FUNCTION_PROTO( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters )
-#define portTASK_FUNCTION( vTaskFunction, pvParameters ) void vTaskFunction( void *pvParameters )
+#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
+#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PORTMACRO_H */
 
