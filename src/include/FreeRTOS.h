@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.0.2 - Copyright (C) 2010 Real Time Engineers Ltd.
+    FreeRTOS V6.0.3 - Copyright (C) 2010 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -409,7 +409,7 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 #endif
 
 #ifndef pvPortMallocAligned
-	#define pvPortMallocAligned( xSize, pvBuffer ) pvPortMalloc( xSize ); ( void ) pvBuffer
+	#define pvPortMallocAligned( x, puxStackBuffer ) ( ( puxStackBuffer == NULL ) ? ( pvPortMalloc( x ) ) : ( puxStackBuffer ) )
 #endif
 
 #ifndef vPortFreeAligned
