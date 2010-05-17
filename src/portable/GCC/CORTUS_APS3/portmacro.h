@@ -33,9 +33,9 @@
     FreeRTOS is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-    more details. You should have received a copy of the GNU General Public 
-    License and the FreeRTOS license exception along with FreeRTOS; if not it 
-    can be viewed here: http://www.freertos.org/a00114.html and also obtained 
+    more details. You should have received a copy of the GNU General Public
+    License and the FreeRTOS license exception along with FreeRTOS; if not it
+    can be viewed here: http://www.freertos.org/a00114.html and also obtained
     by writing to Richard Barry, contact details for whom are available on the
     FreeRTOS WEB site.
 
@@ -58,8 +58,10 @@
 extern "C" {
 #endif
 
+#include <machine/ic.h>
+
 /*-----------------------------------------------------------
- * Port specific definitions.  
+ * Port specific definitions.
  *
  * The settings in this file configure FreeRTOS correctly for the
  * given hardware and compiler.
@@ -74,8 +76,8 @@ extern "C" {
 #define portDOUBLE		double
 #define portLONG		long
 #define portSHORT		short
-#define portSTACK_TYPE	unsigned short
-#define portBASE_TYPE	short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	portLONG
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -86,47 +88,89 @@ extern "C" {
 #endif
 /*-----------------------------------------------------------*/
 
-/* Hardware specifics. */
-#define portBYTE_ALIGNMENT			2
-#define portSTACK_GROWTH			1
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
-/*-----------------------------------------------------------*/
-
-/* Critical section management. */
-#define portINTERRUPT_BITS			( ( unsigned portSHORT ) configKERNEL_INTERRUPT_PRIORITY << ( unsigned portSHORT ) 5 )
-
-#define portDISABLE_INTERRUPTS()	SR |= portINTERRUPT_BITS                    
-#define portENABLE_INTERRUPTS()		SR &= ~portINTERRUPT_BITS
-
-/* Note that exiting a critical sectino will set the IPL bits to 0, nomatter
-what their value was prior to entering the critical section. */
-extern void vPortEnterCritical( void );
-extern void vPortExitCritical( void );
-#define portENTER_CRITICAL()		vPortEnterCritical()
-#define portEXIT_CRITICAL()			vPortExitCritical()
+/* Architecture specifics. */
+#define portSTACK_GROWTH							( -1 )
+#define portTICK_RATE_MS							( ( portTickType ) 1000 / configTICK_RATE_HZ )
+#define portBYTE_ALIGNMENT							4
+#define portNOP()									__asm__ volatile ( "mov r0, r0" )
+#define portCRITICAL_NESTING_IN_TCB					1
+#define portIRQ_TRAP_YIELD							31
+#define portKERNEL_INTERRUPT_PRIORITY_LEVEL			0
+#define portSYSTEM_INTERRUPT_PRIORITY_LEVEL			0
 /*-----------------------------------------------------------*/
 
 /* Task utilities. */
+
 extern void vPortYield( void );
-#define portYIELD()				asm volatile ( "CALL _vPortYield			\n"		\
-												"NOP					  " );
-/*-----------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+
+#define portYIELD()		asm __volatile__( " trap #%0 "::"i"(portIRQ_TRAP_YIELD):"memory")
+/*---------------------------------------------------------------------------*/
+
+extern void vTaskEnterCritical( void );
+extern void vTaskExitCritical( void );
+#define portENTER_CRITICAL()		vTaskEnterCritical()
+#define portEXIT_CRITICAL()			vTaskExitCritical()
+/*---------------------------------------------------------------------------*/
+
+/* Critical section management. */
+#define portDISABLE_INTERRUPTS() ic->cpl = ( portSYSTEM_INTERRUPT_PRIORITY_LEVEL + 1 )
+#define portENABLE_INTERRUPTS() ic->cpl = portKERNEL_INTERRUPT_PRIORITY_LEVEL
+
+/*---------------------------------------------------------------------------*/
+
+#define portYIELD_FROM_ISR( xHigherPriorityTaskWoken ) if( xHigherPriorityTaskWoken != pdFALSE ) vTaskSwitchContext()
+
+/*---------------------------------------------------------------------------*/
+
+#define portSAVE_CONTEXT()				\
+	asm __volatile__																								\
+	(																												\
+		"sub	r1, #68					\n" /* Make space on the stack for the context. */							\
+		"std	r2, [r1] + 	0			\n"																			\
+		"stq	r4, [r1] +	8			\n"																			\
+		"stq	r8, [r1] +	24			\n"																			\
+		"stq	r12, [r1] +	40			\n"																			\
+		"mov	r6, rtt					\n"																			\
+		"mov	r7, psr					\n"																			\
+		"std	r6, [r1] +	56			\n"																			\
+		"movhi	r2, #16384				\n"	/* Set the pointer to the IC. */										\
+		"ldub	r3, [r2] + 2			\n"	/* Load the current interrupt mask. */									\
+		"st		r3, [r1]+ 64			\n"	/* Store the interrupt mask on the stack. */ 							\
+		"ld		r2, [r0]+short(pxCurrentTCB)	\n"	/* Load the pointer to the TCB. */								\
+		"st		r1, [r2]				\n"	/* Save the stack pointer into the TCB. */								\
+		"mov	r14, r1					\n"	/* Compiler expects r14 to be set to the function stack. */				\
+	);
+/*---------------------------------------------------------------------------*/
+
+#define portRESTORE_CONTEXT()																						\
+	asm __volatile__(																								\
+		"ld		r2, [r0]+short(pxCurrentTCB)	\n"	/* Load the TCB to find the stack pointer and context. */		\
+		"ld		r1, [r2]				\n"																			\
+		"movhi	r2, #16384				\n"	/* Set the pointer to the IC. */										\
+		"ld		r3, [r1] + 64			\n"	/* Load the previous interrupt mask. */									\
+		"stb	r3, [r2] + 2  			\n"	/* Set the current interrupt mask to be the previous. */				\
+		"ldd	r6, [r1] + 56			\n"	/* Restore context. */													\
+		"mov	rtt, r6					\n"																			\
+		"mov	psr, r7					\n"																			\
+		"ldd	r2, [r1] + 0			\n"																			\
+		"ldq	r4, [r1] +	8			\n"																			\
+		"ldq	r8, [r1] +	24			\n"																			\
+		"ldq	r12, [r1] +	40			\n"																			\
+		"add	r1, #68					\n"																			\
+		"rti							\n"																			\
+	 );
+
+/*---------------------------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
-/*-----------------------------------------------------------*/
-
-/* Required by the kernel aware debugger. */
-#ifdef __DEBUG
-	#define portREMOVE_STATIC_QUALIFIER
-#endif
-
-#define portNOP()				asm volatile ( "NOP" )
+/*---------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* PORTMACRO_H */
-
