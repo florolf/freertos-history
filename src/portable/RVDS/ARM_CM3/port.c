@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V6.1.0 - Copyright (C) 2010 Real Time Engineers Ltd.
+    FreeRTOS V6.1.1 - Copyright (C) 2011 Real Time Engineers Ltd.
 
     ***************************************************************************
     *                                                                         *
@@ -148,8 +148,11 @@ __asm void vPortStartFirstTask( void )
 	ldr r0, [r0]
 	/* Set the msp back to the start of the stack. */
 	msr msp, r0
+	/* Globally enable interrupts. */
+	cpsie i
 	/* Call SVC to start the first task. */
 	svc 0
+	nop
 }
 /*-----------------------------------------------------------*/
 
