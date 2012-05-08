@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V7.1.0 - Copyright (C) 2011 Real Time Engineers Ltd.
+    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
 	
 
     ***************************************************************************
@@ -40,22 +40,40 @@
     FreeRTOS WEB site.
 
     1 tab == 4 spaces!
+    
+    ***************************************************************************
+     *                                                                       *
+     *    Having a problem?  Start by reading the FAQ "My application does   *
+     *    not run, what could be wrong?                                      *
+     *                                                                       *
+     *    http://www.FreeRTOS.org/FAQHelp.html                               *
+     *                                                                       *
+    ***************************************************************************
 
-    http://www.FreeRTOS.org - Documentation, latest information, license and
-    contact details.
+    
+    http://www.FreeRTOS.org - Documentation, training, latest information, 
+    license and contact details.
+    
+    http://www.FreeRTOS.org/plus - A selection of FreeRTOS ecosystem products,
+    including FreeRTOS+Trace - an indispensable productivity tool.
 
-    http://www.SafeRTOS.com - A version that is certified for use in safety
-    critical systems.
-
-    http://www.OpenRTOS.com - Commercial support, development, porting,
-    licensing and training services.
+    Real Time Engineers ltd license FreeRTOS to High Integrity Systems, who sell 
+    the code with commercial support, indemnification, and middleware, under 
+    the OpenRTOS brand: http://www.OpenRTOS.com.  High Integrity Systems also
+    provide a safety engineered and independently SIL3 certified version under 
+    the SafeRTOS brand: http://www.SafeRTOS.com.
 */
+
 
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*-----------------------------------------------------------
- * Port specific definitions.
+ * Port specific definitions.  
  *
  * The settings in this file configure FreeRTOS correctly for the
  * given hardware and compiler.
@@ -64,23 +82,14 @@
  *-----------------------------------------------------------
  */
 
-/* Hardware includes. */
-#include "msp430.h"
-
 /* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
-#define portSHORT		int
-#define portBASE_TYPE	portSHORT
-
-/* The stack type changes depending on the data model. */
-#ifdef __LARGE_DATA_MODEL__
-	#define portSTACK_TYPE unsigned long
-#else
-	#define portSTACK_TYPE unsigned short
-#endif
+#define portSHORT		short
+#define portSTACK_TYPE	unsigned portLONG
+#define portBASE_TYPE	long
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef unsigned portSHORT portTickType;
@@ -89,76 +98,65 @@
 	typedef unsigned portLONG portTickType;
 	#define portMAX_DELAY ( portTickType ) 0xffffffff
 #endif
-
 /*-----------------------------------------------------------*/	
 
-/* Interrupt control macros. */
-#define portDISABLE_INTERRUPTS()	_disable_interrupt()
-#define portENABLE_INTERRUPTS()		_enable_interrupt()
-/*-----------------------------------------------------------*/
-
-/* Critical section control macros. */
-#define portNO_CRITICAL_SECTION_NESTING		( ( unsigned portSHORT ) 0 )
-
-#define portENTER_CRITICAL()													\
-{																				\
-extern volatile unsigned short usCriticalNesting;								\
-																				\
-	portDISABLE_INTERRUPTS();													\
-																				\
-	/* Now interrupts are disabled usCriticalNesting can be accessed */			\
-	/* directly.  Increment ulCriticalNesting to keep a count of how many */	\
-	/* times portENTER_CRITICAL() has been called. */							\
-	usCriticalNesting++;														\
-}
-
-#define portEXIT_CRITICAL()														\
-{																				\
-extern volatile unsigned short usCriticalNesting;								\
-																				\
-	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
-	{																			\
-		/* Decrement the nesting count as we are leaving a critical section. */	\
-		usCriticalNesting--;													\
-																				\
-		/* If the nesting level has reached zero then interrupts should be */	\
-		/* re-enabled. */														\
-		if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )				\
-		{																		\
-			portENABLE_INTERRUPTS();											\
-		}																		\
-	}																			\
-}
-/*-----------------------------------------------------------*/
-
-/* Task utilities. */
-
-/*
- * Manual context switch called by portYIELD or taskYIELD.
- */
-extern void vPortYield( void );
-#define portYIELD() vPortYield()
-/*-----------------------------------------------------------*/
-
-/* Hardware specifics. */
-#define portBYTE_ALIGNMENT			2
+/* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )	
-#define portNOP()					__no_operation()	
+#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )		
+#define portBYTE_ALIGNMENT			8
+/*-----------------------------------------------------------*/	
+
+
+/* Scheduler utilities. */
+extern void vPortYieldFromISR( void );
+
+#define portYIELD()					vPortYieldFromISR()
+
+#define portEND_SWITCHING_ISR( xSwitchRequired ) if( xSwitchRequired ) vPortYieldFromISR()
+/*-----------------------------------------------------------*/
+
+
+/* Critical section management. */
+
+/* 
+ * Set basepri to portMAX_SYSCALL_INTERRUPT_PRIORITY without effecting other
+ * registers.  r0 is clobbered.
+ */ 
+#define portSET_INTERRUPT_MASK() __set_BASEPRI( configMAX_SYSCALL_INTERRUPT_PRIORITY )
+	
+/*
+ * Set basepri back to 0 without effective other registers.
+ * r0 is clobbered.
+ */
+#define portCLEAR_INTERRUPT_MASK() __set_BASEPRI( 0 )
+
+#define portSET_INTERRUPT_MASK_FROM_ISR()		0;portSET_INTERRUPT_MASK()
+#define portCLEAR_INTERRUPT_MASK_FROM_ISR(x)	portCLEAR_INTERRUPT_MASK();(void)x
+
+
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
+
+#define portDISABLE_INTERRUPTS()	portSET_INTERRUPT_MASK()
+#define portENABLE_INTERRUPTS()		portCLEAR_INTERRUPT_MASK()
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
+
+/* There are an uneven number of items on the initial stack, so 
+portALIGNMENT_ASSERT_pxCurrentTCB() will trigger false positive asserts. */
+#define portALIGNMENT_ASSERT_pxCurrentTCB ( void )
+
 /*-----------------------------------------------------------*/
 
 /* Task function macros as described on the FreeRTOS.org WEB site. */
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
-extern void vTaskSwitchContext( void );
-#define portYIELD_FROM_ISR( x ) if( x ) vPortYield()
-	
-void vApplicationSetupTimerInterrupt( void );
+#define portNOP()
 
-/* sizeof( int ) != sizeof( long ) so a full printf() library is required if
-run time stats information is to be displayed. */
-#define portLU_PRINTF_SPECIFIER_REQUIRED
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PORTMACRO_H */
 

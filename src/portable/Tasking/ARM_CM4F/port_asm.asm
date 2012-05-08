@@ -1,7 +1,6 @@
-;
 ;/*
-;    FreeRTOS V7.1.0 - Copyright (C) 2011 Real Time Engineers Ltd.
-;	
+;    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
+;
 ;
 ;    ***************************************************************************
 ;     *                                                                       *
@@ -52,139 +51,118 @@
 ;    licensing and training services.
 ;*/
 
-; * The definition of the "register test" tasks, as described at the top of
-; * main.c
+	.extern pxCurrentTCB
+	.extern vTaskSwitchContext
+	.extern ulMaxSyscallInterruptPriorityConst
 
-	.include data_model.h
+	.global PendSV_Handler
+	.global SVC_Handler
+	.global vPortStartFirstTask
+	.global vPortEnableVFP
+	
+;-----------------------------------------------------------
 
-	.global vTaskIncrementTick
-	.global vTaskSwitchContext
-	.global vPortSetupTimerInterrupt
-	.global pxCurrentTCB
-	.global usCriticalNesting
+	.section .text
+	.thumb
+	.align 4
+PendSV_Handler: .type func
+	mrs r0, psp
 
-	.def vPortPreemptiveTickISR
-	.def vPortCooperativeTickISR
-	.def vPortYield
-	.def xPortStartScheduler
+	;Get the location of the current TCB.
+	ldr.w	r3, =pxCurrentTCB
+	ldr	r2, [r3]
+
+	;Is the task using the FPU context?  If so, push high vfp registers.
+	tst r14, #0x10
+	it eq
+	vstmdbeq r0!, {s16-s31}
+
+	;Save the core registers.
+	stmdb r0!, {r4-r11, r14}
+
+	;Save the new top of stack into the first member of the TCB.
+	str r0, [r2]
+
+	stmdb sp!, {r3, r14}
+	ldr.w r0, =ulMaxSyscallInterruptPriorityConst
+	msr basepri, r0
+	bl vTaskSwitchContext
+	mov r0, #0
+	msr basepri, r0
+	ldmia sp!, {r3, r14}
+
+	;The first item in pxCurrentTCB is the task top of stack.
+	ldr r1, [r3]
+	ldr r0, [r1]
+
+	;Pop the core registers.
+	ldmia r0!, {r4-r11, r14}
+
+	;Is the task using the FPU context?  If so, pop the high vfp registers too.
+	tst r14, #0x10
+	it eq
+	vldmiaeq r0!, {s16-s31}
+
+	msr psp, r0
+	bx r14
+
+	.size	PendSV_Handler, $-PendSV_Handler
+	.endsec
 
 ;-----------------------------------------------------------
 
-portSAVE_CONTEXT .macro
+	.section .text
+	.thumb
+	.align 4
+SVC_Handler: .type func
+	;Get the location of the current TCB.
+	ldr.w	r3, =pxCurrentTCB
+	ldr r1, [r3]
+	ldr r0, [r1]
+	;Pop the core registers.
+	ldmia r0!, {r4-r11, r14}
+	msr psp, r0
+	mov r0, #0
+	msr	basepri, r0
+	bx r14
+	.size	SVC_Handler, $-SVC_Handler
+	.endsec
 
-	;Save the remaining registers.
-	pushm_x	#12, r15
-	mov.w	&usCriticalNesting, r14
-	push_x r14
-	mov_x	&pxCurrentTCB, r12
-	mov_x	sp, 0( r12 )
-	.endm
-;-----------------------------------------------------------
-		
-portRESTORE_CONTEXT .macro
-
-	mov_x	&pxCurrentTCB, r12
-	mov_x	@r12, sp
-	pop_x	r15
-	mov.w	r15, &usCriticalNesting
-	popm_x	#12, r15
-		
-	;The last thing on the stack will be the status register.
-    ;Ensure the power down bits are clear ready for the next
-    ;time this power down register is popped from the stack.
-	bic.w   #0xf0, 0( sp )
-		
-	pop.w	sr
-	ret_x
-	.endm
 ;-----------------------------------------------------------
 
-;*
-;* The RTOS tick ISR.
-;*
-;* If the cooperative scheduler is in use this simply increments the tick
-;* count.
-;*
-;* If the preemptive scheduler is in use a context switch can also occur.
-;*/
-	
-	.text
-	.align 2
-	
-vPortPreemptiveTickISR: .asmfunc
-	
-	; The sr is not saved in portSAVE_CONTEXT() because vPortYield() needs
-	;to save it manually before it gets modified (interrupts get disabled).
-	push.w sr
-	portSAVE_CONTEXT
-				
-	call_x	#vTaskIncrementTick
-	call_x	#vTaskSwitchContext
-		
-	portRESTORE_CONTEXT
-	.endasmfunc
+	.section .text
+	.thumb
+	.align 4
+vPortStartFirstTask .type func
+	;Use the NVIC offset register to locate the stack.
+	ldr.w r0, =0xE000ED08
+	ldr r0, [r0]
+	ldr r0, [r0]
+	;Set the msp back to the start of the stack.
+	msr msp, r0
+	;Call SVC to start the first task.
+	cpsie i
+	svc 0
+	.size	vPortStartFirstTask, $-vPortStartFirstTask
+	.endsec
+
 ;-----------------------------------------------------------
 
-	.align 2
-	
-vPortCooperativeTickISR: .asmfunc
-	
-	; The sr is not saved in portSAVE_CONTEXT() because vPortYield() needs
-	;to save it manually before it gets modified (interrupts get disabled).
-	push.w sr
-	portSAVE_CONTEXT
-				
-	call_x	#vTaskIncrementTick
-		
-	portRESTORE_CONTEXT
-	
-	.endasmfunc
-;-----------------------------------------------------------
+	.section .text
+	.thumb
+	.align 4
+vPortEnableVFP .type func
+	;The FPU enable bits are in the CPACR.
+	ldr.w r0, =0xE000ED88
+	ldr	r1, [r0]
 
-;
-; Manual context switch called by the portYIELD() macro.
-;
-
-	.align 2
-
-vPortYield: .asmfunc
-
-	; The sr needs saving before it is modified.
-	push.w	sr
-	
-	; Now the SR is stacked we can disable interrupts.
-	dint	
-	nop
-				
-	; Save the context of the current task.
-	portSAVE_CONTEXT			
-
-	; Select the next task to run.
-	call_x	#vTaskSwitchContext		
-
-	; Restore the context of the new task.
-	portRESTORE_CONTEXT
-	.endasmfunc
-;-----------------------------------------------------------
+	;Enable CP10 and CP11 coprocessors, then save back.
+	orr	r1, r1, #( 0xf << 20 )
+	str r1, [r0]
+	bx	r14
+	.size	vPortEnableVFP, $-vPortEnableVFP
+	.endsec
 
 
-;
-; Start off the scheduler by initialising the RTOS tick timer, then restoring
-; the context of the first task.
-;
-
-	.align 2
-	
-xPortStartScheduler: .asmfunc
-
-	; Setup the hardware to generate the tick.  Interrupts are disabled
-	; when this function is called.
-	call_x	#vPortSetupTimerInterrupt
-
-	; Restore the context of the first task that is going to run.
-	portRESTORE_CONTEXT
-	.endasmfunc
-;-----------------------------------------------------------
-      		
 	.end
-		
+	
