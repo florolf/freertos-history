@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
+    FreeRTOS V7.2.0 - Copyright (C) 2012 Real Time Engineers Ltd.
 	
 
     ***************************************************************************
@@ -74,6 +74,10 @@
 
 #ifndef __TARGET_FPU_VFP 
 	#error This port can only be used when the project options are configured to enable hardware floating point support.
+#endif
+
+#if configMAX_SYSCALL_INTERRUPT_PRIORITY == 0
+	#error configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to 0.  See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html
 #endif
 
 /* Constants required to manipulate the NVIC. */
@@ -365,6 +369,8 @@ __asm void vPortClearInterruptMask( void )
 {
 	PRESERVE8
 
+	/* FAQ:  Setting BASEPRI to 0 is not a bug.  Please see 
+	http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html before disagreeing. */
 	mov r0, #0
 	msr basepri, r0
 	bx r14

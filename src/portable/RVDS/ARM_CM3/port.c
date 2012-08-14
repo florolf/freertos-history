@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
+    FreeRTOS V7.2.0 - Copyright (C) 2012 Real Time Engineers Ltd.
 	
 
     ***************************************************************************
@@ -74,6 +74,10 @@
 
 #ifndef configKERNEL_INTERRUPT_PRIORITY
 	#define configKERNEL_INTERRUPT_PRIORITY 255
+#endif
+
+#if configMAX_SYSCALL_INTERRUPT_PRIORITY == 0
+	#error configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to 0.  See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html
 #endif
 
 /* Constants required to manipulate the NVIC. */
@@ -290,10 +294,8 @@ __asm void vPortSetInterruptMask( void )
 {
 	PRESERVE8
 
-	push { r0 }
 	mov r0, #configMAX_SYSCALL_INTERRUPT_PRIORITY
 	msr basepri, r0
-	pop { r0 }
 	bx r14
 }
 
@@ -303,9 +305,9 @@ __asm void vPortClearInterruptMask( void )
 {
 	PRESERVE8
 
-	push { r0 }
+	/* FAQ:  Setting BASEPRI to 0 is not a bug.  Please see 
+	http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html before disagreeing. */
 	mov r0, #0
 	msr basepri, r0
-	pop { r0 }
 	bx r14
 }

@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
+    FreeRTOS V7.2.0 - Copyright (C) 2012 Real Time Engineers Ltd.
 	
 
     ***************************************************************************
@@ -213,6 +213,7 @@ interrupt void vTickISREntry( void )
 {
 extern void vPortTickISR( void );
 
+	__bic_SR_register_on_exit( SCG1 + SCG0 + OSCOFF + CPUOFF );
 	#if configUSE_PREEMPTION == 1
 		extern void vPortPreemptiveTickISR( void );
 		vPortPreemptiveTickISR();

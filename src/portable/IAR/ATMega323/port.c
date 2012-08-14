@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V7.1.1 - Copyright (C) 2012 Real Time Engineers Ltd.
+    FreeRTOS V7.2.0 - Copyright (C) 2012 Real Time Engineers Ltd.
 	
 
     ***************************************************************************
@@ -279,7 +279,6 @@ portBASE_TYPE xPortStartScheduler( void )
 	Normally we would just call portRESTORE_CONTEXT() here, but as the IAR
 	compiler does not fully support inline assembler we have to make a call.*/
 	vPortStart();
-
 
 	/* Should not get here! */
 	return pdTRUE;
