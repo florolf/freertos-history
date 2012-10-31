@@ -66,56 +66,84 @@
     the SafeRTOS brand: http://www.SafeRTOS.com.
 */
 
-#ifndef PORT_ASM_H
-#define PORT_ASM_H
+#ifndef __PORTMACRO_H__
+#define __PORTMACRO_H__
 
-portSAVE_CONTEXT macro
-                /* Save the remaining registers. */
-		push	r4
-		push	r5
-		push	r6
-		push	r7
-		push	r8
-		push	r9
-		push	r10
-		push	r11
-		push	r12
-		push	r13
-		push	r14
-		push	r15
-		mov.w	&_usCriticalNesting, r14
-		push	r14
-		mov.w	&_pxCurrentTCB, r12
-		mov.w	r1, @r12
-		endm
-/*-----------------------------------------------------------*/
-		
-portRESTORE_CONTEXT macro
-		mov.w	&_pxCurrentTCB, r12
-		mov.w	@r12, r1
-		pop		r15
-		mov.w	r15, &_usCriticalNesting
-		pop		r15
-		pop		r14
-		pop		r13
-		pop		r12
-		pop		r11
-		pop		r10
-		pop		r9
-		pop		r8
-		pop		r7
-		pop		r6
-		pop		r5
-		pop		r4
+/*-----------------------------------------------------------
+ * Port specific definitions.
+ *
+ * The settings in this file configure FreeRTOS correctly for the
+ * given hardware and compiler.
+ *
+ * These settings should not be altered.
+ *-----------------------------------------------------------
+ */
 
-		/* The last thing on the stack will be the status register.
-                Ensure the power down bits are clear ready for the next
-                time this power down register is popped from the stack. */
-		bic.w   #0xf0,0(SP)
+/* Type definitions. */
+#define portCHAR        char
+#define portFLOAT       float
+#define portDOUBLE      double
+#define portLONG        long
+#define portSHORT       short
+#define portSTACK_TYPE  unsigned long
+#define portBASE_TYPE   long
 
-		reti
-		endm
-/*-----------------------------------------------------------*/
-
+#if (configUSE_16_BIT_TICKS == 1)
+    typedef unsigned portSHORT portTickType;
+    #define portMAX_DELAY (portTickType) 0xFFFF
+#else
+    typedef unsigned portLONG portTickType;
+    #define portMAX_DELAY (portTickType) 0xFFFFFFFFF
 #endif
+
+
+/* Architecture specifics. */
+#define portSTACK_GROWTH    (-1)
+#define portTICK_RATE_MS    ((portTickType) 1000 / configTICK_RATE_HZ)		
+#define portBYTE_ALIGNMENT  8
+
+/* Critical section handling. */
+extern void vPortEnterCritical(void);
+extern void vPortExitCritical(void);
+#define portENTER_CRITICAL()		vPortEnterCritical()
+#define portEXIT_CRITICAL()			vPortExitCritical()
+#define portDISABLE_INTERRUPTS()	asm( " CPSID I" )
+#define portENABLE_INTERRUPTS()		asm( " CPSIE I" )
+
+/* Scheduler utilities. */
+#pragma SWI_ALIAS( vPortYield, 0 )
+extern void vPortYield( void );
+#define portYIELD()             	vPortYield()
+#define portSYS_SSIR1_REG			( * ( ( volatile unsigned long * ) 0xFFFFFFB0 ) )
+#define portSYS_SSIR1_SSKEY			( 0x7500UL )
+#define portYIELD_WITHIN_API()		{ portSYS_SSIR1_REG = portSYS_SSIR1_SSKEY;  ( void ) portSYS_SSIR1_REG; }
+#define portYIELD_FROM_ISR( x )		if( x != pdFALSE ){ portSYS_SSIR1_REG = portSYS_SSIR1_SSKEY;  ( void ) portSYS_SSIR1_REG; }
+
+/* Architecture specific optimisations. */
+#if configUSE_PORT_OPTIMISED_TASK_SELECTION == 1
+
+	/* Generic helper function. */
+	unsigned long ulPortCountLeadingZeros( unsigned long ulBitmap );
+
+	/* Check the configuration. */
+	#if( configMAX_PRIORITIES > 32 )
+		#error configUSE_PORT_OPTIMISED_TASK_SELECTION can only be set to 1 when configMAX_PRIORITIES is less than or equal to 32.  It is very rare that a system requires more than 10 to 15 difference priorities as tasks that share a priority will time slice.
+	#endif
+
+	/* Store/clear the ready priorities in a bit map. */
+	#define portRECORD_READY_PRIORITY( uxPriority, uxReadyPriorities ) ( uxReadyPriorities ) |= ( 1UL << ( uxPriority ) )
+	#define portRESET_READY_PRIORITY( uxPriority, uxReadyPriorities ) ( uxReadyPriorities ) &= ~( 1UL << ( uxPriority ) )
+
+	/*-----------------------------------------------------------*/
+
+	#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) uxTopPriority = ( 31 - ulPortCountLeadingZeros( ( uxReadyPriorities ) ) )
+
+#endif /* configUSE_PORT_OPTIMISED_TASK_SELECTION */
+
+
+/* Task function macros as described on the FreeRTOS.org WEB site. */
+#define portTASK_FUNCTION(vFunction, pvParameters)       void vFunction(void *pvParameters)
+#define portTASK_FUNCTION_PROTO(vFunction, pvParameters) void vFunction(void *pvParameters)
+
+#endif /* __PORTMACRO_H__ */
 
