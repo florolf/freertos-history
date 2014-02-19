@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.0.0:rc2 - Copyright (C) 2014 Real Time Engineers Ltd.
+    FreeRTOS V8.0.0 - Copyright (C) 2014 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -115,7 +115,7 @@ typedef unsigned long UBaseType_t;
 /* Called at the end of an ISR that can cause a context switch. */
 #define portEND_SWITCHING_ISR( xSwitchRequired )\
 {												\
-extern uint32_t ulPortYieldRequired;		\
+extern uint32_t ulPortYieldRequired;			\
 												\
 	if( xSwitchRequired != pdFALSE )			\
 	{											\

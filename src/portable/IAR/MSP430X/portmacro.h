@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.0.0:rc2 - Copyright (C) 2014 Real Time Engineers Ltd.
+    FreeRTOS V8.0.0 - Copyright (C) 2014 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -110,7 +110,7 @@ typedef unsigned short UBaseType_t;
 
 /* Interrupt control macros. */
 #define portDISABLE_INTERRUPTS()	_DINT();_NOP()
-#define portENABLE_INTERRUPTS()		_EINT()
+#define portENABLE_INTERRUPTS()		_EINT(); _NOP()
 /*-----------------------------------------------------------*/
 
 /* Critical section control macros. */
@@ -118,7 +118,7 @@ typedef unsigned short UBaseType_t;
 
 #define portENTER_CRITICAL()													\
 {																				\
-extern volatile uint16_t usCriticalNesting;								\
+extern volatile uint16_t usCriticalNesting;										\
 																				\
 	portDISABLE_INTERRUPTS();													\
 																				\
@@ -130,7 +130,7 @@ extern volatile uint16_t usCriticalNesting;								\
 
 #define portEXIT_CRITICAL()														\
 {																				\
-extern volatile uint16_t usCriticalNesting;							\
+extern volatile uint16_t usCriticalNesting;										\
 																				\
 	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
 	{																			\
@@ -167,7 +167,6 @@ extern void vPortYield( void );
 #define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
 #define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
 
-extern void vTaskSwitchContext( void );
 #define portYIELD_FROM_ISR( x ) if( x ) vPortYield()
 
 void vApplicationSetupTimerInterrupt( void );

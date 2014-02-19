@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.0.0:rc2 - Copyright (C) 2014 Real Time Engineers Ltd.
+    FreeRTOS V8.0.0 - Copyright (C) 2014 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -129,7 +129,7 @@ typedef unsigned short UBaseType_t;
 
 #define portENTER_CRITICAL()													\
 {																				\
-extern volatile uint16_t usCriticalNesting;								\
+extern volatile uint16_t usCriticalNesting;										\
 																				\
 	portDISABLE_INTERRUPTS();													\
 																				\
@@ -141,7 +141,7 @@ extern volatile uint16_t usCriticalNesting;								\
 
 #define portEXIT_CRITICAL()														\
 {																				\
-extern volatile uint16_t usCriticalNesting;								\
+extern volatile uint16_t usCriticalNesting;										\
 																				\
 	if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )					\
 	{																			\

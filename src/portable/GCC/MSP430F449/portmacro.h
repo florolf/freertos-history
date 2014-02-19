@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.0.0:rc2 - Copyright (C) 2014 Real Time Engineers Ltd.
+    FreeRTOS V8.0.0 - Copyright (C) 2014 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -104,7 +104,7 @@ typedef unsigned short UBaseType_t;
 
 /* Interrupt control macros. */
 #define portDISABLE_INTERRUPTS()	asm volatile ( "DINT" ); asm volatile ( "NOP" )
-#define portENABLE_INTERRUPTS()		asm volatile ( "EINT" )
+#define portENABLE_INTERRUPTS()		asm volatile ( "EINT" ); asm volatile ( "NOP" )
 /*-----------------------------------------------------------*/
 
 /* Critical section control macros. */
