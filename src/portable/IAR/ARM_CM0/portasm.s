@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V8.2.3 - Copyright (C) 2015 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0rc2 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -149,6 +149,7 @@ vPortStartFirstTask
 	msr psp, r0				/* This is now the new top of stack to use in the task. */
 	movs r0, #2				/* Switch to the psp stack. */
 	msr CONTROL, r0
+	isb
 	pop {r0-r5}				/* Pop the registers that are saved automatically. */
 	mov lr, r5				/* lr is now in r5. */
 	cpsie i					/* The first task has its context and interrupts can be enabled. */
