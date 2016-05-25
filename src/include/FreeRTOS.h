@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V9.0.0rc2 - Copyright (C) 2016 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -103,6 +103,15 @@ extern "C" {
 /* Definitions specific to the port being used. */
 #include "portable.h"
 
+/* Must be defaulted before configUSE_NEWLIB_REENTRANT is used below. */
+#ifndef configUSE_NEWLIB_REENTRANT
+	#define configUSE_NEWLIB_REENTRANT 0
+#endif
+
+/* Required if struct _reent is used. */
+#if ( configUSE_NEWLIB_REENTRANT == 1 )
+	#include <reent.h>
+#endif
 /*
  * Check all the required application specific macros have been defined.
  * These macros are application specific and (as downloaded) are defined
@@ -181,8 +190,8 @@ extern "C" {
 	#define INCLUDE_xSemaphoreGetMutexHolder INCLUDE_xQueueGetMutexHolder
 #endif
 
-#ifndef INCLUDE_xTaskGetTaskHandle
-	#define INCLUDE_xTaskGetTaskHandle 0
+#ifndef INCLUDE_xTaskGetHandle
+	#define INCLUDE_xTaskGetHandle 0
 #endif
 
 #ifndef INCLUDE_uxTaskGetStackHighWaterMark
@@ -723,10 +732,6 @@ extern "C" {
 	#define configINCLUDE_APPLICATION_DEFINED_PRIVILEGED_FUNCTIONS 0
 #endif
 
-#ifndef configUSE_NEWLIB_REENTRANT
-	#define configUSE_NEWLIB_REENTRANT 0
-#endif
-
 #ifndef configUSE_STATS_FORMATTING_FUNCTIONS
 	#define configUSE_STATS_FORMATTING_FUNCTIONS 0
 #endif
@@ -784,10 +789,6 @@ extern "C" {
 	#endif /* INCLUDE_vTaskSuspend */
 #endif /* configUSE_TICKLESS_IDLE */
 
-#if( ( portUSING_MPU_WRAPPERS == 1 ) && ( configSUPPORT_STATIC_ALLOCATION != 1 ) )
-	#error configSUPPORT_STATIC_ALLOCATION must be set to 1 in FreeRTOSConfig.h when the MPU is used.
-#endif
-
 #if( ( configSUPPORT_STATIC_ALLOCATION == 0 ) && ( configSUPPORT_DYNAMIC_ALLOCATION == 0 ) )
 	#error configSUPPORT_STATIC_ALLOCATION and configSUPPORT_DYNAMIC_ALLOCATION cannot both be 0, but can both be 1.
 #endif
@@ -837,6 +838,8 @@ V8 if desired. */
 	#define portTICK_RATE_MS portTICK_PERIOD_MS
 	#define pcTaskGetTaskName pcTaskGetName
 	#define pcTimerGetTimerName pcTimerGetName
+	#define pcQueueGetQueueName pcQueueGetName
+	#define vTaskGetTaskInfo vTaskGetInfo
 
 	/* Backward compatibility within the scheduler code only - these definitions
 	are not really required but are included for completeness. */

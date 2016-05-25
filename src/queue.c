@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V9.0.0rc2 - Copyright (C) 2016 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -251,7 +251,9 @@ static void prvInitialiseNewQueue( const UBaseType_t uxQueueLength, const UBaseT
  * queue is created, then prvInitialiseMutex() is called to configure the queue
  * as a mutex.
  */
-static void prvInitialiseMutex( Queue_t *pxNewQueue );
+#if( configUSE_MUTEXES == 1 )
+	static void prvInitialiseMutex( Queue_t *pxNewQueue ) PRIVILEGED_FUNCTION;
+#endif
 
 /*-----------------------------------------------------------*/
 
@@ -469,30 +471,34 @@ static void prvInitialiseNewQueue( const UBaseType_t uxQueueLength, const UBaseT
 }
 /*-----------------------------------------------------------*/
 
-static void prvInitialiseMutex( Queue_t *pxNewQueue )
-{
-	if( pxNewQueue != NULL )
+#if( configUSE_MUTEXES == 1 )
+
+	static void prvInitialiseMutex( Queue_t *pxNewQueue )
 	{
-		/* The queue create function will set all the queue structure members
-		correctly for a generic queue, but this function is creating a
-		mutex.  Overwrite those members that need to be set differently -
-		in particular the information required for priority inheritance. */
-		pxNewQueue->pxMutexHolder = NULL;
-		pxNewQueue->uxQueueType = queueQUEUE_IS_MUTEX;
+		if( pxNewQueue != NULL )
+		{
+			/* The queue create function will set all the queue structure members
+			correctly for a generic queue, but this function is creating a
+			mutex.  Overwrite those members that need to be set differently -
+			in particular the information required for priority inheritance. */
+			pxNewQueue->pxMutexHolder = NULL;
+			pxNewQueue->uxQueueType = queueQUEUE_IS_MUTEX;
 
-		/* In case this is a recursive mutex. */
-		pxNewQueue->u.uxRecursiveCallCount = 0;
+			/* In case this is a recursive mutex. */
+			pxNewQueue->u.uxRecursiveCallCount = 0;
 
-		traceCREATE_MUTEX( pxNewQueue );
+			traceCREATE_MUTEX( pxNewQueue );
 
-		/* Start with the semaphore in the expected state. */
-		( void ) xQueueGenericSend( pxNewQueue, NULL, ( TickType_t ) 0U, queueSEND_TO_BACK );
+			/* Start with the semaphore in the expected state. */
+			( void ) xQueueGenericSend( pxNewQueue, NULL, ( TickType_t ) 0U, queueSEND_TO_BACK );
+		}
+		else
+		{
+			traceCREATE_MUTEX_FAILED();
+		}
 	}
-	else
-	{
-		traceCREATE_MUTEX_FAILED();
-	}
-}
+
+#endif /* configUSE_MUTEXES */
 /*-----------------------------------------------------------*/
 
 #if( ( configUSE_MUTEXES == 1 ) && ( configSUPPORT_DYNAMIC_ALLOCATION == 1 ) )
@@ -1046,7 +1052,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 			{
 				/* Increment the lock count so the task that unlocks the queue
 				knows that data was posted while it was locked. */
-				pxQueue->cTxLock = cTxLock + 1;
+				pxQueue->cTxLock = ( int8_t ) ( cTxLock + 1 );
 			}
 
 			xReturn = pdPASS;
@@ -1211,7 +1217,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 			{
 				/* Increment the lock count so the task that unlocks the queue
 				knows that data was posted while it was locked. */
-				pxQueue->cTxLock = cTxLock + 1;
+				pxQueue->cTxLock = ( int8_t ) ( cTxLock + 1 );
 			}
 
 			xReturn = pdPASS;
@@ -1499,7 +1505,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 			{
 				/* Increment the lock count so the task that unlocks the queue
 				knows that data was removed while it was locked. */
-				pxQueue->cRxLock = cRxLock + 1;
+				pxQueue->cRxLock = ( int8_t ) ( cRxLock + 1 );
 			}
 
 			xReturn = pdPASS;
@@ -1647,6 +1653,12 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 		{
 			mtCOVERAGE_TEST_MARKER();
 		}
+	}
+	#else
+	{
+		/* The queue must have been statically allocated, so is not going to be
+		deleted.  Avoid compiler warnings about the unused parameter. */
+		( void ) pxQueue;
 	}
 	#endif /* configSUPPORT_DYNAMIC_ALLOCATION */
 }
@@ -2528,7 +2540,7 @@ BaseType_t xReturn;
 			}
 			else
 			{
-				pxQueueSetContainer->cTxLock = cTxLock + 1;
+				pxQueueSetContainer->cTxLock = ( int8_t ) ( cTxLock + 1 );
 			}
 		}
 		else
